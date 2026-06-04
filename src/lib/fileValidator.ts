@@ -1,0 +1,178 @@
+import { fromBuffer as fileTypeFromBuffer } from 'file-type';
+
+/**
+ * SECURITY: Валидация файла по magic bytes (реальному содержимому)
+ * Защита от загрузки вредоносных файлов с подменённым расширением
+ */
+export async function validateFileType(buffer: Buffer, declaredMimeType: string): Promise<{
+  valid: boolean;
+  actualMimeType?: string;
+  error?: string;
+}> {
+  try {
+    // Проверяем реальный MIME тип по magic bytes
+    const fileType = await fileTypeFromBuffer(buffer);
+    
+    if (!fileType) {
+      // Файл не распознан - разрешаем только текстовые файлы
+      const textMimeTypes = [
+        'text/plain',
+        'text/html',
+        'text/css',
+        'text/javascript',
+        'application/json',
+        'application/xml',
+        'text/csv',
+      ];
+      
+      if (textMimeTypes.includes(declaredMimeType)) {
+        return { valid: true };
+      }
+      
+      return { 
+        valid: false, 
+        error: 'Не удалось определить тип файла. Возможно, файл повреждён.' 
+      };
+    }
+    
+    // Нормализуем MIME типы (убираем параметры)
+    const normalizedDeclared = declaredMimeType.split(';')[0].trim().toLowerCase();
+    const normalizedActual = fileType.mime.toLowerCase();
+    
+    // Проверяем соответствие
+    if (normalizedDeclared !== normalizedActual) {
+      // Разрешаем некоторые совместимые типы
+      const compatibleTypes: Record<string, string[]> = {
+        'image/jpeg': ['image/jpg'],
+        'image/jpg': ['image/jpeg'],
+        'audio/mpeg': ['audio/mp3'],
+        'audio/mp3': ['audio/mpeg'],
+        'audio/ogg': ['audio/opus', 'audio/webm', 'application/ogg'],
+        'audio/opus': ['audio/ogg', 'audio/webm', 'application/ogg'],
+        'audio/webm': ['audio/ogg', 'audio/opus', 'video/webm'],
+        'audio/mp4': ['audio/x-m4a', 'audio/aac', 'video/mp4'],
+        'audio/x-m4a': ['audio/mp4', 'audio/aac'],
+        'audio/aac': ['audio/mp4', 'audio/x-m4a'],
+        'video/quicktime': ['video/mov'],
+        'video/mov': ['video/quicktime'],
+        'video/webm': ['audio/webm'],
+      };
+      
+      const compatible = compatibleTypes[normalizedActual]?.includes(normalizedDeclared) ||
+                        compatibleTypes[normalizedDeclared]?.includes(normalizedActual);
+      
+      if (!compatible) {
+        return {
+          valid: false,
+          actualMimeType: normalizedActual,
+          error: `Тип файла не совпадает: заявлен ${normalizedDeclared}, обнаружен ${normalizedActual}`,
+        };
+      }
+    }
+    
+    // Проверяем, что тип файла разрешён
+    const allowedMimeTypes = [
+      // Изображения
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp',
+      // Видео
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska',
+      // Аудио
+      'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/wav', 'audio/webm', 'audio/aac', 'audio/mp4', 'audio/x-m4a', 'application/ogg',
+      // Документы
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      // Архивы
+      'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed',
+      // Текст
+      'text/plain', 'text/html', 'text/css', 'text/javascript', 'application/json',
+    ];
+    
+    if (!allowedMimeTypes.includes(normalizedActual)) {
+      return {
+        valid: false,
+        actualMimeType: normalizedActual,
+        error: `Тип файла не разрешён: ${normalizedActual}`,
+      };
+    }
+    
+    return { valid: true, actualMimeType: normalizedActual };
+  } catch (error: any) {
+    console.error('[FILE_VALIDATOR] Error:', error);
+    return { valid: false, error: 'Ошибка проверки файла' };
+  }
+}
+
+/**
+ * SECURITY: Проверка размера файла
+ */
+export function validateFileSize(size: number, mimeType: string): { valid: boolean; error?: string } {
+  const maxSizes: Record<string, number> = {
+    'image': 10 * 1024 * 1024, // 10 MB
+    'video': 100 * 1024 * 1024, // 100 MB
+    'audio': 20 * 1024 * 1024, // 20 MB
+    'document': 50 * 1024 * 1024, // 50 MB
+    'default': 20 * 1024 * 1024, // 20 MB
+  };
+  
+  const category = mimeType.split('/')[0];
+  const maxSize = maxSizes[category] || maxSizes['default'];
+  
+  if (size > maxSize) {
+    return {
+      valid: false,
+      error: `Файл слишком большой. Максимум: ${Math.round(maxSize / 1024 / 1024)} MB`,
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * SECURITY: Проверка общего размера загрузки
+ */
+export function validateTotalUploadSize(files: { size: number }[]): { valid: boolean; error?: string } {
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  const maxTotalSize = 200 * 1024 * 1024; // 200 MB за один запрос
+  
+  if (totalSize > maxTotalSize) {
+    return {
+      valid: false,
+      error: `Общий размер файлов слишком большой. Максимум: 200 MB за раз`,
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * SECURITY: Санитизация имени файла
+ */
+export function sanitizeFilename(filename: string): string {
+  // Удаляем путь (защита от path traversal)
+  let sanitized = filename.replace(/^.*[\\\/]/, '');
+  
+  // Удаляем опасные символы
+  sanitized = sanitized.replace(/[<>:"|?*\x00-\x1f]/g, '_');
+  
+  // Ограничиваем длину
+  if (sanitized.length > 255) {
+    const ext = sanitized.split('.').pop();
+    const name = sanitized.substring(0, 255 - (ext ? ext.length + 1 : 0));
+    sanitized = ext ? `${name}.${ext}` : name;
+  }
+  
+  // Предотвращаем двойные расширения (.pdf.exe)
+  const parts = sanitized.split('.');
+  if (parts.length > 2) {
+    const ext = parts.pop();
+    const name = parts.join('_');
+    sanitized = `${name}.${ext}`;
+  }
+  
+  return sanitized;
+}

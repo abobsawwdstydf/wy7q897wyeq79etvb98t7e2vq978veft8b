@@ -2230,8 +2230,9 @@ model DeviceToken {
   id           String   @id @default(uuid())
   token        String   @unique
   userId       String?  // Заполняется после подтверждения
-  status       String   @default("pending") // "pending", "confirmed", "denied", "expired"
+  status       String   @default("pending") // "pending", "scanned", "confirmed", "denied", "expired"
   createdAt    DateTime @default(now())
+  scannedAt    DateTime?
   confirmedAt  DateTime?
   confirmedBy  String?  // ID пользователя, который подтвердил
 

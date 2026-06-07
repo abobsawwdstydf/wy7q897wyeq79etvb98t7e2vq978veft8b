@@ -422,7 +422,29 @@ router.post('/device/init', async (req, res) => {
   }
 });
 
-// Проверка статуса device token (polling с устройства, которое сканирует QR)
+// Помечаем, что QR был отсканирован (вызывается со страницы подтверждения, когда она открылась)
+router.post('/device/scan', async (req, res) => {
+  try {
+    const { device } = req.body;
+
+    if (!device || typeof device !== 'string') {
+      res.status(400).json({ error: 'device обязателен' });
+      return;
+    }
+
+    await prisma.deviceToken.updateMany({
+      where: { token: device, status: 'pending' },
+      data: { status: 'scanned', scannedAt: new Date() },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Device scan error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Проверка статуса device token (polling с устройства, которое сканирует QR, и с QR-страницы)
 router.get('/device/check', async (req, res) => {
   try {
     const { device } = req.query;
@@ -461,22 +483,31 @@ router.get('/device/check', async (req, res) => {
         { expiresIn: `${config.sessionTimeoutHours}h` }
       );
 
-      // Удаляем использованный device token
-      await prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
+      // Удаляем использованный device token через 30 секунд, чтобы QR-страница тоже успела увидеть подтверждение
+      setTimeout(() => {
+        prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
+      }, 30000);
 
-      res.json({ confirmed: true, token: jwtToken, user });
+      res.json({ confirmed: true, token: jwtToken, user, scanned: true });
       return;
     }
 
     if (deviceToken.status === 'denied') {
-      // Удаляем отклонённый token
-      await prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
-      res.json({ confirmed: false, denied: true });
+      // Удаляем отклонённый token через 30 секунд
+      setTimeout(() => {
+        prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
+      }, 30000);
+      res.json({ confirmed: false, denied: true, scanned: !!deviceToken.scannedAt });
       return;
     }
 
-    // Статус pending
-    res.json({ confirmed: false, denied: false, pending: true });
+    // Статус pending или scanned
+    res.json({
+      confirmed: false,
+      denied: false,
+      pending: true,
+      scanned: deviceToken.status === 'scanned' || !!deviceToken.scannedAt,
+    });
   } catch (error) {
     console.error('Device check error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });

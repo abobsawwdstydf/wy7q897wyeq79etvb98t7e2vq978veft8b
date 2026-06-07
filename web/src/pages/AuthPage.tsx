@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
-import { Eye, EyeOff, ArrowRight, ArrowLeft, Camera, Check, QrCode, Smartphone, Lock, User, Calendar, FileText, Image, Phone, AtSign, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, ArrowLeft, Camera, Check, QrCode, Smartphone, Lock, User, Calendar, FileText, Image, Phone, AtSign, Loader2, X } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import { playKeyboardSound } from '../lib/sounds';
 import QRCode from '../lib/qrcode';
+import { useResponsive } from '../hooks/useResponsive';
 
 import { AuthShell, AuthCard, AuthLogo, AuthTitle, AuthGrid, authPrimaryButtonStyle } from '../components/AuthShell';
 
@@ -42,6 +43,7 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const { isMobile } = useResponsive();
 
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -265,6 +267,8 @@ export default function AuthPage() {
   const [deviceToken] = useState(() => generateDeviceToken());
   const deviceLink = `${window.location.origin}/device?device=${deviceToken}`;
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [qrStatus, setQrStatus] = useState<'waiting' | 'scanned' | 'confirmed' | 'denied' | 'expired'>('waiting');
+  const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (mode === 'landing' || mode === 'login-qr') {
@@ -311,6 +315,60 @@ export default function AuthPage() {
       }
     }
   }, [mode, deviceLink, deviceToken]);
+
+  // Polling for QR login confirmation
+  useEffect(() => {
+    if (mode !== 'landing' && mode !== 'login-qr') return;
+    if (token && user) return;
+
+    const startedAt = Date.now();
+    const ttl = 5 * 60 * 1000;
+
+    const stopPolling = () => {
+      if (qrPollRef.current) {
+        clearInterval(qrPollRef.current);
+        qrPollRef.current = null;
+      }
+    };
+
+    qrPollRef.current = setInterval(async () => {
+      if (Date.now() - startedAt > ttl) {
+        setQrStatus('expired');
+        stopPolling();
+        return;
+      }
+
+      try {
+        const result: any = await api.get(`/auth/device/check?device=${deviceToken}`);
+        if (!result) return;
+
+        if (result.scanned) {
+          setQrStatus('scanned');
+        }
+
+        if (result.confirmed && result.token && result.user) {
+          stopPolling();
+          setQrStatus('confirmed');
+          try {
+            useAuthStore.getState().loginWithToken(result.token, result.user);
+          } catch (e) {
+            console.error('loginWithToken error:', e);
+          }
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1200);
+        } else if (result.denied) {
+          stopPolling();
+          setQrStatus('denied');
+        }
+      } catch {
+        // ignore network errors, continue polling
+      }
+    }, 2000);
+
+    return () => stopPolling();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, deviceToken, token, user]);
 
   if (mode === 'register-success') {
     return (
@@ -359,7 +417,7 @@ export default function AuthPage() {
 
   if (mode === 'login-qr') {
     return (
-      <AuthShell onBack={() => setMode('login-method')}>
+      <AuthShell onBack={() => { if (qrStatus === 'waiting' || qrStatus === 'expired' || qrStatus === 'denied') setMode('login-method'); }}>
         <div className="text-center max-w-sm mx-4 w-full">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -381,7 +439,13 @@ export default function AuthPage() {
                 Вход по QR-коду
               </span>
             </h2>
-            <p className="text-sm text-white/40 mb-7">Отсканируйте код на другом устройстве</p>
+            <p className="text-sm text-white/40 mb-7">
+              {qrStatus === 'confirmed' ? 'Вход подтверждён' :
+               qrStatus === 'scanned' ? 'QR-код отсканирован' :
+               qrStatus === 'denied' ? 'Вход отклонён' :
+               qrStatus === 'expired' ? 'Ссылка истекла' :
+               'Отсканируйте код на другом устройстве'}
+            </p>
           </motion.div>
 
           <motion.div
@@ -390,61 +454,89 @@ export default function AuthPage() {
             transition={{ delay: 0.2, duration: 0.6, type: 'spring', bounce: 0.3 }}
             className="relative mb-6 mx-auto inline-block"
           >
-            <div className="absolute -inset-[3px] rounded-[1.7rem] overflow-hidden">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-[-50%]"
-                style={{
-                  background: 'conic-gradient(from 0deg, #6366f1, #8b5cf6, #a855f7, #ec4899, #f59e0b, #10b981, #06b6d4, #6366f1)',
-                }}
-              />
-            </div>
-            <motion.div
-              animate={{ scale: [1, 1.05, 1], opacity: [0.25, 0.45, 0.25] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute -inset-2 rounded-[1.7rem] bg-gradient-to-r from-[#6366f1] via-[#8b5cf6] to-[#a855f7] blur-xl"
-            />
             <div
-              className="relative bg-white rounded-[1.5rem] p-5"
-              style={{ boxShadow: '0 0 40px rgba(99,102,241,0.25), 0 20px 60px rgba(0,0,0,0.5)' }}
+              className="relative rounded-xl overflow-hidden"
+              style={{
+                boxShadow: qrStatus === 'confirmed'
+                  ? '0 0 0 2px rgba(16,185,129,0.7), 0 0 30px rgba(16,185,129,0.4)'
+                  : qrStatus === 'denied'
+                    ? '0 0 0 2px rgba(239,68,68,0.7), 0 0 30px rgba(239,68,68,0.4)'
+                    : qrStatus === 'scanned'
+                      ? '0 0 0 2px rgba(168,85,247,0.7), 0 0 30px rgba(168,85,247,0.4)'
+                      : '0 0 0 2px rgba(99,102,241,0.6), 0 0 20px rgba(99,102,241,0.3)',
+                transition: 'box-shadow 0.4s ease',
+              }}
             >
-              <div className="absolute inset-0 rounded-[1.5rem] overflow-hidden pointer-events-none">
-                <motion.div
-                  animate={{ x: ['-100%', '100%'] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 1 }}
-                  className="absolute inset-y-0 w-1/3"
-                  style={{
-                    background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.15) 50%, transparent 100%)',
-                  }}
-                />
-              </div>
-              {qrCodeUrl ? (
-                <img
-                  src={qrCodeUrl}
-                  alt="QR Code"
-                  className="relative w-60 h-60 mx-auto rounded-xl block"
-                  style={{ imageRendering: 'pixelated' }}
-                />
+              {qrStatus === 'confirmed' ? (
+                <div
+                  className="w-60 h-60 flex flex-col items-center justify-center"
+                  style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.25) 0%, rgba(16,185,129,0.05) 70%)' }}
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', bounce: 0.5 }}
+                    className="w-20 h-20 rounded-full bg-emerald-500/30 flex items-center justify-center mb-3"
+                    style={{ boxShadow: '0 0 40px rgba(16,185,129,0.5)' }}
+                  >
+                    <Check size={48} className="text-emerald-300" strokeWidth={2.5} />
+                  </motion.div>
+                  <p className="text-emerald-300 text-sm font-semibold">Вход выполнен</p>
+                </div>
+              ) : qrStatus === 'denied' ? (
+                <div
+                  className="w-60 h-60 flex flex-col items-center justify-center"
+                  style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.25) 0%, rgba(239,68,68,0.05) 70%)' }}
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', bounce: 0.5 }}
+                    className="w-20 h-20 rounded-full bg-red-500/30 flex items-center justify-center mb-3"
+                    style={{ boxShadow: '0 0 40px rgba(239,68,68,0.5)' }}
+                  >
+                    <X size={48} className="text-red-300" strokeWidth={2.5} />
+                  </motion.div>
+                  <p className="text-red-300 text-sm font-semibold">Отклонено</p>
+                </div>
+              ) : qrStatus === 'expired' ? (
+                <div
+                  className="w-60 h-60 flex flex-col items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                >
+                  <X size={48} className="text-white/40 mb-3" />
+                  <p className="text-white/50 text-sm font-medium">Время вышло</p>
+                </div>
+              ) : qrCodeUrl ? (
+                <div className="relative">
+                  <img
+                    src={qrCodeUrl}
+                    alt="QR Code"
+                    className="w-60 h-60 block"
+                    style={{
+                      imageRendering: 'pixelated',
+                      opacity: qrStatus === 'scanned' ? 0.35 : 1,
+                      filter: qrStatus === 'scanned' ? 'blur(2px)' : 'none',
+                      transition: 'opacity 0.4s ease, filter 0.4s ease',
+                    }}
+                  />
+                  {qrStatus === 'scanned' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                        className="w-14 h-14 rounded-full border-[3px] border-white/15 border-t-purple-300 mb-2"
+                      />
+                      <p className="text-purple-200 text-sm font-semibold">Подтвердите на телефоне</p>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <div className="w-60 h-60 mx-auto bg-zinc-100 rounded-xl flex items-center justify-center">
+                <div className="w-60 h-60 bg-zinc-100 flex items-center justify-center">
                   <Loader2 size={32} className="text-zinc-400 animate-spin" />
                 </div>
               )}
             </div>
-            {[
-              'top-0 left-0 border-t-2 border-l-2 rounded-tl-lg',
-              'top-0 right-0 border-t-2 border-r-2 rounded-tr-lg',
-              'bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg',
-              'bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg',
-            ].map((cls, i) => (
-              <motion.div
-                key={i}
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
-                className={`absolute w-5 h-5 border-white ${cls}`}
-              />
-            ))}
           </motion.div>
 
           <motion.div
@@ -453,25 +545,62 @@ export default function AuthPage() {
             transition={{ delay: 0.4, duration: 0.4 }}
           >
             <div className="flex items-center justify-center gap-2 mb-3">
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
-              />
-              <p className="text-xs text-white/50 font-medium">Ожидание сканирования</p>
+              {qrStatus === 'waiting' && (
+                <>
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+                  />
+                  <p className="text-xs text-white/50 font-medium">Ожидание сканирования</p>
+                </>
+              )}
+              {qrStatus === 'scanned' && (
+                <>
+                  <motion.div
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.8)]"
+                  />
+                  <p className="text-xs text-purple-300 font-medium">Ожидание подтверждения...</p>
+                </>
+              )}
+              {qrStatus === 'confirmed' && (
+                <p className="text-xs text-emerald-300 font-semibold">Перенаправление в мессенджер...</p>
+              )}
+              {qrStatus === 'denied' && (
+                <p className="text-xs text-red-300 font-medium">Вход был отклонён на другом устройстве</p>
+              )}
+              {qrStatus === 'expired' && (
+                <p className="text-xs text-white/40 font-medium">Ссылка действительна 5 минут</p>
+              )}
             </div>
-            <p className="text-[11px] text-white/30 mb-3">Или перейдите по ссылке</p>
-            <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 backdrop-blur-xl">
-              <code className="text-[11px] text-white/60 flex-1 truncate font-mono">{deviceLink}</code>
+
+            {(qrStatus === 'waiting' || qrStatus === 'scanned') && (
+              <>
+                <p className="text-[11px] text-white/30 mb-3">Или перейдите по ссылке</p>
+                <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 backdrop-blur-xl">
+                  <code className="text-[11px] text-white/60 flex-1 truncate font-mono">{deviceLink}</code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(deviceLink);
+                    }}
+                    className="text-[#818cf8] hover:text-[#a5b4fc] text-xs font-semibold whitespace-nowrap transition-colors"
+                  >
+                    Копировать
+                  </button>
+                </div>
+              </>
+            )}
+
+            {(qrStatus === 'denied' || qrStatus === 'expired') && (
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(deviceLink);
-                }}
-                className="text-[#818cf8] hover:text-[#a5b4fc] text-xs font-semibold whitespace-nowrap transition-colors"
+                onClick={() => window.location.reload()}
+                className="mt-2 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] transition-opacity hover:opacity-90"
               >
-                Копировать
+                Попробовать снова
               </button>
-            </div>
+            )}
           </motion.div>
         </div>
       </AuthShell>
@@ -789,87 +918,109 @@ export default function AuthPage() {
               Безопасный мессенджер нового поколения
             </motion.p>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.6, duration: 0.6, type: 'spring', bounce: 0.3 }}
-              className="relative mb-5 mx-auto inline-block"
-            >
-              <div className="absolute -inset-[3px] rounded-3xl overflow-hidden">
+            {!isMobile && (
+              <>
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-[-50%]"
-                  style={{
-                    background: 'conic-gradient(from 0deg, #6366f1, #8b5cf6, #a855f7, #ec4899, #f59e0b, #10b981, #06b6d4, #6366f1)',
-                  }}
-                />
-              </div>
-              <motion.div
-                animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.5, 0.3] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-[#6366f1] via-[#8b5cf6] to-[#a855f7] blur-xl"
-              />
-              <div
-                className="relative bg-white rounded-[1.4rem] p-4"
-                style={{ boxShadow: '0 0 40px rgba(99,102,241,0.25), 0 20px 60px rgba(0,0,0,0.5)' }}
-              >
-                <div className="absolute inset-0 rounded-[1.4rem] overflow-hidden pointer-events-none">
-                  <motion.div
-                    animate={{ x: ['-100%', '100%'] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 1 }}
-                    className="absolute inset-y-0 w-1/3"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.6, duration: 0.6, type: 'spring', bounce: 0.3 }}
+                  className="relative mb-5 mx-auto inline-block"
+                >
+                  <div
+                    className="relative rounded-xl overflow-hidden"
                     style={{
-                      background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.15) 50%, transparent 100%)',
+                      boxShadow: qrStatus === 'confirmed'
+                        ? '0 0 0 2px rgba(16,185,129,0.7), 0 0 30px rgba(16,185,129,0.4)'
+                        : qrStatus === 'scanned'
+                          ? '0 0 0 2px rgba(168,85,247,0.7), 0 0 30px rgba(168,85,247,0.4)'
+                          : '0 0 0 2px rgba(99,102,241,0.6), 0 0 20px rgba(99,102,241,0.3)',
+                      transition: 'box-shadow 0.4s ease',
                     }}
-                  />
-                </div>
-                {qrCodeUrl ? (
-                  <img
-                    src={qrCodeUrl}
-                    alt="QR Code"
-                    className="relative w-56 h-56 mx-auto rounded-xl block"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                ) : (
-                  <div className="w-56 h-56 mx-auto bg-zinc-100 rounded-xl flex items-center justify-center">
-                    <Loader2 size={32} className="text-zinc-400 animate-spin" />
+                  >
+                    {qrStatus === 'confirmed' ? (
+                      <div
+                        className="w-56 h-56 flex flex-col items-center justify-center"
+                        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.25) 0%, rgba(16,185,129,0.05) 70%)' }}
+                      >
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: 'spring', bounce: 0.5 }}
+                          className="w-16 h-16 rounded-full bg-emerald-500/30 flex items-center justify-center mb-2"
+                          style={{ boxShadow: '0 0 30px rgba(16,185,129,0.5)' }}
+                        >
+                          <Check size={36} className="text-emerald-300" strokeWidth={2.5} />
+                        </motion.div>
+                        <p className="text-emerald-300 text-[13px] font-semibold">Вход выполнен</p>
+                      </div>
+                    ) : qrCodeUrl ? (
+                      <div className="relative">
+                        <img
+                          src={qrCodeUrl}
+                          alt="QR Code"
+                          className="w-56 h-56 block"
+                          style={{
+                            imageRendering: 'pixelated',
+                            opacity: qrStatus === 'scanned' ? 0.35 : 1,
+                            filter: qrStatus === 'scanned' ? 'blur(2px)' : 'none',
+                            transition: 'opacity 0.4s ease, filter 0.4s ease',
+                          }}
+                        />
+                        {qrStatus === 'scanned' && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                              className="w-12 h-12 rounded-full border-[3px] border-white/15 border-t-purple-300 mb-2"
+                            />
+                            <p className="text-purple-200 text-[12px] font-semibold">Подтвердите на телефоне</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-56 h-56 bg-zinc-100 flex items-center justify-center">
+                        <Loader2 size={32} className="text-zinc-400 animate-spin" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              {[
-                'top-0 left-0 border-t-2 border-l-2 rounded-tl-lg',
-                'top-0 right-0 border-t-2 border-r-2 rounded-tr-lg',
-                'bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg',
-                'bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg',
-              ].map((cls, i) => (
-                <motion.div
-                  key={i}
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.2 }}
-                  className={`absolute w-5 h-5 border-white ${cls}`}
-                />
-              ))}
-            </motion.div>
+                </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.5 }}
-              className="space-y-3"
-            >
-              <div className="flex items-center justify-center gap-2 text-white/70">
                 <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
-                />
-                <p className="text-[13px] font-medium">Отсканируйте QR-код для входа</p>
-              </div>
-              <p className="text-[11px] text-white/30">
-                Откройте Нексо на другом устройстве → Настройки → Устройства → Подключить
-              </p>
-            </motion.div>
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                  className="space-y-3"
+                >
+                  {qrStatus === 'waiting' && (
+                    <>
+                      <div className="flex items-center justify-center gap-2 text-white/70">
+                        <motion.div
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                          className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
+                        />
+                        <p className="text-[13px] font-medium">Отсканируйте QR-код для входа</p>
+                      </div>
+                      <p className="text-[11px] text-white/30">
+                        Откройте Нексо на другом устройстве → Настройки → Устройства → Подключить
+                      </p>
+                    </>
+                  )}
+                  {qrStatus === 'scanned' && (
+                    <p className="text-[13px] text-purple-300 font-medium">Ожидание подтверждения на телефоне...</p>
+                  )}
+                  {qrStatus === 'confirmed' && (
+                    <p className="text-[13px] text-emerald-300 font-semibold">Перенаправление в мессенджер...</p>
+                  )}
+                  {qrStatus === 'denied' && (
+                    <p className="text-[13px] text-red-300 font-medium">Вход отклонён на другом устройстве</p>
+                  )}
+                  {qrStatus === 'expired' && (
+                    <p className="text-[13px] text-white/40 font-medium">Срок действия ссылки истёк</p>
+                  )}
+                </motion.div>
+              </>
+            )}
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -883,7 +1034,7 @@ export default function AuthPage() {
                 onClick={() => setMode('login-method')}
                 className="flex-1 py-2.5 px-3 rounded-[0.9rem] bg-white/[0.04] border border-white/[0.08] text-white/70 font-medium text-[13px] transition-all duration-200 backdrop-blur-sm"
               >
-                Другие способы
+                Войти
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.02, backgroundColor: 'rgba(99,102,241,0.15)' }}
@@ -895,17 +1046,19 @@ export default function AuthPage() {
               </motion.button>
             </motion.div>
 
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2, duration: 0.5 }}
-              onClick={() => {
-                navigator.clipboard.writeText(deviceLink);
-              }}
-              className="mt-3 text-[11px] text-white/25 hover:text-white/50 transition-colors font-mono"
-            >
-              {deviceLink.slice(0, 32)}...
-            </motion.button>
+            {!isMobile && (
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2, duration: 0.5 }}
+                onClick={() => {
+                  navigator.clipboard.writeText(deviceLink);
+                }}
+                className="mt-3 text-[11px] text-white/25 hover:text-white/50 transition-colors font-mono"
+              >
+                {deviceLink.slice(0, 32)}...
+              </motion.button>
+            )}
           </motion.div>
         </div>
       </AuthShell>

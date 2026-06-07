@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, memo } from 'react';
+import { isImageCached } from '../lib/assetPreloader';
 
 interface LazyImageProps {
   src: string;
@@ -11,7 +12,18 @@ interface LazyImageProps {
 function LazyImage({ src, alt, className = '', placeholder, onLoad }: LazyImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
+  const [inCache, setInCache] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    isImageCached(src).then(hit => {
+      if (!cancelled) setInCache(hit);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
 
   useEffect(() => {
     if (!imgRef.current) return;
@@ -42,10 +54,12 @@ function LazyImage({ src, alt, className = '', placeholder, onLoad }: LazyImageP
     onLoad?.();
   };
 
+  const showSkeleton = !isLoaded && !inCache;
+
   return (
     <div ref={imgRef} className={`relative ${className}`}>
       {/* Placeholder */}
-      {!isLoaded && (
+      {showSkeleton && (
         <div
           className="absolute inset-0 bg-zinc-800 animate-pulse"
           style={{
@@ -63,10 +77,12 @@ function LazyImage({ src, alt, className = '', placeholder, onLoad }: LazyImageP
           src={src}
           alt={alt}
           className={`${className} transition-opacity duration-300 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
+            isLoaded || inCache ? 'opacity-100' : 'opacity-0'
           }`}
           onLoad={handleLoad}
-          loading="lazy"
+          loading={inCache ? 'eager' : 'lazy'}
+          decoding="async"
+          fetchPriority={inCache ? 'high' : 'auto'}
         />
       )}
     </div>

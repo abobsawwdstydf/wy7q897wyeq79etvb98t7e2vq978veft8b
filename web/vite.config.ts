@@ -11,7 +11,22 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['logo.png', 'galochcka.png', 'no_bg.png', 'offline.html'],
+      includeAssets: [
+        'logo.png',
+        'logo1.png',
+        'no_bg.png',
+        'no_bg1.png',
+        'galochcka.png',
+        'beaver-coin.png',
+        'beaver-coin.svg',
+        'favicon.ico',
+        'offline.html',
+        'sounds/abonent_nedostupen.mp3',
+        'sounds/call_sound.mp3',
+        'sounds/computer-keyboard.ogg',
+        'sounds/otpravit_musik.wav',
+        'sounds/uved_musik.mp3',
+      ],
       devOptions: {
         enabled: false,
         type: 'module',
@@ -81,7 +96,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp,avif}'],
         navigateFallback: null,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
@@ -109,6 +124,49 @@ export default defineConfig({
               expiration: {
                 maxEntries: 10,
                 maxAgeSeconds: 60 * 60 * 24 * 365
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /^\/(sounds)\/.+\.(mp3|ogg|wav|m4a|aac)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'app-sounds-cache',
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 60
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              },
+              rangeRequests: true,
+            }
+          },
+          {
+            urlPattern: /^\/(logo|logo1|no_bg|no_bg1|galochcka|beaver-coin)\.(png|svg|webp)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'app-icons-cache',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 90
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /\.(png|svg|webp|avif|jpg|jpeg)$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'app-images-cache',
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30
               },
               cacheableResponse: {
                 statuses: [0, 200]

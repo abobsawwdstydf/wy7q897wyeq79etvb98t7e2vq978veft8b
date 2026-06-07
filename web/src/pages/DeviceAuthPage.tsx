@@ -43,6 +43,9 @@ export default function DeviceAuthPage() {
         setAction('polling');
         startPolling(dt);
       }
+
+      // Сообщаем бэкенду, что QR-код был отсканирован
+      api.post('/auth/device/scan', { device: dt }).catch(() => {});
     }
 
     return () => {

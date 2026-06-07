@@ -17,6 +17,7 @@ import MusicPlayer from './components/MusicPlayer';
 import VoicePlayerBar from './components/VoicePlayerBar';
 import Sidebar from './components/Sidebar';
 import MobileBottomNav, { MobileView } from './components/MobileBottomNav';
+import FriendsBottomSheet from './components/FriendsBottomSheet';
 import { НексоLoader } from './components/LoadingStates';
 import PaymentSuccessPage from './pages/PaymentSuccessPage';
 import YooKassaInfoPage from './pages/YooKassaInfoPage';
@@ -39,6 +40,7 @@ export default function App() {
   const [hashtagTag, setHashtagTag] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+  const [mobileFriendsOpen, setMobileFriendsOpen] = useState(false);
   const currentViewRef = useRef<AppView>('chat');
 
   // Keep ref in sync with state
@@ -321,8 +323,13 @@ export default function App() {
       {/* Mobile Bottom Navigation - только на мобильном */}
       {token && user && isMobile && (
         <MobileBottomNav
-          currentView={currentView as MobileView}
+          currentView={(mobileFriendsOpen ? 'friends' : currentView) as MobileView}
           onNavigate={(view) => {
+            if (view === 'friends') {
+              setMobileFriendsOpen(true);
+              return;
+            }
+            setMobileFriendsOpen(false);
             setCurrentView(view as AppView);
           }}
           onOpenAI={() => {
@@ -336,11 +343,19 @@ export default function App() {
             window.dispatchEvent(new Event('open-new-chat'));
           }}
           onOpenProfile={() => {
+            setMobileFriendsOpen(false);
             setProfileUserId(user.id);
             setCurrentView('profile');
           }}
         />
       )}
+
+      {/* Mobile Friends Bottom Sheet */}
+      <FriendsBottomSheet
+        isOpen={mobileFriendsOpen}
+        onClose={() => setMobileFriendsOpen(false)}
+        isMobile={isMobile}
+      />
       
       <ToastContainer />
       <MusicPlayer />

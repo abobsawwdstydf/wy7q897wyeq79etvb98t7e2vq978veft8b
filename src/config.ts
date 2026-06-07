@@ -65,7 +65,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'нексо-dev-fallback-not-for-production'),
   corsOrigins: process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
-    : ['http://localhost:6023', 'http://localhost:3000', 'http://192.168.0.136:6023'],
+    : ['http://localhost:6023', 'http://localhost:3000', 'http://localhost:3001', 'http://192.168.0.136:6023', 'http://192.168.0.136:3001', 'https://nexo.cloudpub.ru'],
   uploadsDir: 'uploads',
   // Минимальная длина пароля
   minPasswordLength: 8,

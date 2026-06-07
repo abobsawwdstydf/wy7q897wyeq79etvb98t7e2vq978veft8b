@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, AtSign, Edit3, Check, Loader2, Image as ImageIcon, FileText, Link as LinkIcon, Download, ExternalLink, Play, UserPlus, UserMinus, UserCheck, Clock, PhoneIncoming, PhoneOutgoing, PhoneMissed, Pin, Hash, MessageSquare, Lock, Music, Crown, Camera, Newspaper, QrCode } from 'lucide-react';
+import { X, Calendar, AtSign, Edit3, Check, Loader2, Image as ImageIcon, FileText, Link as LinkIcon, Download, ExternalLink, Play, UserPlus, UserMinus, UserCheck, Clock, PhoneIncoming, PhoneOutgoing, PhoneMissed, Pin, Hash, MessageSquare, Lock, Music, Crown, Camera, Newspaper, QrCode, Users } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
@@ -422,12 +422,13 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
           <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm relative z-10">
             {isSelf ? t('myProfile') : t('profileTitle')}
           </h2>
-          <button
+          <motion.button
+            whileTap={{ scale: 0.92 }}
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full bg-black/20 text-zinc-400 hover:text-white hover:bg-white/10 transition-all border border-white/5 relative z-10"
           >
             <X size={18} />
-          </button>
+          </motion.button>
         </div>
 
         {isLoading ? (
@@ -542,20 +543,24 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
                   </span>
                 )}
                 {isSelf && (
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.92 }}
                     onClick={() => setIsEditingProfile(true)}
-                    className="p-2 rounded-full hover:bg-white/10 transition-colors text-zinc-400 hover:text-white"
+                    className="p-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-zinc-400 hover:text-white"
+                    title="Редактировать профиль"
                   >
-                    <Edit3 size={16} />
-                  </button>
+                    <Edit3 size={15} />
+                  </motion.button>
                 )}
                 {isSelf && profile.username && (
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.92 }}
                     onClick={() => setShowQRCode(true)}
-                    className="p-2 rounded-full hover:bg-white/10 transition-colors text-zinc-400 hover:text-white"
+                    className="p-2 rounded-full bg-gradient-to-br from-nexo-500/20 to-purple-500/20 hover:from-nexo-500/30 hover:to-purple-500/30 border border-nexo-500/30 transition-all text-nexo-300 hover:text-white shadow-lg shadow-nexo-500/10"
+                    title="Показать QR-код"
                   >
-                    <QrCode size={16} />
-                  </button>
+                    <QrCode size={15} />
+                  </motion.button>
                 )}
               </div>
 
@@ -634,73 +639,79 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
 
               {/* Action Buttons (for other users only) */}
               {!isSelf && (
-                <div className="mt-5 flex flex-col gap-3 w-full max-w-xs mx-auto">
+                <div className="mt-5 flex flex-col gap-2.5 w-full max-w-xs mx-auto">
                   {/* Message button */}
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
                     onClick={handleOpenChat}
                     disabled={isOpeningChat}
-                    className="flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-nexo-500 to-nexo-600 hover:from-nexo-600 hover:to-nexo-700 text-white transition-all text-sm font-semibold shadow-lg shadow-nexo-500/30 active:scale-[0.98]"
+                    className="flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-nexo-500/90 to-nexo-600/90 hover:from-nexo-500 hover:to-nexo-600 text-white transition-all text-sm font-semibold shadow-lg shadow-nexo-500/30 border border-white/10 backdrop-blur-sm"
                   >
                     {isOpeningChat ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
                     {t('sendMessage') || 'Написать сообщение'}
-                  </button>
+                  </motion.button>
 
                   {/* Secret Chat button */}
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => setShowSecretChatModal(true)}
-                    className="flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600/90 to-pink-600/90 hover:from-purple-600 hover:to-pink-600 text-white transition-all text-sm font-semibold shadow-lg shadow-purple-500/25 active:scale-[0.98]"
+                    className="flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600/80 to-pink-600/80 hover:from-purple-600/95 hover:to-pink-600/95 text-white transition-all text-sm font-semibold shadow-lg shadow-purple-500/25 border border-white/10 backdrop-blur-sm"
                   >
                     <Lock size={18} />
                     Секретный чат
-                  </button>
+                  </motion.button>
 
                   {/* Friend button */}
                   {friendStatus && (
-                    <div className="pt-1">
+                    <div className="pt-0.5">
                       {friendStatus.status === 'none' && (
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
                           onClick={handleSendFriendRequest}
                           disabled={friendLoading}
-                          className="w-full flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all text-sm font-semibold active:scale-[0.98]"
+                          className="w-full flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-all text-sm font-semibold backdrop-blur-sm"
                         >
                           {friendLoading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
                           {t('addFriend')}
-                        </button>
+                        </motion.button>
                       )}
                       {friendStatus.status === 'pending' && friendStatus.direction === 'outgoing' && (
-                        <div className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm font-medium">
+                        <div className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm font-medium backdrop-blur-sm">
                           <Clock size={16} />
                           {t('requestSent')}
                         </div>
                       )}
                       {friendStatus.status === 'pending' && friendStatus.direction === 'incoming' && (
-                        <div className="flex gap-3">
-                          <button
+                        <div className="flex gap-2">
+                          <motion.button
+                            whileTap={{ scale: 0.97 }}
                             onClick={handleAcceptFriend}
                             disabled={friendLoading}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 transition-all text-sm font-semibold active:scale-[0.98]"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-green-500/15 hover:bg-green-500/25 border border-green-500/25 text-green-400 transition-all text-sm font-semibold backdrop-blur-sm"
                           >
                             {friendLoading ? <Loader2 size={18} className="animate-spin" /> : <UserCheck size={18} />}
                             {t('accept')}
-                          </button>
-                          <button
+                          </motion.button>
+                          <motion.button
+                            whileTap={{ scale: 0.97 }}
                             onClick={handleRemoveFriend}
                             disabled={friendLoading}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-sm font-semibold active:scale-[0.98]"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all text-sm font-semibold backdrop-blur-sm"
                           >
                             {t('decline')}
-                          </button>
+                          </motion.button>
                         </div>
                       )}
                       {friendStatus.status === 'accepted' && (
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
                           onClick={handleRemoveFriend}
                           disabled={friendLoading}
-                          className="w-full flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all text-sm font-semibold active:scale-[0.98]"
+                          className="w-full flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all text-sm font-semibold backdrop-blur-sm"
                         >
                           {friendLoading ? <Loader2 size={18} className="animate-spin" /> : <UserMinus size={18} />}
                           {t('removeFriend')}
-                        </button>
+                        </motion.button>
                       )}
                     </div>
                   )}
@@ -1020,28 +1031,30 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
 
               {/* Кнопка прикрепления канала (только для своего профиля) */}
               {isSelf && (
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowPinModal(true)}
-                  className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-white/10 hover:border-nexo-500/50 hover:bg-nexo-500/10 transition-all group/btn"
+                  className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-white/10 hover:border-nexo-500/50 hover:bg-nexo-500/10 transition-all group/btn backdrop-blur-sm bg-white/[0.02]"
                 >
                   <Pin size={16} className="text-zinc-500 group-hover/btn:text-nexo-400 transition-colors" />
                   <span className="text-sm text-zinc-400 group-hover/btn:text-nexo-300 transition-colors">
                     {profile.pinnedChannel ? 'Изменить закреплённый канал' : 'Прикрепить канал'}
                   </span>
-                </button>
+                </motion.button>
               )}
 
               {/* Кнопка NFT инвентаря (только для своего профиля) */}
               {isSelf && (
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowNFTInventory(true)}
-                  className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-purple-500/20 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all group/btn"
+                  className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-purple-500/20 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all group/btn backdrop-blur-sm bg-white/[0.02]"
                 >
                   <span className="text-base">✨</span>
                   <span className="text-sm text-zinc-400 group-hover/btn:text-purple-300 transition-colors">
                     {equippedNFTCard ? `Надета: ${equippedNFTCard.name}` : 'Мои NFT'}
                   </span>
-                </button>
+                </motion.button>
               )}
             </div>
 
@@ -1049,8 +1062,9 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
             <div className="border-t border-white/5 bg-black/10 mt-2 backdrop-blur-md">
               <div className="flex px-2 pt-2 gap-1 overflow-x-auto no-scrollbar">
                 {tabs.map((tab) => (
-                  <button
+                  <motion.button
                     key={tab.key}
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => setActiveTab(tab.key)}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-1 text-xs font-bold transition-all rounded-t-xl min-w-[100px] ${activeTab === tab.key
                       ? 'bg-white/10 text-white shadow-[inset_0_2px_10px_rgba(255,255,255,0.05)] border-t border-x border-white/10'
@@ -1059,7 +1073,7 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
                   >
                     <tab.icon size={14} className={activeTab === tab.key ? 'text-nexo-400' : 'opacity-70'} />
                     {tab.label}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
               <div className="min-h-[160px] bg-white/[0.02] border-t border-white/5 relative">
@@ -1589,21 +1603,23 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
               </div>
 
               <div className="flex gap-3 p-4 border-t border-white/5 bg-white/5">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={handleSaveProfile}
                   disabled={isSavingProfile}
-                  className="flex-1 py-3 rounded-xl bg-nexo-500 hover:bg-nexo-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-xl bg-nexo-500/90 hover:bg-nexo-500 text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 backdrop-blur-sm border border-white/10"
                 >
                   {isSavingProfile ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
                   Сохранить
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setIsEditingProfile(false)}
                   disabled={isSavingProfile}
-                  className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium transition-all disabled:opacity-50 backdrop-blur-sm border border-white/10"
                 >
                   Отмена
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </>

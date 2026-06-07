@@ -494,4 +494,264 @@ router.post('/shared/:token/add', authenticateToken, async (req: AuthRequest, re
   }
 });
 
+// ─── DRAG-N-DROP REORDER ──────────────────────────────────────────────
+
+/**
+ * PUT /api/folders/reorder - Bulk reorder folders (drag-n-drop)
+ */
+router.put('/reorder/bulk', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { orders } = req.body; // [{ id: string, order: number }]
+
+    if (!orders || !Array.isArray(orders)) {
+      res.status(400).json({ error: 'orders array required' });
+      return;
+    }
+
+    // Verify all folders belong to user
+    const folderIds = orders.map((o: any) => o.id);
+    const existing = await prisma.chatFolder.findMany({
+      where: { id: { in: folderIds }, userId },
+      select: { id: true },
+    });
+
+    if (existing.length !== folderIds.length) {
+      res.status(403).json({ error: 'Some folders not found or not yours' });
+      return;
+    }
+
+    // Update orders in transaction
+    await prisma.$transaction(
+      orders.map((o: any) =>
+        prisma.chatFolder.update({
+          where: { id: o.id },
+          data: { order: o.order },
+        })
+      )
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reorder folders error:', error);
+    res.status(500).json({ error: 'Ошибка переупорядочивания' });
+  }
+});
+
+// ─── AUTO-FOLDERS ─────────────────────────────────────────────────────
+
+/**
+ * POST /api/folders/rules - Create an auto-folder rule
+ */
+router.post('/:id/rules', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const folderId = String(req.params.id);
+    const { type, value } = req.body;
+
+    const validTypes = ['chat_type', 'keyword', 'sender', 'media_type', 'unread'];
+    if (!type || !validTypes.includes(type)) {
+      res.status(400).json({ error: `type must be one of: ${validTypes.join(', ')}` });
+      return;
+    }
+    if (!value) {
+      res.status(400).json({ error: 'value required' });
+      return;
+    }
+
+    const folder = await prisma.chatFolder.findFirst({ where: { id: folderId, userId } });
+    if (!folder) {
+      res.status(404).json({ error: 'Папка не найдена' });
+      return;
+    }
+
+    const rule = await prisma.folderRule.create({
+      data: { folderId, userId, type, value },
+    });
+
+    res.json(rule);
+  } catch (error) {
+    console.error('Create folder rule error:', error);
+    res.status(500).json({ error: 'Ошибка создания правила' });
+  }
+});
+
+/**
+ * GET /api/folders/rules - Get all rules for user
+ */
+router.get('/rules/all', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const rules = await prisma.folderRule.findMany({
+      where: { userId },
+      include: { folder: { select: { id: true, name: true } } },
+    });
+    res.json(rules);
+  } catch (error) {
+    console.error('Get folder rules error:', error);
+    res.status(500).json({ error: 'Ошибка получения правил' });
+  }
+});
+
+/**
+ * DELETE /api/folders/rules/:ruleId - Delete a rule
+ */
+router.delete('/rules/:ruleId', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const ruleId = String(req.params.ruleId);
+
+    const rule = await prisma.folderRule.findFirst({ where: { id: ruleId, userId } });
+    if (!rule) return res.status(404).json({ error: 'Правило не найдено' });
+
+    await prisma.folderRule.delete({ where: { id: ruleId } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete folder rule error:', error);
+    res.status(500).json({ error: 'Ошибка удаления правила' });
+  }
+});
+
+/**
+ * POST /api/folders/auto-apply - Apply auto-folder rules to chats
+ */
+router.post('/auto-apply', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+
+    const rules = await prisma.folderRule.findMany({
+      where: { userId, isActive: true },
+    });
+
+    if (rules.length === 0) {
+      return res.json({ applied: 0, message: 'No rules configured' });
+    }
+
+    // Get all user's chat memberships
+    const memberships = await prisma.chatMember.findMany({
+      where: { userId },
+      select: { chatId: true },
+    });
+    const chatIds = memberships.map(m => m.chatId);
+
+    let applied = 0;
+
+    for (const rule of rules) {
+      let matchingChatIds: string[] = [];
+
+      switch (rule.type) {
+        case 'chat_type': {
+          // "group", "channel", "personal"
+          const chats = await prisma.chat.findMany({
+            where: { id: { in: chatIds }, type: rule.value },
+            select: { id: true },
+          });
+          matchingChatIds = chats.map(c => c.id);
+          break;
+        }
+        case 'keyword': {
+          // Match chat name containing keyword
+          const chats = await prisma.chat.findMany({
+            where: { id: { in: chatIds }, name: { contains: rule.value } },
+            select: { id: true },
+          });
+          matchingChatIds = chats.map(c => c.id);
+          break;
+        }
+        case 'sender': {
+          // Match chats where a specific user sent last message
+          const chats = await prisma.chat.findMany({
+            where: {
+              id: { in: chatIds },
+              members: { some: { userId: rule.value } },
+            },
+            select: { id: true },
+          });
+          matchingChatIds = chats.map(c => c.id);
+          break;
+        }
+        case 'unread': {
+          // Match chats with unread messages
+          const chats = await prisma.chat.findMany({
+            where: {
+              id: { in: chatIds },
+              members: { some: { userId, clearedAt: null } },
+            },
+            select: { id: true },
+          });
+          matchingChatIds = chats.map(c => c.id);
+          break;
+        }
+      }
+
+      // Connect matching chats to folder
+      if (matchingChatIds.length > 0) {
+        await prisma.chatFolder.update({
+          where: { id: rule.folderId },
+          data: {
+            chats: {
+              connect: matchingChatIds.map(id => ({ id })),
+            },
+          },
+        });
+        applied += matchingChatIds.length;
+      }
+    }
+
+    res.json({ applied });
+  } catch (error) {
+    console.error('Auto-apply rules error:', error);
+    res.status(500).json({ error: 'Ошибка применения правил' });
+  }
+});
+
+// ─── FOLDER SORT ORDER (for drag-n-drop persistence) ──────────────────
+
+/**
+ * PUT /api/folders/sort-order - Save folder sort order
+ */
+router.put('/sort-order', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { orders } = req.body; // [{ folderId: string, sortOrder: number }]
+
+    if (!orders || !Array.isArray(orders)) {
+      res.status(400).json({ error: 'orders array required' });
+      return;
+    }
+
+    await prisma.$transaction(
+      orders.map((o: any) =>
+        prisma.folderSortOrder.upsert({
+          where: { userId_folderId: { userId, folderId: o.folderId } },
+          create: { userId, folderId: o.folderId, sortOrder: o.sortOrder },
+          update: { sortOrder: o.sortOrder },
+        })
+      )
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Save sort order error:', error);
+    res.status(500).json({ error: 'Ошибка сохранения порядка' });
+  }
+});
+
+/**
+ * GET /api/folders/sort-order - Get folder sort order
+ */
+router.get('/sort-order', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const orders = await prisma.folderSortOrder.findMany({
+      where: { userId },
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json(orders);
+  } catch (error) {
+    console.error('Get sort order error:', error);
+    res.status(500).json({ error: 'Ошибка получения порядка' });
+  }
+});
+
 export default router;

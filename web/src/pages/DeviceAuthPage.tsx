@@ -68,8 +68,9 @@ export default function DeviceAuthPage() {
           if (pollRef.current) clearInterval(pollRef.current);
           setAction('denied');
         }
+        // else: still pending, continue polling
       } catch {
-        // ignore
+        // Token not registered yet or network error - continue polling
       }
     }, POLL_INTERVAL);
   };
@@ -90,25 +91,34 @@ export default function DeviceAuthPage() {
 
   const handleConfirm = async () => {
     setAction('confirming');
-    await new Promise((r) => setTimeout(r, 1000));
 
     if (deviceToken) {
-      localStorage.setItem(`nexo_device_${deviceToken}`, JSON.stringify({ ts: Date.now() }));
       try {
         await api.post('/auth/device/confirm', { device: deviceToken });
-      } catch {
-        // ignore
+        localStorage.setItem(`nexo_device_${deviceToken}`, JSON.stringify({ ts: Date.now() }));
+      } catch (err) {
+        console.error('Device confirm error:', err);
+        setAction('idle');
+        return;
       }
     }
 
+    await new Promise((r) => setTimeout(r, 800));
     setAction('confirmed');
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1200));
     window.location.href = '/';
   };
 
-  const handleDeny = () => {
+  const handleDeny = async () => {
     setAction('denied');
-    if (deviceToken) localStorage.removeItem(`nexo_device_${deviceToken}`);
+    if (deviceToken) {
+      localStorage.removeItem(`nexo_device_${deviceToken}`);
+      try {
+        await api.post('/auth/device/deny', { device: deviceToken });
+      } catch {
+        // ignore - UI already updated
+      }
+    }
   };
 
   const handleWelcomeDone = () => {

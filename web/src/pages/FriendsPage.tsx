@@ -5,7 +5,6 @@ import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
 import { useLang } from '../lib/i18n';
 import Avatar from '../components/Avatar';
-import MobileBottomNav from '../components/MobileBottomNav';
 import type { FriendWithId, FriendRequest } from '../lib/types';
 
 type FriendsTab = 'list' | 'requests' | 'search';
@@ -20,15 +19,6 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Определяем мобильное устройство
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
 
   /** Загрузка друзей */
   const loadFriends = () => {
@@ -133,9 +123,13 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
     <div className="h-full flex flex-col bg-[#0a0a0f]">
       {/* Header */}
       <div className="glass-strong px-4 py-3 flex items-center gap-3 flex-shrink-0">
-        <button onClick={onClose} className="glass-btn w-9 h-9 rounded-xl text-zinc-400 hover:text-white">
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={onClose}
+          className="glass-btn w-9 h-9 rounded-xl text-zinc-400 hover:text-white"
+        >
           <X size={18} />
-        </button>
+        </motion.button>
         <div className="flex items-center gap-2.5 flex-1">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center">
             <Users size={16} className="text-white" />
@@ -147,7 +141,8 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
       {/* Tabs */}
       <div className="px-4 py-2 flex-shrink-0">
         <div className="flex gap-1 p-1 rounded-2xl glass-subtle">
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => setActiveTab('list')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium transition-all duration-200 flex items-center justify-center gap-1.5 ${
               activeTab === 'list'
@@ -163,8 +158,9 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                 {friends.length > 99 ? '99+' : friends.length}
               </span>
             )}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => setActiveTab('requests')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium transition-all duration-200 flex items-center justify-center gap-1.5 ${
               activeTab === 'requests'
@@ -180,8 +176,9 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                 {(incomingRequests.length + outgoingRequests.length) > 99 ? '99+' : (incomingRequests.length + outgoingRequests.length)}
               </span>
             )}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={() => setActiveTab('search')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium transition-all duration-200 flex items-center justify-center gap-1.5 ${
               activeTab === 'search'
@@ -190,12 +187,12 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
             }`}
           >
             Поиск
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-20 sm:pb-4">
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
         <AnimatePresence mode="wait">
           {/* Список друзей */}
           {activeTab === 'list' && (
@@ -212,13 +209,14 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                     <Users size={28} className="opacity-40" />
                   </div>
                   <p className="text-sm">Список друзей пуст</p>
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setActiveTab('search')}
                     className="glass-btn px-4 py-2 rounded-xl text-xs text-nexo-400"
                   >
                     <UserPlus size={14} className="mr-1.5" />
                     Найти друзей
-                  </button>
+                  </motion.button>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -228,9 +226,9 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                       className="flex items-center gap-3 p-3 rounded-2xl glass-subtle group"
                     >
                       <div className="relative">
-                        <Avatar 
-                          src={friend.avatar} 
-                          name={friend.displayName || friend.username} 
+                        <Avatar
+                          src={friend.avatar}
+                          name={friend.displayName || friend.username}
                           size="md"
                           isVerified={friend.isVerified}
                           verifiedBadgeUrl={friend.verifiedBadgeUrl}
@@ -244,13 +242,14 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                         <p className="text-sm font-medium text-white truncate">{friend.displayName || friend.username}</p>
                         <p className="text-xs text-zinc-500">@{friend.username}</p>
                       </div>
-                      <button
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
                         onClick={() => removeFriend(friend.id)}
                         className="glass-btn w-8 h-8 rounded-xl text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                         title="Удалить друга"
                       >
                         <X size={14} />
-                      </button>
+                      </motion.button>
                     </div>
                   ))}
                 </div>
@@ -278,9 +277,9 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                   <div className="space-y-1">
                     {incomingRequests.map(req => (
                       <div key={req.id} className="flex items-center gap-3 p-3 rounded-2xl glass-subtle">
-                        <Avatar 
-                          src={req.sender?.avatar} 
-                          name={req.sender?.displayName || req.sender?.username} 
+                        <Avatar
+                          src={req.sender?.avatar}
+                          name={req.sender?.displayName || req.sender?.username}
                           size="md"
                           isVerified={req.sender?.isVerified}
                           verifiedBadgeUrl={req.sender?.verifiedBadgeUrl}
@@ -291,20 +290,22 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                           <p className="text-xs text-zinc-500">@{req.sender?.username}</p>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <button
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => acceptRequest(req.id)}
                             className="glass-btn w-8 h-8 rounded-xl text-green-400 hover:text-green-300"
                             title="Принять"
                           >
                             <Check size={14} />
-                          </button>
-                          <button
+                          </motion.button>
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
                             onClick={() => declineRequest(req.id)}
                             className="glass-btn w-8 h-8 rounded-xl text-red-400 hover:text-red-300"
                             title="Отклонить"
                           >
                             <X size={14} />
-                          </button>
+                          </motion.button>
                         </div>
                       </div>
                     ))}
@@ -329,13 +330,14 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                           <p className="text-sm font-medium text-white truncate">Запрос отправлен</p>
                           <p className="text-xs text-zinc-500">Ожидание ответа...</p>
                         </div>
-                        <button
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
                           onClick={() => cancelOutgoing(req.id)}
                           className="glass-btn w-8 h-8 rounded-xl text-zinc-500 hover:text-red-400"
                           title="Отменить"
                         >
                           <X size={14} />
-                        </button>
+                        </motion.button>
                       </div>
                     ))}
                   </div>
@@ -384,9 +386,9 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                 <div className="space-y-1">
                   {searchResults.map(u => (
                     <div key={u.id} className="flex items-center gap-3 p-3 rounded-2xl glass-subtle">
-                      <Avatar 
-                        src={u.avatar} 
-                        name={u.displayName || u.username} 
+                      <Avatar
+                        src={u.avatar}
+                        name={u.displayName || u.username}
                         size="md"
                         isVerified={u.isVerified}
                         verifiedBadgeUrl={u.verifiedBadgeUrl}
@@ -396,13 +398,14 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
                         <p className="text-sm font-medium text-white truncate">{u.displayName || u.username}</p>
                         <p className="text-xs text-zinc-500">@{u.username}</p>
                       </div>
-                      <button
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => sendRequest(u.id)}
                         className="glass-btn px-3 py-1.5 rounded-xl text-xs text-nexo-400"
                       >
                         <UserPlus size={12} className="mr-1" />
                         Добавить
-                      </button>
+                      </motion.button>
                     </div>
                   ))}
                 </div>
@@ -425,24 +428,6 @@ export default function FriendsPage({ onClose }: { onClose?: () => void }) {
           )}
         </AnimatePresence>
       </div>
-
-      {/* Mobile Bottom Navigation */}
-      {isMobile && (
-        <MobileBottomNav
-          currentView="friends"
-          onNavigate={(view) => {
-            if (view === 'friends') return;
-            // Dispatch custom event to App.tsx to handle navigation
-            if (view === 'chat') {
-              window.dispatchEvent(new Event('open-chats-page'));
-            } else if (view === 'wall') {
-              window.dispatchEvent(new Event('open-wall-page'));
-            } else if (view === 'profile') {
-              window.dispatchEvent(new Event('open-profile-page'));
-            }
-          }}
-        />
-      )}
     </div>
   );
 }

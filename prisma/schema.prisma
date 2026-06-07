@@ -639,6 +639,7 @@ model ChatFolder {
   createdAt DateTime @default(now())
   chats     Chat[]   @relation("FolderChats")
   sharedLinks SharedFolderLink[]
+  folderRules FolderRule[]
 
   @@index([userId])
 }
@@ -2219,4 +2220,373 @@ model VoiceTranscript {
 
   @@index([messageId])
   @@index([language])
+}
+
+// ============================================
+// DEVICE AUTH - QR-код вход с других устройств
+// ============================================
+
+model DeviceToken {
+  id           String   @id @default(uuid())
+  token        String   @unique
+  userId       String?  // Заполняется после подтверждения
+  status       String   @default("pending") // "pending", "confirmed", "denied", "expired"
+  createdAt    DateTime @default(now())
+  confirmedAt  DateTime?
+  confirmedBy  String?  // ID пользователя, который подтвердил
+
+  @@index([token])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================
+// FEATURE 1: PREMIUM EFFECTS
+// ============================================
+
+model PremiumEffect {
+  id             String   @id @default(uuid())
+  name           String
+  type           String   // "avatar_frame", "notification_sound", "name_effect", "message_effect"
+  url            String
+  previewUrl     String?
+  price          Int      @default(0)
+  isPremiumOnly  Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  userEffects    UserPremiumEffect[]
+
+  @@index([type])
+  @@index([isPremiumOnly])
+}
+
+model UserPremiumEffect {
+  id          String   @id @default(uuid())
+  userId      String
+  effectId    String
+  equippedAt  DateTime @default(now())
+  expiresAt   DateTime?
+  effect      PremiumEffect @relation(fields: [effectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, effectId])
+  @@index([userId])
+  @@index([effectId])
+}
+
+model UserAvatarFrame {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  frameUrl  String
+  frameType String   @default("default")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// FEATURE 2: LIVE LOCATION
+// ============================================
+
+model LiveLocation {
+  id          String   @id @default(uuid())
+  chatId      String
+  userId      String
+  latitude    Float
+  longitude   Float
+  accuracy    Float?
+  address     String?
+  expiresAt   DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([chatId])
+  @@index([userId])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+// ============================================
+// FEATURE 4: PRIVATE MEDIA (one-time view)
+// ============================================
+
+model PrivateMedia {
+  id            String   @id @default(uuid())
+  messageId     String   @unique
+  chatId        String
+  senderId      String
+  mediaUrl      String
+  mediaType     String   // "photo", "video", "voice", "file"
+  viewLimit     Int      @default(1)
+  viewCount     Int      @default(0)
+  isScreenshotBlocked Boolean @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  viewers       PrivateMediaView[]
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([expiresAt])
+}
+
+model PrivateMediaView {
+  id            String   @id @default(uuid())
+  privateMediaId String
+  userId        String
+  viewedAt      DateTime @default(now())
+  privateMedia  PrivateMedia @relation(fields: [privateMediaId], references: [id], onDelete: Cascade)
+
+  @@unique([privateMediaId, userId])
+  @@index([privateMediaId])
+  @@index([userId])
+}
+
+// ============================================
+// FEATURE 5: SCREEN SHARE in Voice Rooms
+// ============================================
+
+model ScreenShare {
+  id            String   @id @default(uuid())
+  roomId        String
+  userId        String
+  streamUrl     String?
+  isScreenShare Boolean  @default(true)
+  isPaused      Boolean  @default(false)
+  startedAt     DateTime @default(now())
+  endedAt       DateTime?
+
+  @@index([roomId])
+  @@index([userId])
+  @@index([isScreenShare])
+}
+
+// ============================================
+// FEATURE 7: WIDGETS / PLUGINS
+// ============================================
+
+model Widget {
+  id          String   @id @default(uuid())
+  creatorId   String
+  name        String
+  description String?
+  type        String   // "weather", "crypto", "calculator", "news", "games", "custom"
+  config      String   @default("{}") // JSON config
+  dataUrl     String?
+  iconUrl     String?
+  isPublic    Boolean  @default(true)
+  isPremium   Boolean  @default(false)
+  installCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  installations WidgetInstallation[]
+
+  @@index([creatorId])
+  @@index([type])
+  @@index([isPublic])
+  @@index([installCount])
+}
+
+model WidgetInstallation {
+  id        String   @id @default(uuid())
+  widgetId  String
+  userId    String
+  chatId    String?
+  position  Int      @default(0)
+  config    String   @default("{}")
+  isActive  Boolean  @default(true)
+  installedAt DateTime @default(now())
+
+  widget    Widget   @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+
+  @@unique([widgetId, userId])
+  @@index([userId])
+  @@index([widgetId])
+}
+
+model Plugin {
+  id          String   @id @default(uuid())
+  creatorId   String
+  name        String
+  description String?
+  version     String   @default("1.0.0")
+  type        String   @default("bot") // "bot", "extension", "integration"
+  webhookUrl  String?
+  config      String   @default("{}")
+  iconUrl     String?
+  isPublic    Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+  installCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  installations PluginInstallation[]
+  botCommands    PluginBotCommand[]
+
+  @@index([creatorId])
+  @@index([type])
+  @@index([isPublic])
+}
+
+model PluginInstallation {
+  id        String   @id @default(uuid())
+  pluginId  String
+  userId    String
+  chatId    String?
+  isActive  Boolean  @default(true)
+  installedAt DateTime @default(now())
+
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, userId])
+  @@index([userId])
+  @@index([pluginId])
+}
+
+model PluginBotCommand {
+  id        String   @id @default(uuid())
+  pluginId  String
+  command   String
+  response  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, command])
+  @@index([pluginId])
+  @@index([command])
+}
+
+// ============================================
+// FEATURE 8: STORY POLLS (reactions as polls)
+// ============================================
+
+model StoryPoll {
+  id          String   @id @default(uuid())
+  storyId     String   @unique
+  question    String
+  isAnonymous Boolean  @default(false)
+  endsAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  options     StoryPollOption[]
+
+  @@index([storyId])
+}
+
+model StoryPollOption {
+  id        String   @id @default(uuid())
+  pollId    String
+  text      String
+  color     String?
+  order     Int      @default(0)
+  votes     StoryPollVote[]
+  poll      StoryPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@index([pollId])
+}
+
+model StoryPollVote {
+  id        String   @id @default(uuid())
+  optionId  String
+  userId    String
+  createdAt DateTime @default(now())
+  option    StoryPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([optionId])
+  @@index([userId])
+}
+
+// ============================================
+// FEATURE 9: CHANNEL THREADS
+// ============================================
+
+model ChannelThread {
+  id          String   @id @default(uuid())
+  channelId   String
+  creatorId   String
+  title       String
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  messageCount Int     @default(0)
+  lastMessageAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    ChannelThreadMessage[]
+
+  @@index([channelId])
+  @@index([creatorId])
+  @@index([isPinned])
+  @@index([lastMessageAt])
+}
+
+model ChannelThreadMessage {
+  id        String   @id @default(uuid())
+  threadId  String
+  senderId  String
+  content   String?
+  createdAt DateTime @default(now())
+
+  thread    ChannelThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ============================================
+// FEATURE 10: DO NOT DISTURB
+// ============================================
+
+model DoNotDisturb {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  isEnabled     Boolean  @default(false)
+  startHour     Int      @default(22) // 0-23
+  startMinute   Int      @default(0)  // 0-59
+  endHour       Int      @default(8)  // 0-23
+  endMinute     Int      @default(0)  // 0-59
+  weekdays      String   @default("1,2,3,4,5,6,7") // comma-separated: 1=Mon..7=Sun
+  allowCalls    Boolean  @default(false)
+  allowFriends  Boolean  @default(false)
+  customMessage String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// FEATURE 11: ENHANCED FOLDERS (auto-folders, drag-n-drop)
+// ============================================
+
+model FolderRule {
+  id          String   @id @default(uuid())
+  folderId    String
+  userId      String
+  type        String   // "chat_type", "keyword", "sender", "media_type", "unread"
+  value       String   // e.g., "group", "keyword:work", "sender:userId"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  folder      ChatFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@index([folderId])
+  @@index([userId])
+  @@index([type])
+}
+
+model FolderSortOrder {
+  id        String   @id @default(uuid())
+  userId    String
+  folderId  String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, folderId])
+  @@index([userId])
 }

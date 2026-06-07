@@ -61,6 +61,9 @@ export interface User extends UserPresence {
   beavers?: number;
   totalSpent?: number;
   totalEarned?: number;
+  subscribersCount?: number;
+  postsCount?: number;
+  profileMusic?: string | null;
 }
 
 // ─── Premium types ─────────────────────────────────────────────────────

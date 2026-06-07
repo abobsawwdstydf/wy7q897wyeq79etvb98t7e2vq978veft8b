@@ -21,11 +21,13 @@ export function getIO(): Server {
   if (!_io) throw new Error('Socket.io not initialized');
   return _io;
 }
-export const io: Server | null = _io;
 export function setSocket(server: Server) { _io = server; }
 
 // ─── Active group calls: chatId → Set<userId> ────────────────────────
 const activeGroupCalls = new Map<string, Set<string>>();
+
+// ─── Typing auto-timeout (5 seconds) ─────────────────────────────────
+const typingTimeouts = new Map<string, NodeJS.Timeout>(); // `${chatId}:${userId}` -> timeout
 
 // ─── Socket rate limiting ────────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -147,6 +149,9 @@ export function setupSocket(io: Server) {
       onlineUsers.set(userId, new Set());
     }
     onlineUsers.get(userId)!.add(socket.id);
+
+    // Join personal room for targeted events (NFT, notifications, etc.)
+    socket.join(`user:${userId}`);
 
     try {
       // Check if user exists before updating
@@ -587,16 +592,38 @@ export function setupSocket(io: Server) {
       }
     });
 
-    // Индикатор набора текста (with membership check)
+    // Индикатор набора текста (with membership check + auto-timeout)
     socket.on('typing_start', async (chatId: string) => {
       if (!chatId || typeof chatId !== 'string') return;
       if (!(await isChatMember(chatId, userId))) return;
+
+      // Clear previous timeout for this user in this chat
+      const timeoutKey = `${chatId}:${userId}`;
+      const prev = typingTimeouts.get(timeoutKey);
+      if (prev) clearTimeout(prev);
+
+      // Auto-stop typing after 5 seconds of inactivity
+      const timeout = setTimeout(() => {
+        typingTimeouts.delete(timeoutKey);
+        socket.to(`chat:${chatId}`).emit('user_stopped_typing', { chatId, userId });
+      }, 5000);
+      typingTimeouts.set(timeoutKey, timeout);
+
       socket.to(`chat:${chatId}`).emit('user_typing', { chatId, userId });
     });
 
     socket.on('typing_stop', async (chatId: string) => {
       if (!chatId || typeof chatId !== 'string') return;
       if (!(await isChatMember(chatId, userId))) return;
+
+      // Clear auto-timeout
+      const timeoutKey = `${chatId}:${userId}`;
+      const prev = typingTimeouts.get(timeoutKey);
+      if (prev) {
+        clearTimeout(prev);
+        typingTimeouts.delete(timeoutKey);
+      }
+
       socket.to(`chat:${chatId}`).emit('user_stopped_typing', { chatId, userId });
     });
 
@@ -1202,7 +1229,7 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
     });
 
     // End call
-    socket.on('call_end', async (data: { targetUserId: string; chatId?: string; duration?: number; status?: 'completed' | 'missed' | 'declined' }) => {
+    socket.on('call_end', async (data: { targetUserId: string; chatId?: string; duration?: number; status?: 'completed' | 'missed' | 'declined'; callType?: 'voice' | 'video' }) => {
       const targetSockets = onlineUsers.get(data.targetUserId);
       if (targetSockets) {
         for (const sid of targetSockets) {
@@ -1219,7 +1246,7 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
               senderId: userId,
               type: 'call',
               content: JSON.stringify({
-                callType: 'voice',
+                callType: data.callType || 'voice',
                 callStatus: data.status || 'completed',
                 callDuration: data.duration || 0,
               }),
@@ -1600,10 +1627,10 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
     // ======= Watch Party Events =======
     
     // Watch party created
-    socket.on('watch_party_created', async (data: { callId: string; partyId: string }) => {
-      if (!data.callId || !data.partyId) return;
-      // Notify all participants in the call
-      io.emit('watch_party_created', {
+    socket.on('watch_party_created', async (data: { callId: string; partyId: string; chatId: string }) => {
+      if (!data.callId || !data.partyId || !data.chatId) return;
+      // Notify only chat members
+      io.to(`chat:${data.chatId}`).emit('watch_party_created', {
         callId: data.callId,
         partyId: data.partyId,
         hostId: userId,
@@ -1611,10 +1638,10 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
     });
 
     // Watch party sync (play/pause/seek)
-    socket.on('watch_party_sync', async (data: { partyId: string; isPlaying: boolean; currentTime: number }) => {
-      if (!data.partyId) return;
-      // Broadcast to all participants except sender
-      socket.broadcast.emit('watch_party_sync', {
+    socket.on('watch_party_sync', async (data: { partyId: string; isPlaying: boolean; currentTime: number; chatId: string }) => {
+      if (!data.partyId || !data.chatId) return;
+      // Broadcast to all other participants in the chat
+      socket.to(`chat:${data.chatId}`).emit('watch_party_sync', {
         partyId: data.partyId,
         isPlaying: data.isPlaying,
         currentTime: data.currentTime,
@@ -1622,10 +1649,10 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
     });
 
     // Participant ready status changed
-    socket.on('watch_party_participant_ready', async (data: { partyId: string; isReady: boolean }) => {
-      if (!data.partyId) return;
-      // Broadcast to all participants
-      io.emit('watch_party_participant_ready', {
+    socket.on('watch_party_participant_ready', async (data: { partyId: string; isReady: boolean; chatId: string }) => {
+      if (!data.partyId || !data.chatId) return;
+      // Broadcast to all other participants in the chat
+      socket.to(`chat:${data.chatId}`).emit('watch_party_participant_ready', {
         partyId: data.partyId,
         userId,
         isReady: data.isReady,
@@ -1633,10 +1660,10 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
     });
 
     // Watch party ended
-    socket.on('watch_party_ended', async (data: { partyId: string }) => {
-      if (!data.partyId) return;
-      // Notify all participants
-      io.emit('watch_party_ended', {
+    socket.on('watch_party_ended', async (data: { partyId: string; chatId: string }) => {
+      if (!data.partyId || !data.chatId) return;
+      // Notify only chat members
+      io.to(`chat:${data.chatId}`).emit('watch_party_ended', {
         partyId: data.partyId,
       });
     });
@@ -1726,7 +1753,8 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
 
     // Track added to playlist
     socket.on('playlist:track_added', (data: { playlistId: string; track: any }) => {
-      socket.broadcast.emit(`playlist:${data.playlistId}:track_added`, {
+      if (!data.playlistId) return;
+      socket.to(`playlist:${data.playlistId}`).emit('playlist:track_added', {
         track: data.track,
         addedBy: userId,
       });
@@ -1734,7 +1762,8 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
 
     // Track removed from playlist
     socket.on('playlist:track_removed', (data: { playlistId: string; trackId: string }) => {
-      socket.broadcast.emit(`playlist:${data.playlistId}:track_removed`, {
+      if (!data.playlistId || !data.trackId) return;
+      socket.to(`playlist:${data.playlistId}`).emit('playlist:track_removed', {
         trackId: data.trackId,
         removedBy: userId,
       });
@@ -1743,6 +1772,14 @@ socket.on('pin_message', async (data: { messageId: string; chatId: string }) => 
     // Отключение
     socket.on('disconnect', async () => {
       console.log(`Пользователь отключился: ${userId}`);
+
+      // Clear typing timeouts for this user
+      for (const [key, timeout] of typingTimeouts) {
+        if (key.endsWith(`:${userId}`)) {
+          clearTimeout(timeout);
+          typingTimeouts.delete(key);
+        }
+      }
 
       // Remove from active group calls
       for (const [chatId, participants] of activeGroupCalls) {

@@ -103,6 +103,15 @@ import dataExportRoutes from './routes/dataExport';
 import callRecordingsRoutes from './routes/callRecordings';
 import voiceTranscriptsRoutes from './routes/voiceTranscripts';
 import chatNotificationsRoutes from './routes/chatNotifications';
+import premiumEffectsRoutes from './routes/premiumEffects';
+import liveLocationRoutes from './routes/liveLocation';
+import privateMediaRoutes from './routes/privateMedia';
+import screenShareRoutes from './routes/screenShare';
+import widgetsRoutes from './routes/widgets';
+import storyPollsRoutes from './routes/storyPolls';
+import channelThreadsRoutes from './routes/channelThreads';
+import doNotDisturbRoutes from './routes/doNotDisturb';
+import chatExportRoutes from './routes/chatExport';
 
 // Keep logs in production for debugging - use structured logging in production
 // if (process.env.NODE_ENV === 'production') {
@@ -180,7 +189,8 @@ app.use(cors({
     if (config.corsOrigins.includes(origin) || config.corsOrigins.includes('*')) {
       return callback(null, true);
     }
-    return callback(new Error('CORS: origin not allowed'), false);
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -572,6 +582,26 @@ app.use('/api/voice-transcripts', apiLimiter, authenticateToken, voiceTranscript
 // @ts-ignore
 app.use('/api/chat-notifications', apiLimiter, authenticateToken, chatNotificationsRoutes);
 
+// NEW FEATURES - Stage 3
+// @ts-ignore
+app.use('/api/premium-effects', apiLimiter, authenticateToken, premiumEffectsRoutes);
+// @ts-ignore
+app.use('/api/live-location', apiLimiter, authenticateToken, liveLocationRoutes);
+// @ts-ignore
+app.use('/api/private-media', apiLimiter, authenticateToken, privateMediaRoutes);
+// @ts-ignore
+app.use('/api/screen-share', apiLimiter, authenticateToken, screenShareRoutes);
+// @ts-ignore
+app.use('/api/plugins', apiLimiter, authenticateToken, widgetsRoutes);
+// @ts-ignore
+app.use('/api/story-polls', apiLimiter, authenticateToken, storyPollsRoutes);
+// @ts-ignore
+app.use('/api/channel-threads', apiLimiter, authenticateToken, channelThreadsRoutes);
+// @ts-ignore
+app.use('/api/dnd', apiLimiter, authenticateToken, doNotDisturbRoutes);
+// @ts-ignore
+app.use('/api/chat-export', apiLimiter, authenticateToken, chatExportRoutes);
+
 // Проверка здоровья
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', name: 'Nexo Server' });
@@ -738,6 +768,26 @@ startSelfDestructCleanup();
 // Start NFT stock price updater
 import { startNFTStockUpdater } from './lib/nftStockUpdater';
 startNFTStockUpdater();
+
+// Cleanup expired device tokens (every 5 minutes)
+async function cleanupExpiredDeviceTokens() {
+  try {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const deleted = await prisma.deviceToken.deleteMany({
+      where: {
+        createdAt: { lt: fiveMinutesAgo },
+        status: { in: ['pending', 'denied'] },
+      },
+    });
+    if (deleted.count > 0) {
+      console.log(`[DEVICE AUTH] Cleaned up ${deleted.count} expired device tokens`);
+    }
+  } catch {
+    // Silent cleanup
+  }
+}
+cleanupExpiredDeviceTokens();
+setInterval(cleanupExpiredDeviceTokens, 5 * 60 * 1000);
 
 // Start server
 server.listen(config.port, '0.0.0.0', () => {

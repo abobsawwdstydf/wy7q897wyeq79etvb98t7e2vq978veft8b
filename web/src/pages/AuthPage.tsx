@@ -2,11 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
-import { Eye, EyeOff, ArrowRight, ArrowLeft, Camera, Check, QrCode, Smartphone, Lock, User, Calendar, FileText, Image, Phone, AtSign, Loader2, ScanLine } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, ArrowLeft, Camera, Check, QrCode, Smartphone, Lock, User, Calendar, FileText, Image, Phone, AtSign, Loader2 } from 'lucide-react';
 import DatePicker from '../components/DatePicker';
 import { playKeyboardSound } from '../lib/sounds';
 import QRCode from '../lib/qrcode';
-import QRScanner from '../components/QRScanner';
+
 import { AuthShell, AuthCard, AuthLogo, AuthTitle, AuthGrid, authPrimaryButtonStyle } from '../components/AuthShell';
 
 function formatPhone(value: string) {
@@ -59,7 +59,6 @@ export default function AuthPage() {
   const [loginShowPassword, setLoginShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [useCloudPassword, setUseCloudPassword] = useState(false);
-  const [showQRScanner, setShowQRScanner] = useState(false);
 
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [phoneStatus, setPhoneStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
@@ -258,7 +257,9 @@ export default function AuthPage() {
   };
 
   const generateDeviceToken = () => {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const array = new Uint8Array(32);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
   };
 
   const [deviceToken] = useState(() => generateDeviceToken());
@@ -267,6 +268,9 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (mode === 'landing' || mode === 'login-qr') {
+      // Register device token server-side
+      api.post('/auth/device/init', { token: deviceToken }).catch(() => {});
+
       try {
         const url = QRCode.toDataURL(deviceLink, {
           width: 256,
@@ -306,7 +310,7 @@ export default function AuthPage() {
         }, 500);
       }
     }
-  }, [mode, deviceLink]);
+  }, [mode, deviceLink, deviceToken]);
 
   if (mode === 'register-success') {
     return (
@@ -734,21 +738,6 @@ export default function AuthPage() {
               <ArrowRight size={16} className="text-white/20 group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
             </motion.button>
 
-            <motion.button
-              whileHover={{ scale: 1.01, backgroundColor: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.25)' }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowQRScanner(true)}
-              className="w-full py-3.5 px-4 rounded-[1rem] bg-white/[0.03] border border-white/[0.06] text-white font-medium flex items-center gap-3.5 transition-all duration-200 group"
-            >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <ScanLine size={18} className="text-emerald-400" />
-              </div>
-              <div className="text-left flex-1">
-                <div className="font-semibold text-[14px] text-white">Сканировать QR-код</div>
-                <div className="text-[11px] text-white/35">Войти по чужому QR-коду</div>
-              </div>
-              <ArrowRight size={16} className="text-white/20 group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
-            </motion.button>
           </div>
         </AuthCard>
       </AuthShell>
@@ -1249,31 +1238,5 @@ export default function AuthPage() {
     );
   }
 
-  return (
-    <>
-      {showQRScanner && (
-        <QRScanner
-          onScan={(data) => {
-            setShowQRScanner(false);
-            if (data.includes('/device?device=')) {
-              window.location.href = data;
-            } else {
-              try {
-                const url = new URL(data);
-                const deviceToken = url.searchParams.get('device');
-                if (deviceToken) {
-                  window.location.href = `/device?device=${deviceToken}`;
-                }
-              } catch {
-                if (/^[a-zA-Z0-9]{20,}$/.test(data)) {
-                  window.location.href = `/device?device=${data}`;
-                }
-              }
-            }
-          }}
-          onClose={() => setShowQRScanner(false)}
-        />
-      )}
-    </>
-  );
+  return null;
 }

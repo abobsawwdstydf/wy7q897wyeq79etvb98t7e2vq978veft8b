@@ -386,6 +386,176 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res) => {
   }
 });
 
+// ============================================
+// DEVICE AUTH - QR-код вход с других устройств
+// ============================================
+
+// Инициализация device token (вызывается при генерации QR-кода)
+router.post('/device/init', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token || typeof token !== 'string' || token.length < 10) {
+      res.status(400).json({ error: 'Неверный токен устройства' });
+      return;
+    }
+
+    // Проверяем, не существует ли уже такой токен
+    const existing = await prisma.deviceToken.findUnique({ where: { token } });
+    if (existing) {
+      res.json({ success: true });
+      return;
+    }
+
+    // Создаём новый pending token
+    await prisma.deviceToken.create({
+      data: {
+        token,
+        status: 'pending',
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Device init error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Проверка статуса device token (polling с устройства, которое сканирует QR)
+router.get('/device/check', async (req, res) => {
+  try {
+    const { device } = req.query;
+
+    if (!device || typeof device !== 'string') {
+      res.status(400).json({ error: 'device обязателен' });
+      return;
+    }
+
+    const deviceToken = await prisma.deviceToken.findUnique({
+      where: { token: device },
+    });
+
+    if (!deviceToken) {
+      // Токен не найден - значит ещё не был зарегистрирован
+      res.json({ confirmed: false, denied: false, pending: true });
+      return;
+    }
+
+    if (deviceToken.status === 'confirmed' && deviceToken.userId) {
+      // Получаем данные пользователя, который подтвердил вход
+      const user = await prisma.user.findUnique({
+        where: { id: deviceToken.userId },
+        select: USER_SELECT,
+      });
+
+      if (!user) {
+        res.json({ confirmed: false, denied: true });
+        return;
+      }
+
+      // Генерируем JWT токен для нового устройства
+      const jwtToken = jwt.sign(
+        { userId: user.id },
+        config.jwtSecret,
+        { expiresIn: `${config.sessionTimeoutHours}h` }
+      );
+
+      // Удаляем использованный device token
+      await prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
+
+      res.json({ confirmed: true, token: jwtToken, user });
+      return;
+    }
+
+    if (deviceToken.status === 'denied') {
+      // Удаляем отклонённый token
+      await prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
+      res.json({ confirmed: false, denied: true });
+      return;
+    }
+
+    // Статус pending
+    res.json({ confirmed: false, denied: false, pending: true });
+  } catch (error) {
+    console.error('Device check error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Подтверждение device token (вызывается на устройстве, где уже авторизованы)
+router.post('/device/confirm', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { device } = req.body;
+
+    if (!device || typeof device !== 'string') {
+      res.status(400).json({ error: 'device обязателен' });
+      return;
+    }
+
+    const deviceToken = await prisma.deviceToken.findUnique({
+      where: { token: device },
+    });
+
+    if (!deviceToken) {
+      res.status(404).json({ error: 'Токен не найден или истёк' });
+      return;
+    }
+
+    if (deviceToken.status !== 'pending') {
+      res.status(400).json({ error: 'Токен уже обработан' });
+      return;
+    }
+
+    // Подтверждаем
+    await prisma.deviceToken.update({
+      where: { token: device },
+      data: {
+        status: 'confirmed',
+        userId: req.userId,
+        confirmedAt: new Date(),
+        confirmedBy: req.userId,
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Device confirm error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Отклонение device token
+router.post('/device/deny', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { device } = req.body;
+
+    if (!device || typeof device !== 'string') {
+      res.status(400).json({ error: 'device обязателен' });
+      return;
+    }
+
+    const deviceToken = await prisma.deviceToken.findUnique({
+      where: { token: device },
+    });
+
+    if (!deviceToken) {
+      res.status(404).json({ error: 'Токен не найден' });
+      return;
+    }
+
+    await prisma.deviceToken.update({
+      where: { token: device },
+      data: { status: 'denied' },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Device deny error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // SECURITY FIX: Смена пароля (отзыв всех токенов)
 router.post('/change-password', authenticateToken, async (req: AuthRequest, res) => {
   try {

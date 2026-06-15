@@ -16,6 +16,14 @@ class ApiClient {
     this.csrfToken = token;
   }
 
+  private getStoredAccessToken(): string | null {
+    try {
+      return localStorage.getItem('nexo_access_token');
+    } catch {
+      return null;
+    }
+  }
+
   private async request<T>(endpoint: string, options: RequestInit & { timeout?: number } = {}): Promise<T> {
     const { timeout = 30_000, ...fetchOptions } = options;
     const controller = new AbortController();
@@ -23,10 +31,13 @@ class ApiClient {
 
     const isFormData = fetchOptions.body instanceof FormData;
     const isMutation = fetchOptions.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(fetchOptions.method);
+
+    const storedToken = this.getStoredAccessToken();
     
     const headers: HeadersInit = {
       ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(this.csrfToken && isMutation ? { 'X-CSRF-Token': this.csrfToken } : {}),
+      ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}),
       ...fetchOptions.headers,
     };
 
@@ -50,8 +61,8 @@ class ApiClient {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
       
-      // 401 с code TOKEN_EXPIRED — пробуем обновить access token
-      if (response.status === 401 && error.code === 'TOKEN_EXPIRED') {
+      // 401 — пробуем обновить access token (не только TOKEN_EXPIRED, но и любой 401)
+      if (response.status === 401) {
         try {
           const refreshController = new AbortController();
           const refreshTimer = setTimeout(() => refreshController.abort(), 10_000);

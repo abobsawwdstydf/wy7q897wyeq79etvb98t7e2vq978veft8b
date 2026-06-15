@@ -98,12 +98,4 @@ if (config.jwtSecret === 'change-me-to-a-random-secret') {
   throw new Error('SECURITY ERROR: You must change JWT_SECRET from the default value. Generate a strong random secret.');
 }
 
-// SECURITY: Log security configuration status (without exposing secrets)
-console.log('Security Configuration:');
-console.log(`  - JWT Secret: ${config.jwtSecret ? '✓ Configured' : '✗ Missing'}`);
-console.log(`  - Encryption: ${isEncryptionEnabled() ? '✓ Enabled' : '✗ Disabled'}`);
-console.log(`  - Min Password Length: ${config.minPasswordLength} characters`);
-console.log(`  - Session Timeout: ${config.sessionTimeoutHours} hours`);
-console.log(`  - Max Login Attempts: ${config.maxLoginAttempts}`);
-console.log(`  - Lockout Duration: ${config.lockoutDurationMinutes} minutes`);
-console.log(`  - YooKassa Webhook Secret: ${config.yukassaWebhookSecret ? '✓ Configured' : '✗ Missing (payments will fail)'}`);
+// Security configuration is displayed in the TUI dashboard (src/lib/tui.ts)

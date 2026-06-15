@@ -215,8 +215,7 @@ const translations = {
     bioPlaceholder: 'Расскажите о себе (необязательно)',
     loginBtn: 'Войти',
     createAccount: 'Создать аккаунт',
-    testAccounts: 'Тестовые аккаунты: evgeniy, anastasia, artem, polina',
-    passwordForAll: 'Пароль для всех:',
+
     // File/upload
     dropFileHere: 'Отпустите файл здесь',
     uploading: 'Загрузка...',
@@ -560,8 +559,7 @@ const translations = {
     bioPlaceholder: 'Tell about yourself (optional)',
     loginBtn: 'Login',
     createAccount: 'Create account',
-    testAccounts: 'Test accounts: evgeniy, anastasia, artem, polina',
-    passwordForAll: 'Password for all:',
+
     dropFileHere: 'Drop file here',
     uploading: 'Uploading...',
     changePhoto: 'Change photo',

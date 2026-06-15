@@ -19,6 +19,7 @@ import VoicePlayerBar from './components/VoicePlayerBar';
 import Sidebar from './components/Sidebar';
 import MobileBottomNav, { MobileView } from './components/MobileBottomNav';
 import FriendsBottomSheet from './components/FriendsBottomSheet';
+import WelcomeAnimation from './components/WelcomeAnimation';
 import { НексоLoader } from './components/LoadingStates';
 import PaymentSuccessPage from './pages/PaymentSuccessPage';
 import YooKassaInfoPage from './pages/YooKassaInfoPage';
@@ -39,6 +40,10 @@ export default function App() {
   const [sharedFolderToken, setSharedFolderToken] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileFriendsOpen, setMobileFriendsOpen] = useState(false);
+  const [welcomeShown, setWelcomeShown] = useState(() => {
+    try { return localStorage.getItem('nexo_welcome_shown') === 'true'; }
+    catch { return false; }
+  });
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -298,7 +303,15 @@ export default function App() {
           </motion.div>
         ) : (
           <motion.div key="auth" className="h-full w-full flex-1 min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-            <AuthPage />
+            {!welcomeShown ? (
+              <WelcomeAnimation onComplete={() => {
+                setWelcomeShown(true);
+                try { localStorage.setItem('nexo_welcome_shown', 'true'); }
+                catch {}
+              }} />
+            ) : (
+              <AuthPage />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

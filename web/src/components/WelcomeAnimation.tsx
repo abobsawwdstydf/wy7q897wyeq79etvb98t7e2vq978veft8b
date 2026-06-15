@@ -30,7 +30,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
     };
   }, [clearTimeouts]);
 
-  // Phase: greeting — typing "Привет"
   useEffect(() => {
     if (phase !== 'greeting') return;
     const text = 'Привет';
@@ -58,7 +57,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
     return () => { cancelled = true; };
   }, [phase, clearTimeouts]);
 
-  // Phase: greeting-fade
   useEffect(() => {
     if (phase !== 'greeting-fade') return;
     const t = window.setTimeout(() => {
@@ -71,7 +69,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
     return () => {};
   }, [phase]);
 
-  // Phase: welcome — typing "Добро пожаловать в Нексо"
   useEffect(() => {
     if (phase !== 'welcome') return;
     const text = 'Добро пожаловать в Нексо';
@@ -99,7 +96,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
     return () => { cancelled = true; };
   }, [phase, clearTimeouts]);
 
-  // Phase: welcome-fade
   useEffect(() => {
     if (phase !== 'welcome-fade') return;
     const t = window.setTimeout(() => {
@@ -112,7 +108,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
     return () => {};
   }, [phase]);
 
-  // Phase: logo → done
   useEffect(() => {
     if (phase !== 'logo') return;
     const t = window.setTimeout(() => {
@@ -122,7 +117,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
     return () => {};
   }, [phase]);
 
-  // Phase: done → complete
   useEffect(() => {
     if (phase === 'done') {
       const t = window.setTimeout(() => {
@@ -141,7 +135,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black overflow-hidden"
     >
-      {/* Animated background glow */}
       <div className="absolute inset-0 pointer-events-none">
         <motion.div
           animate={{
@@ -151,7 +144,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
           transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] md:w-[700px] md:h-[700px] rounded-full bg-gradient-to-r from-nexo-600/25 to-purple-600/25 blur-[100px]"
         />
-        {/* Secondary subtle glow */}
         <motion.div
           animate={{
             scale: [1.1, 1, 1.1],
@@ -164,7 +156,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-[350px] px-6">
         <AnimatePresence mode="wait">
-          {/* Greeting phase */}
           {(phase === 'greeting' || phase === 'greeting-fade') && (
             <motion.div
               key="greeting"
@@ -189,7 +180,6 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
             </motion.div>
           )}
 
-          {/* Welcome phase */}
           {(phase === 'welcome' || phase === 'welcome-fade') && (
             <motion.div
               key="welcome"
@@ -197,16 +187,16 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -40, filter: 'blur(10px)', scale: 0.98 }}
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="flex items-center"
+              className="flex flex-col items-center gap-3"
             >
-              <span className="text-4xl md:text-6xl font-bold text-white tracking-tight text-center leading-tight">
+              <span className="text-3xl md:text-5xl font-bold text-white tracking-tight text-center leading-tight">
                 {welcomeText}
               </span>
               {phase === 'welcome' && (
                 <motion.span
                   animate={{ opacity: [1, 0] }}
                   transition={{ duration: 0.6, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
-                  className="ml-1 text-4xl md:text-6xl text-nexo-400/80 font-light"
+                  className="text-3xl md:text-5xl text-nexo-400/80 font-light"
                 >
                   |
                 </motion.span>
@@ -214,23 +204,20 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
             </motion.div>
           )}
 
-          {/* Logo phase */}
           {phase === 'logo' && (
             <motion.div
               key="logo"
               initial={{ opacity: 0, scale: 0.6, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="flex flex-col items-center gap-5"
+              className="flex flex-col items-center gap-4"
             >
-              {/* Logo with bounce-in */}
               <motion.div
                 initial={{ scale: 0, rotate: -120 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ duration: 0.8, type: 'spring', bounce: 0.45, delay: 0.1 }}
                 className="relative"
               >
-                {/* Glow behind logo */}
                 <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/30 to-purple-600/30 blur-2xl rounded-full scale-150" />
                 <img
                   src="/logo.png"
@@ -239,32 +226,38 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
                 />
               </motion.div>
 
-              {/* App name */}
               <motion.h1
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35, duration: 0.5 }}
-                className="text-4xl md:text-5xl font-bold gradient-text"
+                className="text-3xl md:text-5xl font-bold gradient-text"
               >
                 Нексо
               </motion.h1>
 
-              {/* Subtitle */}
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.55, duration: 0.5 }}
-                className="text-zinc-400 text-sm md:text-base"
+                transition={{ delay: 0.5, duration: 0.5 }}
+                className="text-white/30 text-sm md:text-base tracking-wide"
               >
-                Мессенджер нового поколения
+                by haker_one
               </motion.p>
 
-              {/* Action buttons */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.65, duration: 0.5 }}
+                className="text-zinc-400 text-xs md:text-sm"
+              >
+                Безопасный мессенджер нового поколения
+              </motion.p>
+
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.75, duration: 0.5 }}
-                className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mt-2"
+                transition={{ delay: 0.85, duration: 0.5 }}
+                className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mt-3"
               >
                 <motion.button
                   whileHover={{ scale: 1.03, boxShadow: '0 0 30px rgba(99,102,241,0.4)' }}

@@ -53,7 +53,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
         const result = await api.login(phone, password);
         if (result.csrfToken) api.setCsrfToken(result.csrfToken);
         localStorage.setItem('nexo_user', JSON.stringify(result.user));
-        if (result.accessToken) connectSocket(result.accessToken);
+        if (result.accessToken) {
+          localStorage.setItem('nexo_access_token', result.accessToken);
+          connectSocket(result.accessToken);
+        }
         set({ user: result.user, isLoading: false });
 
         setTimeout(() => {
@@ -72,7 +75,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
         const result = await api.register(data);
         if (result.csrfToken) api.setCsrfToken(result.csrfToken);
         localStorage.setItem('nexo_user', JSON.stringify(result.user));
-        if (result.accessToken) connectSocket(result.accessToken);
+        if (result.accessToken) {
+          localStorage.setItem('nexo_access_token', result.accessToken);
+          connectSocket(result.accessToken);
+        }
         set({ user: result.user, isLoading: false });
 
         setTimeout(() => {
@@ -87,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     logout: () => {
       localStorage.removeItem('nexo_user');
+      localStorage.removeItem('nexo_access_token');
       api.setCsrfToken(null);
       api.logout().catch(() => {});
       disconnectSocket();
@@ -98,7 +105,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
       try {
         const { user, accessToken } = await api.getMe();
         localStorage.setItem('nexo_user', JSON.stringify(user));
-        if (accessToken) connectSocket(accessToken);
+        if (accessToken) {
+          localStorage.setItem('nexo_access_token', accessToken);
+          connectSocket(accessToken);
+        }
         set({ user, isLoading: false });
 
         setTimeout(() => {
@@ -113,6 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
           err.message.includes('истекло')
         )) {
           localStorage.removeItem('nexo_user');
+          localStorage.removeItem('nexo_access_token');
           set({ user: null, isLoading: false });
           return;
         }
@@ -136,7 +147,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     loginWithToken: (token, user) => {
       localStorage.setItem('nexo_user', JSON.stringify(user));
-      if (token) connectSocket(token);
+      if (token) {
+        localStorage.setItem('nexo_access_token', token);
+        connectSocket(token);
+      }
       set({ user });
       setTimeout(() => {
         import('../lib/notifications').then(m => m.subscribeToNotifications().catch(() => {}));

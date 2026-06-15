@@ -41,11 +41,7 @@ class LocalStorage {
       await fs.mkdir(path.join(STORAGE_ROOT, 'temp'), { recursive: true });
       
       this.initialized = true;
-      console.log(`\n💾 LOCAL STORAGE:`);
-      console.log(`  ✓ Storage root: ${STORAGE_ROOT}`);
-      console.log(`  ✓ Directories initialized`);
-      console.log(`  ✓ File encryption: ENABLED`);
-      console.log('');
+      console.log(`[STORAGE] Initialized: ${STORAGE_ROOT}`);
     } catch (error: any) {
       console.error('Failed to initialize local storage:', error.message);
       throw error;

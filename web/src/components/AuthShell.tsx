@@ -48,7 +48,7 @@ export function AuthShell({ children, onBack, showGrid = false }: AuthShellProps
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="h-full flex items-center justify-center bg-[#09090b] overflow-hidden relative"
+      className="h-full flex items-center justify-center bg-[#09090b] overflow-y-auto overflow-x-hidden relative"
     >
       <AuthBackground />
       {showGrid && <AuthGrid />}
@@ -57,12 +57,13 @@ export function AuthShell({ children, onBack, showGrid = false }: AuthShellProps
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={onBack}
-          className="absolute top-4 left-4 p-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all duration-200 text-white/50 hover:text-white/80 z-20"
+          className="fixed sm:absolute top-3 left-3 sm:top-4 sm:left-4 p-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all duration-200 text-white/50 hover:text-white/80 z-20"
+          style={{ marginTop: 'max(0px, env(safe-area-inset-top))' }}
         >
           <ArrowLeft size={18} />
         </motion.button>
       )}
-      <div className="relative z-10 w-full flex items-center justify-center">
+      <div className="relative z-10 w-full flex items-center justify-center py-8 px-4 sm:px-6 sm:py-0 min-h-full">
         {children}
       </div>
     </motion.div>
@@ -81,10 +82,10 @@ export function AuthCard({ children, className = '', scrollable = false }: AuthC
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`bg-[#141418]/85 backdrop-blur-2xl rounded-[2rem] p-7 border border-white/[0.07] shadow-2xl shadow-black/60 relative overflow-hidden ${className}`}
+      className={`bg-[#141418]/85 backdrop-blur-2xl rounded-[2rem] p-5 sm:p-7 border border-white/[0.07] shadow-2xl shadow-black/60 relative overflow-hidden max-w-full ${className}`}
     >
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent" />
-      <div className={scrollable ? 'max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-hide -mr-2 pr-2' : ''}>
+      <div className={scrollable ? 'max-h-[calc(100dvh-6rem)] sm:max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-hide -mr-2 pr-2' : ''}>
         {children}
       </div>
     </motion.div>

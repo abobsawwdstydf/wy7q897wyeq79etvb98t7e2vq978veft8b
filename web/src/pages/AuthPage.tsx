@@ -433,7 +433,7 @@ export default function AuthPage() {
                 Вход по QR-коду
               </span>
             </h2>
-            <p className="text-sm text-white/40 mb-7">
+            <p className="text-sm text-white/40 mb-5 sm:mb-7">
               {qrStatus === 'confirmed' ? 'Вход подтверждён' :
                qrStatus === 'scanned' ? 'QR-код отсканирован' :
                qrStatus === 'denied' ? 'Вход отклонён' :
@@ -446,7 +446,7 @@ export default function AuthPage() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.6, type: 'spring', bounce: 0.3 }}
-            className="relative mb-6 mx-auto inline-block"
+            className="relative mb-5 sm:mb-6 mx-auto inline-block"
           >
             <div
               className="relative rounded-xl overflow-hidden"
@@ -463,39 +463,39 @@ export default function AuthPage() {
             >
               {qrStatus === 'confirmed' ? (
                 <div
-                  className="w-60 h-60 flex flex-col items-center justify-center"
+                  className="w-52 h-52 sm:w-60 sm:h-60 flex flex-col items-center justify-center"
                   style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.25) 0%, rgba(16,185,129,0.05) 70%)' }}
                 >
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', bounce: 0.5 }}
-                    className="w-20 h-20 rounded-[1.5rem] bg-emerald-500/30 flex items-center justify-center mb-3"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.2rem] sm:rounded-[1.5rem] bg-emerald-500/30 flex items-center justify-center mb-2 sm:mb-3"
                     style={{ boxShadow: '0 0 40px rgba(16,185,129,0.5)' }}
                   >
-                    <Check size={48} className="text-emerald-300" strokeWidth={2.5} />
+                    <Check size={36} className="text-emerald-300" strokeWidth={2.5} />
                   </motion.div>
                   <p className="text-emerald-300 text-sm font-semibold">Вход выполнен</p>
                 </div>
               ) : qrStatus === 'denied' ? (
                 <div
-                  className="w-60 h-60 flex flex-col items-center justify-center"
+                  className="w-52 h-52 sm:w-60 sm:h-60 flex flex-col items-center justify-center"
                   style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.25) 0%, rgba(239,68,68,0.05) 70%)' }}
                 >
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', bounce: 0.5 }}
-                    className="w-20 h-20 rounded-[1.5rem] bg-red-500/30 flex items-center justify-center mb-3"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.2rem] sm:rounded-[1.5rem] bg-red-500/30 flex items-center justify-center mb-2 sm:mb-3"
                     style={{ boxShadow: '0 0 40px rgba(239,68,68,0.5)' }}
                   >
-                    <X size={48} className="text-red-300" strokeWidth={2.5} />
+                    <X size={36} className="text-red-300" strokeWidth={2.5} />
                   </motion.div>
                   <p className="text-red-300 text-sm font-semibold">Отклонено</p>
                 </div>
               ) : qrStatus === 'expired' ? (
                 <div
-                  className="w-60 h-60 flex flex-col items-center justify-center"
+                  className="w-52 h-52 sm:w-60 sm:h-60 flex flex-col items-center justify-center"
                   style={{ background: 'rgba(255,255,255,0.04)' }}
                 >
                   <X size={48} className="text-white/40 mb-3" />
@@ -506,7 +506,7 @@ export default function AuthPage() {
                   <img
                     src={qrCodeUrl}
                     alt="QR Code"
-                    className="w-60 h-60 block"
+                    className="w-52 h-52 sm:w-60 sm:h-60 block"
                     style={{
                       imageRendering: 'pixelated',
                       opacity: qrStatus === 'scanned' ? 0.35 : 1,
@@ -519,14 +519,14 @@ export default function AuthPage() {
                       <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                        className="w-14 h-14 rounded-full border-[3px] border-white/15 border-t-purple-300 mb-2"
+                        className="w-12 h-12 rounded-full border-[3px] border-white/15 border-t-purple-300 mb-2"
                       />
                       <p className="text-purple-200 text-sm font-semibold">Подтвердите на телефоне</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="w-60 h-60 bg-zinc-100 flex items-center justify-center">
+                <div className="w-52 h-52 sm:w-60 sm:h-60 bg-zinc-100 flex items-center justify-center">
                   <Loader2 size={32} className="text-zinc-400 animate-spin" />
                 </div>
               )}
@@ -590,7 +590,7 @@ export default function AuthPage() {
             {(qrStatus === 'denied' || qrStatus === 'expired') && (
               <button
                 onClick={regenerateQR}
-                className="mt-2 w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] transition-opacity hover:opacity-90"
+                className="mt-2 w-full py-3.5 sm:py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] transition-opacity hover:opacity-90"
               >
                 Попробовать снова
               </button>
@@ -605,14 +605,14 @@ export default function AuthPage() {
     return (
       <AuthShell onBack={() => setMode('login-password')}>
         <AuthCard className="max-w-sm w-full">
-          <div className="flex flex-col items-center mb-6">
+          <div className="flex flex-col items-center mb-5 sm:mb-6">
             <AuthLogo size="sm" />
             <div className="mt-3">
               <AuthTitle title="Подтверждение" subtitle="Код отправлен в чат Нексо на вашем устройстве" />
             </div>
           </div>
 
-          <div className="flex gap-2 justify-center mb-5">
+          <div className="flex gap-1.5 sm:gap-2 justify-center mb-5">
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <motion.input
                 key={i}
@@ -650,7 +650,7 @@ export default function AuthPage() {
                     lastInput?.focus();
                   }
                 }}
-                className="w-11 h-14 text-center text-xl font-bold rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                className="w-10 h-13 sm:w-11 sm:h-14 text-center text-lg sm:text-xl font-bold rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
               />
             ))}
           </div>
@@ -697,7 +697,8 @@ export default function AuthPage() {
                     value={cloudPassword}
                     onChange={(e) => setCloudPassword(e.target.value)}
                     placeholder="Облачный пароль"
-                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                    autoComplete="off"
+                    className="w-full pl-10 pr-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   />
                 </div>
                 <motion.button
@@ -705,7 +706,7 @@ export default function AuthPage() {
                   whileTap={{ scale: 0.98 }}
                   onClick={handleLoginWithCloudPassword}
                   disabled={isSubmitting || !cloudPassword.trim()}
-                  className="w-full mt-3 py-3 px-4 rounded-2xl bg-white/[0.06] border border-white/[0.1] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  className="w-full mt-3 py-3.5 sm:py-3 px-4 rounded-2xl bg-white/[0.06] border border-white/[0.1] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
                 >
                   {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <><Lock size={18} /> Войти</>}
                 </motion.button>
@@ -723,7 +724,7 @@ export default function AuthPage() {
     return (
       <AuthShell onBack={() => setMode('login-method')}>
         <AuthCard className="max-w-sm w-full">
-          <div className="flex flex-col items-center mb-6">
+          <div className="flex flex-col items-center mb-5 sm:mb-6">
             <AuthLogo size="sm" />
             <div className="mt-3">
               <AuthTitle title="Вход в аккаунт" subtitle="Введите данные для входа" />
@@ -746,7 +747,9 @@ export default function AuthPage() {
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   placeholder="+79991234567"
                   autoFocus
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  className="w-full pl-10 pr-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   style={{ backdropFilter: 'blur(10px)' }}
                 />
               </div>
@@ -766,8 +769,9 @@ export default function AuthPage() {
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="Введите пароль"
+                  autoComplete="current-password"
                   onKeyDown={(e) => e.key === 'Enter' && handleLoginPassword()}
-                  className="w-full pl-10 pr-11 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                  className="w-full pl-10 pr-11 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   style={{ backdropFilter: 'blur(10px)' }}
                 />
                 <button
@@ -821,7 +825,7 @@ export default function AuthPage() {
     return (
       <AuthShell onBack={() => setMode('landing')}>
         <AuthCard className="max-w-sm w-full">
-          <div className="flex flex-col items-center mb-5">
+          <div className="flex flex-col items-center mb-4 sm:mb-5">
             <AuthLogo size="sm" />
             <div className="mt-3">
               <AuthTitle title="Способ входа" subtitle="Выберите удобный вариант" />
@@ -835,14 +839,14 @@ export default function AuthPage() {
               onClick={() => setMode('login-password')}
               className="w-full py-3.5 px-4 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.06] text-white font-medium flex items-center gap-3.5 transition-all duration-200 group"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6366f1]/20 to-[#8b5cf6]/20 border border-[#6366f1]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6366f1]/20 to-[#8b5cf6]/20 border border-[#6366f1]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
                 <Smartphone size={18} className="text-[#a5b4fc]" />
               </div>
-              <div className="text-left flex-1">
+              <div className="text-left flex-1 min-w-0">
                 <div className="font-semibold text-[14px] text-white">По номеру и паролю</div>
                 <div className="text-[11px] text-white/35">Введите телефон и пароль</div>
               </div>
-              <ArrowRight size={16} className="text-white/20 group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
+              <ArrowRight size={16} className="text-white/20 group-hover:text-white/60 group-hover:translate-x-1 transition-all flex-shrink-0" />
             </motion.button>
 
             <motion.button
@@ -851,14 +855,14 @@ export default function AuthPage() {
               onClick={() => setMode('login-qr')}
               className="w-full py-3.5 px-4 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.06] text-white font-medium flex items-center gap-3.5 transition-all duration-200 group"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
                 <QrCode size={18} className="text-[#d8b4fe]" />
               </div>
-              <div className="text-left flex-1">
+              <div className="text-left flex-1 min-w-0">
                 <div className="font-semibold text-[14px] text-white">Показать QR-код</div>
                 <div className="text-[11px] text-white/35">Отсканируйте на другом устройстве</div>
               </div>
-              <ArrowRight size={16} className="text-white/20 group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
+              <ArrowRight size={16} className="text-white/20 group-hover:text-white/60 group-hover:translate-x-1 transition-all flex-shrink-0" />
             </motion.button>
 
           </div>
@@ -876,7 +880,7 @@ export default function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="relative mb-6 inline-block">
+            <div className="relative mb-4 sm:mb-6 inline-block">
               <motion.div
                 animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.3, 0.2] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
@@ -889,7 +893,7 @@ export default function AuthPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="text-4xl font-black mb-2 tracking-tight"
+              className="text-3xl sm:text-4xl font-black mb-2 tracking-tight"
               style={{
                 background: 'linear-gradient(135deg, #ffffff 0%, #c7d2fe 50%, #818cf8 100%)',
                 WebkitBackgroundClip: 'text',
@@ -906,7 +910,7 @@ export default function AuthPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.5 }}
-              className="text-white/30 text-[12px] mb-6"
+              className="text-white/30 text-[12px] mb-4 sm:mb-6"
               style={{ letterSpacing: '0.06em' }}
             >
               Безопасный мессенджер нового поколения
@@ -1019,14 +1023,14 @@ export default function AuthPage() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1, duration: 0.5 }}
-              className="flex gap-2 mt-5"
+              transition={{ delay: isMobile ? 0.6 : 1, duration: 0.5 }}
+              className="flex gap-2.5 sm:gap-2 mt-4 sm:mt-5"
             >
               <motion.button
                 whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.08)' }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setMode('login-method')}
-                className="flex-1 py-2.5 px-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white/70 font-medium text-[13px] transition-all duration-200 backdrop-blur-sm"
+                className="flex-1 py-3 sm:py-2.5 px-4 sm:px-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white/70 font-medium text-[14px] sm:text-[13px] transition-all duration-200 backdrop-blur-sm min-h-[48px] sm:min-h-[44px]"
               >
                 Войти
               </motion.button>
@@ -1034,7 +1038,7 @@ export default function AuthPage() {
                 whileHover={{ scale: 1.02, backgroundColor: 'rgba(99,102,241,0.15)' }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => { setMode('register'); setStep(1); setError(''); }}
-                className="flex-1 py-2.5 px-3 rounded-2xl bg-[#6366f1]/[0.12] border border-[#6366f1]/25 text-[#a5b4fc] font-medium text-[13px] transition-all duration-200 backdrop-blur-sm"
+                className="flex-1 py-3 sm:py-2.5 px-4 sm:px-3 rounded-2xl bg-[#6366f1]/[0.12] border border-[#6366f1]/25 text-[#a5b4fc] font-medium text-[14px] sm:text-[13px] transition-all duration-200 backdrop-blur-sm min-h-[48px] sm:min-h-[44px]"
               >
                 Регистрация
               </motion.button>
@@ -1064,7 +1068,7 @@ export default function AuthPage() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/[0.03] border border-white/[0.06] rounded-3xl p-3.5 mb-5 flex items-center gap-3"
+        className="bg-white/[0.03] border border-white/[0.06] rounded-3xl p-3 mb-4 sm:mb-5 flex items-center gap-3"
       >
         <div className="w-11 h-11 rounded-2xl overflow-hidden border-2 border-[#6366f1]/50 flex-shrink-0">
           {avatarPreview ? (
@@ -1083,7 +1087,7 @@ export default function AuthPage() {
             {username ? `@${username}` : `Шаг ${step} из 8`}
           </div>
         </div>
-        <div className="text-[11px] text-[#a5b4fc] font-semibold bg-[#6366f1]/10 px-2 py-1 rounded-lg">
+        <div className="text-[11px] text-[#a5b4fc] font-semibold bg-[#6366f1]/10 px-2 py-1 rounded-lg flex-shrink-0">
           {step}/8
         </div>
       </motion.div>
@@ -1092,7 +1096,7 @@ export default function AuthPage() {
     return (
       <AuthShell onBack={() => { if (step > 1) handleBack(); else setMode('landing'); }}>
         <AuthCard className="max-w-md w-full" scrollable>
-          <div className="flex flex-col items-center mb-4">
+          <div className="flex flex-col items-center mb-3 sm:mb-4">
             <AuthLogo size="sm" />
             <div className="mt-3">
               <AuthTitle title="Регистрация" subtitle="Создайте аккаунт Нексо" />
@@ -1120,7 +1124,8 @@ export default function AuthPage() {
                     onChange={(e) => handleUsernameChange(e.target.value)}
                     placeholder="username"
                     autoFocus
-                    className={`w-full px-4 py-3 rounded-2xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
+                    autoComplete="username"
+                    className={`w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
                       usernameStatus === 'taken'
                         ? 'border-red-500/50'
                         : usernameStatus === 'available'
@@ -1163,7 +1168,7 @@ export default function AuthPage() {
                     placeholder="Ваше имя"
                     autoFocus
                     maxLength={50}
-                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                    className="w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   />
                   <p className="text-[11px] text-white/30 text-right px-1">{displayName.length}/50</p>
                   <p className="text-[11px] text-white/30 px-1">Можно использовать эмодзи</p>
@@ -1234,7 +1239,7 @@ export default function AuthPage() {
                     autoFocus
                     rows={3}
                     maxLength={500}
-                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all resize-none outline-none"
+                    className="w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all resize-none outline-none"
                   />
                   <p className="text-[11px] text-white/30 text-right px-1">{bio.length}/500</p>
                   <p className="text-[11px] text-white/30 px-1">Необязательно</p>
@@ -1254,7 +1259,8 @@ export default function AuthPage() {
                         onChange={(e) => { setPassword(e.target.value); playKeyboardSound(); }}
                         placeholder="От 6 до 50 символов"
                         autoFocus
-                        className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
+                        autoComplete="new-password"
+                        className="w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
                       />
                       <button
                         type="button"
@@ -1276,7 +1282,8 @@ export default function AuthPage() {
                         value={confirmPassword}
                         onChange={(e) => { setConfirmPassword(e.target.value); playKeyboardSound(); }}
                         placeholder="Повторите пароль"
-                        className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
+                        autoComplete="new-password"
+                        className="w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
                       />
                       <button
                         type="button"
@@ -1304,7 +1311,7 @@ export default function AuthPage() {
                     onChange={(e) => { setCloudPassword(e.target.value); playKeyboardSound(); }}
                     placeholder="Редко используемый, но важный"
                     autoFocus
-                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                    className="w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   />
                   <p className="text-[11px] text-white/30 px-1">Необязательно. Для входа на новых устройствах</p>
                 </div>
@@ -1321,7 +1328,9 @@ export default function AuthPage() {
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="+79991234567"
                     autoFocus
-                    className={`w-full px-4 py-3 rounded-2xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
+                    autoComplete="tel"
+                    inputMode="tel"
+                    className={`w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
                       phoneStatus === 'taken'
                         ? 'border-red-500/50'
                         : phoneStatus === 'available'
@@ -1344,13 +1353,13 @@ export default function AuthPage() {
 
           {errorBox(error)}
 
-          <div className="flex gap-2.5 mt-5">
+          <div className="flex gap-2.5 mt-4 sm:mt-5">
             {step > 1 && (
               <motion.button
                 whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleBack}
-                className="flex-1 py-3 px-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white font-medium text-[14px] flex items-center justify-center gap-2 transition-all"
+                className="flex-1 py-3.5 sm:py-3 px-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white font-medium text-[14px] flex items-center justify-center gap-2 transition-all min-h-[48px] sm:min-h-[44px]"
               >
                 <ArrowLeft size={16} /> Назад
               </motion.button>
@@ -1360,7 +1369,7 @@ export default function AuthPage() {
                 whileHover={{ boxShadow: '0 0 25px rgba(99,102,241,0.4)' }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleNext}
-                className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 relative overflow-hidden"
+                className="flex-1 py-3.5 sm:py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 relative overflow-hidden min-h-[48px] sm:min-h-[44px]"
                 style={{ boxShadow: '0 0 15px rgba(99,102,241,0.3)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
@@ -1372,7 +1381,7 @@ export default function AuthPage() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleRegister}
                 disabled={isSubmitting || !isStepValid()}
-                className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden"
+                className="flex-1 py-3.5 sm:py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden min-h-[48px] sm:min-h-[44px]"
                 style={{ boxShadow: '0 0 15px rgba(99,102,241,0.3)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />

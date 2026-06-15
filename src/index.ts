@@ -10,14 +10,18 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { config } from './config';
 import { prisma } from './db';
+import { initTUI, log } from './lib/tui';
 import authRoutes from './routes/auth';
 import filesRoutes from './routes/files';
 
+// Initialize TUI dashboard (intercepts console.log/warn/error)
+initTUI();
+
 // Initialize database connection
 prisma.$connect().then(() => {
-  console.log('  ✓ БД подключена');
+  log('ok', 'Database connected');
 }).catch(err => {
-  console.error('Failed to connect DB:', err);
+  log('error', `Failed to connect DB: ${err}`);
   process.exit(1);
 });
 import userRoutes from './routes/users';
@@ -349,7 +353,7 @@ app.get('/admin/nft', authenticateToken, (_req, res) => {
 
 // Serve static files from web dist (../web/dist relative to src/)
 const webDistPath = path.resolve(__dirname, '..', 'web', 'dist');
-console.log('Serving web from:', webDistPath);
+log('info', `Serving web from: ${webDistPath}`);
 app.use(express.static(webDistPath));
 
 // Serve public files (badges, etc.)
@@ -521,9 +525,9 @@ setInterval(cleanupExpiredDeviceTokens, 5 * 60 * 1000);
 
 // Start server
 server.listen(config.port, '0.0.0.0', () => {
-  console.log(`\n  ⚡ Nexo Server запущен на порту ${config.port}\n`);
-  console.log(`  📡 Локально: http://localhost:${config.port}`);
-  console.log(`  🌐 В сети: http://<ваш-IP>:${config.port}\n`);
+  log('ok', `Server started on port ${config.port}`);
+  log('info', `Local: http://localhost:${config.port}`);
+  log('info', `Network: http://<your-ip>:${config.port}`);
 });
 
 // Graceful shutdown

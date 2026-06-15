@@ -1,8 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import { createReadStream, createWriteStream } from 'fs';
-import { pipeline } from 'stream/promises';
+
 import { encryptBuffer, decryptBuffer } from '../encrypt';
 
 const STORAGE_ROOT = path.resolve(process.cwd(), 'storage');
@@ -86,7 +85,7 @@ class LocalStorage {
     filename: string,
     mimeType: string,
     userId: string,
-    encryptionLevel: number = 0
+    _encryptionLevel: number = 0
   ): Promise<StoredFile> {
     await this.ensureInit();
 
@@ -131,7 +130,7 @@ class LocalStorage {
   /**
    * Download file from local storage with decryption
    */
-  async downloadFile(fileId: string, chunks: UploadedChunk[]): Promise<Buffer> {
+  async downloadFile(fileId: string, _chunks: UploadedChunk[]): Promise<Buffer> {
     await this.ensureInit();
 
     console.log(`  ⬇️ Downloading file ${fileId}...`);
@@ -155,7 +154,7 @@ class LocalStorage {
   /**
    * Delete file from local storage
    */
-  async deleteFile(fileId: string, chunks: UploadedChunk[]): Promise<void> {
+  async deleteFile(fileId: string, _chunks: UploadedChunk[]): Promise<void> {
     await this.ensureInit();
 
     console.log(`  🗑️ Deleting file ${fileId}...`);
@@ -218,7 +217,7 @@ class LocalStorage {
   /**
    * Check if file exists
    */
-  async fileExists(fileId: string, chunks: UploadedChunk[]): Promise<boolean> {
+  async fileExists(fileId: string, _chunks: UploadedChunk[]): Promise<boolean> {
     await this.ensureInit();
 
     const filePath = this.getFilePath(fileId);

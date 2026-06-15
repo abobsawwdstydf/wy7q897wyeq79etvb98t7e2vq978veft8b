@@ -5,9 +5,6 @@ import { getSocket } from '../socket';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import jwt from 'jsonwebtoken';
-import { config } from '../config';
-import { isValidAdminToken } from './admin';
 import { getAdminSession } from '../services/auth';
 
 const router = Router();

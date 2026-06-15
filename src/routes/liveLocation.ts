@@ -83,7 +83,7 @@ router.delete('/:locationId', authenticateToken, async (req: AuthRequest, res) =
     if (!location) return res.status(404).json({ error: 'Location not found' });
     if (location.userId !== userId) return res.status(403).json({ error: 'Not your location' });
 
-    const updated = await prisma.liveLocation.update({
+    await prisma.liveLocation.update({
       where: { id: locationId },
       data: { isActive: false },
     });

@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { SignalProtocolAddress, SessionBuilder, SessionCipher } from '@privacyresearch/libsignal-protocol-typescript';
+import { SignalProtocolAddress, SessionBuilder, SessionCipher } from '@privacyresearch/libsignal-protocol-typescript'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 /**
  * Signal Protocol implementation for E2E encryption
@@ -92,7 +92,7 @@ export function generateOneTimePreKeys(count: number = 100): Array<{
 export async function encryptMessage(
   plaintext: string,
   recipientKeyBundle: KeyBundle,
-  senderIdentityKey: string
+  _senderIdentityKey: string
 ): Promise<EncryptedMessage> {
   try {
     // For now, use AES-256-GCM as a simplified E2E encryption
@@ -192,7 +192,7 @@ export function verifySignature(
 /**
  * Generate device-specific encryption keys
  */
-export function generateDeviceKeys(deviceId: string): {
+export function generateDeviceKeys(_deviceId: string): {
   identityKey: string;
   signedPreKey: string;
   preKeyId: number;

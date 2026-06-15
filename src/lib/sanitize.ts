@@ -62,7 +62,7 @@ interface RateLimitEntry {
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Cleanup stale entries every 60 seconds
-const _cleanupInterval = setInterval(() => {
+const _cleanupInterval = setInterval(() => { // eslint-disable-line @typescript-eslint/no-unused-vars
   const now = Date.now();
   for (const [key, entry] of rateLimitStore) {
     if (entry.resetAt <= now) {

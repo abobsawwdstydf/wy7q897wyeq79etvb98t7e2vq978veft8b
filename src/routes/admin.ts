@@ -87,7 +87,9 @@ router.post('/login', async (req, res) => {
     });
   }
   
-  if (password === ADMIN_PASSWORD) {
+  const passwordBuf = Buffer.from(password);
+  const adminBuf = Buffer.from(ADMIN_PASSWORD);
+  if (passwordBuf.length === adminBuf.length && crypto.timingSafeEqual(passwordBuf, adminBuf)) {
     const token = 'admin-token-' + crypto.randomBytes(32).toString('hex');
     const userAgent = req.headers['user-agent'] || '';
     
@@ -145,7 +147,6 @@ router.delete('/sessions/:token', authenticateAdmin, async (req, res) => {
 
 // Logout from all sessions except current
 router.delete('/sessions/all', authenticateAdmin, async (req, res) => {
-  const currentToken = req.headers.authorization?.replace('Bearer ', '');
   // В Redis-based системе просто удаляем текущую сессию
   // Остальные сессии истекут по TTL
   res.json({ success: true, message: 'Сессии завершены (остальные истекут по TTL)' });

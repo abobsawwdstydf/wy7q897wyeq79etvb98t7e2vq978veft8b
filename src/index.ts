@@ -130,7 +130,7 @@ const io = new Server(server, {
   pingTimeout: 60000, // 60 секунд
   pingInterval: 25000, // 25 секунд
   upgradeTimeout: 30000,
-  maxHttpBufferSize: 1e8, // 100 MB
+  maxHttpBufferSize: 5e6, // 5 MB - enough for file metadata, not raw uploads
   transports: ['websocket', 'polling'],
   allowUpgrades: true,
   connectTimeout: 45000,
@@ -338,12 +338,12 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Админ панель (ДОЛЖНА БЫТЬ ДО статических файлов!)
-app.get('/admin', (_req, res) => {
+app.get('/admin', authenticateToken, (_req, res) => {
   res.sendFile(path.join(__dirname, 'admin-panel.html'));
 });
 
 // NFT Studio админ панель
-app.get('/admin/nft', (_req, res) => {
+app.get('/admin/nft', authenticateToken, (_req, res) => {
   res.sendFile(path.join(__dirname, 'admin-nft-studio.html'));
 });
 

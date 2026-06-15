@@ -46,7 +46,7 @@ export function setupCallHandlers(io: Server, socket: AuthSocket) {
           select: { id: true, username: true, displayName: true, avatar: true },
         });
         callerInfo = caller;
-      } catch (e) {
+      } catch (_e) {
         // Ignore lookup errors
       }
       for (const sid of targetSockets) {

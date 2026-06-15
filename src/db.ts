@@ -1,9 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import { encryptText, decryptText, isEncryptionEnabled } from './encrypt';
-// Updated: CloudFile and CustomEmoji models added
 
-// Prisma берёт DATABASE_URL из env автоматически
-// Fallback обрабатывается на уровне соединения — Prisma reconnect
+interface QueryArgs {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  args: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: (args: any) => Promise<any>;
+}
+
 const databaseUrl = process.env.DATABASE_URL;
 
 export const prisma = new PrismaClient({
@@ -12,7 +16,7 @@ export const prisma = new PrismaClient({
 }).$extends({
   query: {
     message: {
-      async create({ args, query }: any) {
+      async create({ args, query }: QueryArgs) {
         if (args.data.content && typeof args.data.content === 'string') {
           args.data.content = encryptText(args.data.content);
         }
@@ -23,7 +27,7 @@ export const prisma = new PrismaClient({
         decryptMessageFields(result);
         return result;
       },
-      async update({ args, query }: any) {
+      async update({ args, query }: QueryArgs) {
         if (args.data.content && typeof args.data.content === 'string') {
           args.data.content = encryptText(args.data.content);
         }
@@ -34,45 +38,45 @@ export const prisma = new PrismaClient({
         decryptMessageFields(result);
         return result;
       },
-      async findMany({ args, query }: any) {
+      async findMany({ args, query }: QueryArgs) {
         const results = await query(args);
         for (const item of results) {
           decryptMessageFields(item);
         }
         return results;
       },
-      async findFirst({ args, query }: any) {
+      async findFirst({ args, query }: QueryArgs) {
         const result = await query(args);
         if (result) decryptMessageFields(result);
         return result;
       },
-      async findUnique({ args, query }: any) {
+      async findUnique({ args, query }: QueryArgs) {
         const result = await query(args);
         if (result) decryptMessageFields(result);
         return result;
       },
     },
     chat: {
-      async findMany({ args, query }: any) {
+      async findMany({ args, query }: QueryArgs) {
         const results = await query(args);
         for (const chat of results) {
           decryptChatMessages(chat);
         }
         return results;
       },
-      async findFirst({ args, query }: any) {
+      async findFirst({ args, query }: QueryArgs) {
         const result = await query(args);
         if (result) decryptChatMessages(result);
         return result;
       },
-      async findUnique({ args, query }: any) {
+      async findUnique({ args, query }: QueryArgs) {
         const result = await query(args);
         if (result) decryptChatMessages(result);
         return result;
       },
     },
     pinnedMessage: {
-      async findMany({ args, query }: any) {
+      async findMany({ args, query }: QueryArgs) {
         const results = await query(args);
         for (const item of results) {
           if (item && item.message) {
@@ -81,7 +85,7 @@ export const prisma = new PrismaClient({
         }
         return results;
       },
-      async findFirst({ args, query }: any) {
+      async findFirst({ args, query }: QueryArgs) {
         const result = await query(args);
         if (result && result.message) {
           decryptMessageFields(result.message);
@@ -92,6 +96,7 @@ export const prisma = new PrismaClient({
   },
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function decryptMessageFields(obj: any): void {
   if (!obj || typeof obj !== 'object' || !isEncryptionEnabled()) return;
   if (typeof obj.content === 'string') obj.content = decryptText(obj.content);
@@ -101,6 +106,7 @@ function decryptMessageFields(obj: any): void {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function decryptChatMessages(chat: any): void {
   if (!chat || !isEncryptionEnabled()) return;
   if (Array.isArray(chat.messages)) {

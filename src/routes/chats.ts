@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
 import { USER_SELECT, SENDER_SELECT, uploadGroupAvatar, deleteUploadedFile, encryptUploadedFile } from '../shared';
-import { sanitizeText, validateContentLength, CONTENT_LIMITS } from '../lib/sanitize';
+import { sanitizeText, CONTENT_LIMITS } from '../lib/sanitize';
 
 const router = Router();
 
@@ -361,7 +361,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
     }
 
     res.json(chat);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -603,7 +603,7 @@ router.delete('/:id/avatar', async (req: AuthRequest, res) => {
     });
 
     res.json(chat);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка удаления аватара' });
   }
 });

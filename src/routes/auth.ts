@@ -14,7 +14,6 @@ import {
   clearAuthCookies,
 } from '../middleware/auth';
 import {
-  revokeToken,
   checkAccountLockout,
   recordFailedLogin,
   resetLoginAttempts,
@@ -25,7 +24,7 @@ import {
   registerRefreshToken,
 } from '../services/auth';
 import { validatePassword } from '../lib/password';
-import { generateCsrfToken, validateCsrfToken, CSRF_CONFIG } from '../lib/csrf';
+import { generateCsrfToken, CSRF_CONFIG } from '../lib/csrf';
 
 const router = Router();
 
@@ -57,7 +56,7 @@ const upload = multer({
 /**
  * Установка CSRF cookie + токена в response
  */
-function setCsrfCookie(res: Response, userId: string): string {
+function setCsrfCookie(res: Response, _userId: string): string {
   const token = generateCsrfToken();
   res.cookie(CSRF_CONFIG.COOKIE_NAME, token, {
     httpOnly: false, // Доступен из JS
@@ -168,7 +167,7 @@ router.post('/register', loginLimiter, upload.single('avatar') as any, async (re
     });
 
     // Генерируем пару токенов
-    const { token: accessToken, jti: accessJti } = generateAccessToken(user.id);
+    const { token: accessToken } = generateAccessToken(user.id);
     const { token: refreshToken, jti: refreshJti } = generateRefreshToken(user.id);
 
     // Сохраняем refresh token в Redis
@@ -285,7 +284,7 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     // Генерируем пару токенов
-    const { token: accessToken, jti: accessJti } = generateAccessToken(user.id, isFakeLogin);
+    const { token: accessToken } = generateAccessToken(user.id, isFakeLogin);
     const { token: refreshToken, jti: refreshJti } = generateRefreshToken(user.id);
 
     await storeRefreshToken(refreshJti, user.id, config.refreshTokenTtlDays * 24 * 60 * 60);
@@ -342,7 +341,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
     await deleteRefreshToken(decoded.jti);
 
     // Генерируем новую пару
-    const { token: accessToken, jti: accessJti } = generateAccessToken(tokenData.userId, tokenData.fakeMode);
+    const { token: accessToken } = generateAccessToken(tokenData.userId, tokenData.fakeMode);
     const { token: refreshToken, jti: refreshJti } = generateRefreshToken(tokenData.userId);
 
     await storeRefreshToken(refreshJti, tokenData.userId, config.refreshTokenTtlDays * 24 * 60 * 60);

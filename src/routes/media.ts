@@ -1,5 +1,4 @@
 import express from 'express';
-import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
 import multer from 'multer';
 import sharp from 'sharp';
@@ -35,7 +34,7 @@ router.post('/edit-photo', upload.single('photo') as any, async (req: AuthReques
       return res.status(400).json({ error: 'Файл не загружен' });
     }
 
-    const { filter, brightness, contrast, saturation, blur, rotate, text, textX, textY, textSize, textColor } = req.body;
+    const { filter, brightness, saturation, blur, rotate, text, textX, textY, textSize, textColor } = req.body;
 
     let image = sharp(file.buffer);
 
@@ -133,7 +132,7 @@ router.post('/add-sticker', upload.single('photo') as any, async (req: AuthReque
       return res.status(400).json({ error: 'Файл не загружен' });
     }
 
-    const { stickerUrl, stickerX, stickerY, stickerWidth, stickerHeight } = req.body;
+    const { stickerUrl } = req.body;
 
     if (!stickerUrl) {
       return res.status(400).json({ error: 'URL стикера обязателен' });

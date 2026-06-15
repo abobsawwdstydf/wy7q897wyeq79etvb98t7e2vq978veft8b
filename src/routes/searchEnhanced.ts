@@ -337,7 +337,6 @@ router.get('/mentions', async (req: AuthRequest, res) => {
 // Search messages by thread
 router.get('/threads', async (req: AuthRequest, res) => {
   try {
-    const userId = req.userId!;
     const { threadId, limit = '50', offset = '0' } = req.query;
 
     if (!threadId) return res.status(400).json({ error: 'threadId required' });

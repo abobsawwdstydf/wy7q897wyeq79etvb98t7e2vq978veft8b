@@ -1,17 +1,14 @@
-﻿import { Server, Socket } from 'socket.io';
+﻿import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { config } from '../config';
 import { SENDER_SELECT } from '../shared';
-import { setupTypingIndicators } from '../lib/typingIndicators';
 
 import {
   AuthSocket,
   setSocket,
-  isChatMember,
   MAX_TIMEOUT,
 } from './shared';
-import { checkRateLimit } from './middleware/rateLimiter';
 import { setupMessageHandlers } from './handlers/messages';
 import { setupCallHandlers } from './handlers/calls';
 import { setupTypingHandlers } from './handlers/typing';
@@ -24,7 +21,6 @@ export { getSocket, getIO, setSocket } from './shared';
 export function setupSocket(io: Server) {
   setSocket(io);
   rescheduleMessages(io);
-  setupTypingIndicators(io);
 
   io.use((socket: AuthSocket, next) => {
     // Support token from auth handshake OR from httpOnly cookie

@@ -286,7 +286,7 @@ router.post('/:id/share', authenticateToken, async (req: AuthRequest, res: Respo
     }
 
     // Создаём ссылку
-    const link = await prisma.sharedFolderLink.create({
+    await prisma.sharedFolderLink.create({
       data: {
         folderId: id,
         userId,

@@ -117,7 +117,7 @@ function extractToken(req: Request): string | null {
 /**
  * Извлечение refresh token из cookie
  */
-function extractRefreshToken(req: Request): string | null {
+function extractRefreshToken(req: Request): string | null { // eslint-disable-line @typescript-eslint/no-unused-vars
   return (req as any).cookies?.nexo_refresh_token || null;
 }
 

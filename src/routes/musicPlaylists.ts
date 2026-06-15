@@ -47,7 +47,6 @@ router.post('/', authenticateToken, upload.single('cover'), async (req: AuthRequ
   try {
     const userId = req.userId!;
     const { name } = req.body;
-    const files = req.files as any;
     const cover = req.file;
 
     if (!name || !name.trim()) {

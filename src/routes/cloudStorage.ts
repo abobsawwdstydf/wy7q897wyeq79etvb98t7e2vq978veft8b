@@ -172,8 +172,6 @@ router.post('/folder', async (req: AuthRequest, res) => {
     const { name, parent } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Folder name required' });
 
-    const folderPath = `${parent || '/'}${name.trim()}/`;
-
     // Create a placeholder file to represent the folder
     const folder = await prisma.cloudFile.create({
       data: {

@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
-import { getSocket } from '../socket';
 
 const router = Router();
 

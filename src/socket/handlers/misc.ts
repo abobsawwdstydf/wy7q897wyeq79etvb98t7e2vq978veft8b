@@ -247,7 +247,7 @@ export function setupMiscHandlers(io: Server, socket: AuthSocket) {
         x: data.x,
         y: data.y,
       });
-    } catch (e) {
+    } catch (_e) {
       // Ignore cursor errors
     }
   });

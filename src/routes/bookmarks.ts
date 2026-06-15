@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
-import { SENDER_SELECT, MESSAGE_INCLUDE } from '../shared';
+import { MESSAGE_INCLUDE } from '../shared';
 
 const router = Router();
 

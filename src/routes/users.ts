@@ -193,7 +193,7 @@ router.get('/settings', async (req: AuthRequest, res) => {
     try {
       const musicArray = JSON.parse(user.profileMusic || '[]');
       ringtone = musicArray.find((m: any) => m.isRingtone) || null;
-    } catch (e) {
+    } catch (_e) {
       // Ignore parse errors
     }
 
@@ -229,7 +229,7 @@ router.put('/settings', async (req: AuthRequest, res) => {
       let musicArray = [];
       try {
         musicArray = JSON.parse(currentUser?.profileMusic || '[]');
-      } catch (e) {
+      } catch (_e) {
         // Ignore parse errors
       }
 
@@ -271,7 +271,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
     }
 
     res.json(user);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -297,7 +297,7 @@ router.post('/avatar', uploadUserAvatar.single('avatar') as any, encryptUploaded
     });
 
     res.json(user);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка загрузки аватара' });
   }
 });
@@ -315,7 +315,7 @@ router.delete('/avatar', async (req: AuthRequest, res) => {
       select: USER_SELECT,
     });
     res.json(user);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка удаления аватара' });
   }
 });

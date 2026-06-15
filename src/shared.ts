@@ -171,7 +171,7 @@ export const uploadGroupAvatar = multer({
 });
 
 /** Blocked file extensions that could be served as executable content. */
-const BLOCKED_EXTENSIONS = new Set([
+const _BLOCKED_EXTENSIONS = new Set([
   '.html', '.htm', '.svg', '.xml', '.xhtml',
   '.php', '.jsp', '.asp', '.aspx', '.cgi',
   '.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.pif',

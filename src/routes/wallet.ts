@@ -43,7 +43,7 @@ router.get('/balance', authenticateToken, async (req: AuthRequest, res) => {
       select: { beavers: true, totalSpent: true, totalEarned: true },
     });
     res.json(user);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка получения баланса' });
   }
 });
@@ -64,7 +64,7 @@ router.get('/transactions', authenticateToken, async (req: AuthRequest, res) => 
       skip: offsetNum,
     });
     res.json(transactions);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка получения истории' });
   }
 });
@@ -128,7 +128,7 @@ router.post('/send', authenticateToken, async (req: AuthRequest, res) => {
       : `Перевод от @${sender.username}`;
 
     // SECURITY FIX: Атомарная транзакция с блокировкой
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       // Блокировка записей для предотвращения race condition
       const lockedSender = await tx.user.findUnique({
         where: { id: fromUserId },
@@ -194,7 +194,7 @@ router.post('/send', authenticateToken, async (req: AuthRequest, res) => {
           note: note?.trim() || null,
         });
       }
-    } catch (e) {
+    } catch (_e) {
       // Игнорируем ошибки сокетов
     }
 
@@ -364,7 +364,7 @@ router.post('/topup/webhook', async (req, res) => {
     }
 
     // SECURITY FIX: Проверка IP-адреса (опционально, но рекомендуется)
-    const clientIp = req.ip || req.socket.remoteAddress || '';
+    const _clientIp = req.ip || req.socket.remoteAddress || '';
     // В продакшене раскомментировать:
     // if (!isIpInWhitelist(clientIp)) {
     //   console.error('[WALLET] Webhook from unauthorized IP:', clientIp);
@@ -435,7 +435,7 @@ router.post('/topup/webhook', async (req, res) => {
           rubles: paymentAmount,
         });
       }
-    } catch (e) {
+    } catch (_e) {
       // Игнорируем ошибки сокетов
     }
 

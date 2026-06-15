@@ -296,7 +296,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
     });
 
     res.json(updated);
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -357,7 +357,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     });
 
     res.json({ success: true });
-  } catch (error) {
+  } catch (_error) {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });

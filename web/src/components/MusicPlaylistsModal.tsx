@@ -28,7 +28,7 @@ interface MusicPlaylistsModalProps {
 
 export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProps) {
   const { user } = useAuthStore();
-  const { setQueue, play, pause, isPlaying, currentTrack } = useMusicPlayerStore();
+  const { playTrack, isPlaying, currentTrack } = useMusicPlayerStore();
   
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,13 +125,14 @@ export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProp
 
   const handlePlayPlaylist = (playlist: Playlist) => {
     const tracks = playlist.tracks.sort((a, b) => a.order - b.order).map(t => ({
+      id: t.id,
       url: t.url,
       title: t.filename,
       duration: t.duration,
-      volume: t.volume,
     }));
-    setQueue(tracks);
-    play();
+    if (tracks.length > 0) {
+      playTrack(tracks[0], tracks);
+    }
   };
 
   const handleAddTrackToProfile = async (track: PlaylistTrack) => {

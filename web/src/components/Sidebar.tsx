@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
+import { useNavigationStore } from '../stores/navigationStore';
 import { useLang } from '../lib/i18n';
 import { api } from '../lib/api';
 import { normalizeMediaUrl } from '../lib/mediaUrl';
@@ -75,7 +76,7 @@ function NavButton({
         className={cn(
           'relative flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-200',
           active
-            ? 'bg-nexo-500/15 border border-nexo-500/30 shadow-lg shadow-nexo-500/20'
+            ? 'liquid-glass-subtle border border-nexo-500/30 shadow-lg shadow-nexo-500/20'
             : 'hover:bg-white/[0.06] border border-transparent'
         )}
       >
@@ -132,6 +133,7 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
   // Навигация
   const [activeTab, setActiveTab] = useState<NavTab>('chats');
   const [isMobile, setIsMobile] = useState(false);
+  const { currentView } = useNavigationStore();
 
   // Результаты поиска
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -155,11 +157,15 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  /** Слушаем событие открытия нового чата снизу */
+  /** Слушаем открытие нового чата через navigation store */
   useEffect(() => {
-    const handler = () => setShowNewChat(true);
-    window.addEventListener('open-new-chat', handler);
-    return () => window.removeEventListener('open-new-chat', handler);
+    const unsub = useNavigationStore.subscribe((state) => {
+      if (state.showNewChat) {
+        setShowNewChat(true);
+        useNavigationStore.getState().closeNewChat();
+      }
+    });
+    return unsub;
   }, []);
 
   /** Загрузка папок */
@@ -374,53 +380,59 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
 
   return (
     <>
-      <div className="w-full sm:w-[380px] h-full flex bg-surface sm:rounded-3xl overflow-hidden border border-white/[0.06] relative z-10">
+      <div className={`w-full ${currentView !== 'wall' ? 'sm:w-[380px]' : ''} h-full flex liquid-glass sm:rounded-3xl overflow-hidden border border-white/[0.06] relative z-10`}>
 
         {/* ====== БОКОВАЯ НАВИГАЦИЯ (ПК) ====== */}
         {!isMobile && (
-          <div className="w-[56px] glass-strong flex flex-col items-center py-3 gap-1.5 flex-shrink-0 z-20">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center mb-2 shadow-lg shadow-nexo-500/30">
-              <img src="/logo.png" alt="Нексо" className="w-6 h-6 rounded-lg object-cover" />
+          <div className="w-[56px] liquid-glass-strong flex flex-col items-center py-3 gap-1.5 flex-shrink-0 z-20">
+            {/* Логотип */}
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2">
+              <img src="/logo.png" alt="Нексо" className="w-9 h-9 rounded-xl object-cover" />
             </div>
 
             <div className="w-8 h-px bg-white/10 my-1" />
 
-            {/* Чаты */}
-            <NavButton
-              icon={MessageSquare}
-              label="Чаты"
-              active={activeTab === 'chats'}
-              onClick={() => handleTabChange('chats')}
-              badge={unreadCount}
-            />
-
-            {/* Новый чат */}
-            <NavButton
-              icon={Plus}
-              label="Новый чат"
-              active={false}
-              onClick={() => setShowNewChat(true)}
-            />
-
-            {/* Нексо AI */}
-            <NavButton
-              icon={Sparkles}
-              label="Нексо AI"
-              active={false}
-              onClick={onOpenAI}
-            />
-
-            {/* Стена */}
-            {onOpenWall && (
+            {/* Кнопки навигации */}
+            <div className="flex flex-col items-center gap-1.5">
+              {/* Чаты */}
               <NavButton
-                icon={Newspaper}
-                label="Стена"
-                active={false}
-                onClick={onOpenWall}
+                icon={MessageSquare}
+                label="Чаты"
+                active={activeTab === 'chats'}
+                onClick={() => handleTabChange('chats')}
+                badge={unreadCount}
               />
-            )}
+
+              {/* Новый чат */}
+              <NavButton
+                icon={Plus}
+                label="Новый чат"
+                active={false}
+                onClick={() => setShowNewChat(true)}
+              />
+
+              {/* Нексо AI */}
+              <NavButton
+                icon={Sparkles}
+                label="Нексо AI"
+                active={false}
+                onClick={onOpenAI}
+              />
+
+              {/* Стена */}
+              {onOpenWall && (
+                <NavButton
+                  icon={Newspaper}
+                  label="Стена"
+                  active={false}
+                  onClick={onOpenWall}
+                />
+              )}
+            </div>
 
             <div className="flex-1" />
+
+            <div className="w-8 h-px bg-white/10 my-1" />
 
             {/* Профиль */}
             <button
@@ -430,7 +442,7 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
               {user?.avatar ? (
                 <img src={normalizeMediaUrl(user.avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-nexo-500 to-purple-600 text-white text-sm font-bold">
+                <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-white text-sm font-bold">
                   {(user?.displayName || user?.username || '?')[0].toUpperCase()}
                 </div>
               )}
@@ -439,10 +451,11 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
         )}
 
         {/* ====== ОСНОВНОЙ КОНТЕНТ ====== */}
+        {currentView !== 'wall' && (
         <div className="flex-1 flex flex-col min-w-0">
 
           {/* Header */}
-          <div className="relative h-[60px] px-4 flex items-center gap-3 flex-shrink-0 bg-surface/80 backdrop-blur-xl border-b border-white/[0.06]">
+          <div className="relative h-[60px] px-4 flex items-center gap-3 flex-shrink-0 liquid-glass border-b border-white/[0.06]">
             <button
               onClick={() => setShowSideMenu(true)}
               className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.1] transition-all duration-150 flex-shrink-0"
@@ -453,10 +466,7 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
             </button>
 
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
-              <div className="relative">
-                <div className="absolute inset-0 bg-nexo-500/25 blur-lg rounded-lg" />
-                <img src="/logo.png" alt="Нексо" className="relative w-7 h-7 rounded-xl object-cover" />
-              </div>
+              <img src="/logo.png" alt="Нексо" className="w-7 h-7 rounded-xl object-cover" />
               <h1 className="text-[17px] font-bold text-white/90 truncate tracking-tight">
                 {activeTab === 'chats' && 'Нексо'}
                 {activeTab === 'friends' && 'Друзья'}
@@ -480,7 +490,7 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 rounded-xl text-[13px] text-white placeholder-white/30 bg-surface-tertiary/80 border border-white/[0.06] focus:border-white/[0.14] focus:bg-surface-tertiary outline-none transition-all duration-200"
+                className="w-full pl-9 pr-8 py-2 rounded-xl text-[13px] text-white placeholder-white/30 liquid-glass-input border border-white/[0.06] focus:border-white/[0.14] focus:bg-surface-tertiary outline-none transition-all duration-200"
               />
               {searchQuery ? (
                 <button
@@ -543,14 +553,14 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
                       onClick={() => setStoryViewerIndex(idx)}
                       className="flex flex-col items-center gap-1 flex-shrink-0 group"
                     >
-                      <div className={`w-14 h-14 rounded-full p-[2px] transition-transform group-hover:scale-105 ${
+                      <div className={`w-14 h-14 rounded-xl p-[2px] transition-transform group-hover:scale-105 ${
                         group.hasUnviewed
                           ? 'bg-gradient-to-tr from-nexo-400 via-purple-500 to-pink-500 shadow-lg shadow-nexo-500/20'
                           : isMine
                             ? 'bg-gradient-to-tr from-zinc-500 to-zinc-600'
                             : 'bg-zinc-700'
                       }`}>
-                        <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#0a0a0f]">
+                        <div className="w-full h-full rounded-xl overflow-hidden border-2 border-[#0a0a0f]">
                           <Avatar
                             src={avatarUrl}
                             name={group.user.displayName || group.user.username}
@@ -855,6 +865,7 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
           </div>
 
         </div>
+        )}
       </div>
 
       {/* ====== МОДАЛКИ ====== */}

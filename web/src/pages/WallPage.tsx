@@ -1,15 +1,20 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Loader2, X, Hash, MessageSquare, Users, User, Sparkles, FileText } from 'lucide-react';
+import { Loader2, X, Hash, FileText } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
-import { normalizeMediaUrl } from '../lib/mediaUrl';
+import { useNavigationStore } from '../stores/navigationStore';
+import { saveEncrypted, loadDecrypted, saveTimestamp, loadTimestamp } from '../lib/storageEncryption';
 import WallPost from '../components/WallPost';
 import NewPostModal from '../components/NewPostModal';
 import HashtagPage from './HashtagPage';
 import NexoAIPage from './NexoAIPage';
-import Avatar from '../components/Avatar';
+
+const WALL_CACHE_KEY = 'nexo_wall_feed_cache';
+const WALL_CACHE_TTL = 2 * 60 * 1000;
+const WALL_HASHTAG_CACHE_KEY = 'nexo_wall_hashtags_cache';
+const WALL_HASHTAG_CACHE_TTL = 5 * 60 * 1000;
 
 interface WallPostType {
   id: string;
@@ -58,6 +63,7 @@ interface WallPageProps {
 export default function WallPage({ highlightPostId, onHighlightCleared }: WallPageProps) {
   const { user } = useAuthStore();
   const { error: showError } = useToastStore();
+  const { navigateTo, openProfile, showAI, openAI, closeAI } = useNavigationStore();
   const [posts, setPosts] = useState<WallPostType[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
@@ -68,7 +74,6 @@ export default function WallPage({ highlightPostId, onHighlightCleared }: WallPa
   const [hashtags, setHashtags] = useState<Hashtag[]>([]);
   const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
   const [loadingHashtags, setLoadingHashtags] = useState(true);
-  const [showAI, setShowAI] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [viewMode, setViewMode] = useState<'feed' | 'my' | 'friends' | 'search'>('feed');
   const viewModeRef = useRef<'feed' | 'my' | 'friends' | 'search'>('feed');
@@ -87,20 +92,26 @@ export default function WallPage({ highlightPostId, onHighlightCleared }: WallPa
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Listen for AI open event from MobileBottomNav (when on Wall page)
-  useEffect(() => {
-    const handleWallOpenAI = () => setShowAI(true);
-    window.addEventListener('wall-open-ai', handleWallOpenAI);
-    return () => window.removeEventListener('wall-open-ai', handleWallOpenAI);
-  }, []);
-
   // Загрузка хэштегов пользователя
   const loadHashtags = async () => {
+    const cached = loadDecrypted(WALL_HASHTAG_CACHE_KEY);
+    const cachedTs = loadTimestamp(`${WALL_HASHTAG_CACHE_KEY}_ts`);
+    if (cached && Array.isArray(cached) && cachedTs && Date.now() - cachedTs < WALL_HASHTAG_CACHE_TTL) {
+      setHashtags(cached);
+    }
     try {
       const data = await api.get('/wall/hashtags/owned');
-      setHashtags(data);
+      const list = Array.isArray(data) ? data : [];
+      setHashtags(list);
+      try {
+        saveEncrypted(WALL_HASHTAG_CACHE_KEY, list);
+        saveTimestamp(`${WALL_HASHTAG_CACHE_KEY}_ts`, Date.now());
+      } catch {}
     } catch (err) {
       console.error('Error loading hashtags:', err);
+      if (!cached) {
+        showError('Ошибка загрузки хэштегов');
+      }
     } finally {
       setLoadingHashtags(false);
     }
@@ -117,16 +128,33 @@ export default function WallPage({ highlightPostId, onHighlightCleared }: WallPa
       } else if (mode === 'friends') {
         endpoint = `/wall/friends?offset=${currentOffset}&limit=20`;
       }
-      const response = await api.get(endpoint);
-      
+
+      // Мгновенно показываем кэш при первой загрузке
       if (reset) {
-        setPosts(response.posts || []);
+        const cached = loadDecrypted(WALL_CACHE_KEY);
+        const cachedTs = loadTimestamp(`${WALL_CACHE_KEY}_ts`);
+        if (cached && Array.isArray(cached.posts) && cachedTs && Date.now() - cachedTs < WALL_CACHE_TTL) {
+          setPosts(cached.posts);
+          setHasMore(!!cached.hasMore);
+          setOffset(cached.posts.length);
+        }
+      }
+
+      const response = await api.get(endpoint);
+      const newPosts = response.posts || [];
+
+      if (reset) {
+        setPosts(newPosts);
         setOffset(20);
+        try {
+          saveEncrypted(WALL_CACHE_KEY, { posts: newPosts, hasMore: !!response.hasMore });
+          saveTimestamp(`${WALL_CACHE_KEY}_ts`, Date.now());
+        } catch {}
       } else {
-        setPosts(prev => [...prev, ...(response.posts || [])]);
+        setPosts(prev => [...prev, ...newPosts]);
         setOffset(prev => prev + 20);
       }
-      
+
       setHasMore(!!response.hasMore);
     } catch (err) {
       console.error('Error loading feed:', err);
@@ -262,73 +290,6 @@ export default function WallPage({ highlightPostId, onHighlightCleared }: WallPa
 
   return (
     <div className="h-full flex bg-surface">
-      {/* Боковая панель слева (только на ПК) */}
-      {!isMobile && (
-        <div className="w-[88px] flex-shrink-0 bg-surface-secondary border-r border-border flex flex-col items-center py-4 gap-3">
-          {/* Логотип */}
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center mb-2">
-            <img src="/logo.png" alt="Нексо" className="w-6 h-6 rounded-lg object-cover" />
-          </div>
-
-          <div className="w-8 h-px bg-border my-1" />
-
-          {/* Чаты */}
-          <button
-            onClick={() => window.dispatchEvent(new Event('open-chats-page'))}
-            className="w-11 h-11 rounded-xl bg-surface-tertiary hover:bg-surface-hover text-zinc-400 hover:text-white transition-colors flex items-center justify-center"
-            title="Чаты"
-          >
-            <MessageSquare size={20} />
-          </button>
-
-          {/* Новый чат */}
-          <button
-            onClick={() => window.dispatchEvent(new Event('open-chats-page'))}
-            className="w-11 h-11 rounded-xl bg-surface-tertiary hover:bg-surface-hover text-zinc-400 hover:text-white transition-colors flex items-center justify-center"
-            title="Новый чат"
-          >
-            <Plus size={20} />
-          </button>
-
-          {/* Нексо AI */}
-          <button
-            onClick={() => {
-              setShowAI(true);
-            }}
-            className="w-11 h-11 rounded-xl bg-gradient-to-r from-nexo-500/20 to-purple-500/20 hover:from-nexo-500/30 hover:to-purple-500/30 text-nexo-400 transition-colors flex items-center justify-center"
-            title="Нексо AI"
-            id="wall-ai-button"
-          >
-            <Sparkles size={20} />
-          </button>
-
-          {/* Стена (активна) */}
-          <button
-            className="w-11 h-11 rounded-xl bg-nexo-500/20 text-nexo-400 flex items-center justify-center ring-2 ring-nexo-500/50"
-            title="Стена"
-          >
-            <Hash size={20} />
-          </button>
-
-          <div className="flex-1" />
-
-          {/* Профиль */}
-          <button
-            onClick={() => window.dispatchEvent(new Event('open-profile-page'))}
-            className="w-11 h-11 rounded-xl overflow-hidden hover:ring-2 hover:ring-nexo-500/50 transition-all"
-            title="Профиль"
-          >
-            {user?.avatar ? (
-              <img src={normalizeMediaUrl(user.avatar)} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-nexo-500 to-purple-600 text-white text-sm font-bold">
-                {(user?.displayName || user?.username || '?')[0].toUpperCase()}
-              </div>
-            )}
-          </button>
-        </div>
-      )}
-
       {/* Основной контент */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
@@ -535,23 +496,31 @@ export default function WallPage({ highlightPostId, onHighlightCleared }: WallPa
         )}
       </AnimatePresence>
 
-      {/* Nexo AI Panel - поверх стены */}
+      {/* Nexo AI Panel - fullscreen modal */}
       <AnimatePresence>
         {showAI && (
           <motion.div
-            initial={{ opacity: 0, x: isMobile ? 0 : 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: isMobile ? 0 : 40 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className={`fixed inset-0 z-[150] sm:z-[140] ${
-              isMobile
-                ? '' // На мобилках - полный экран
-                : 'right-0 top-0 bottom-0 w-[480px]' // На ПК - боковая панель
-            }`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
+            onClick={() => closeAI()}
           >
-            <div className={`h-full bg-[#0a0a0f]/80 backdrop-blur-xl ${isMobile ? '' : 'border-l border-white/10 shadow-2xl'}`}>
-              <NexoAIPage onClose={() => setShowAI(false)} />
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className={`${
+                isMobile
+                  ? 'fixed inset-0 rounded-none'
+                  : 'fixed inset-8 rounded-2xl shadow-2xl overflow-hidden'
+              } bg-[#0a0a0f] border border-white/10`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <NexoAIPage onClose={() => closeAI()} />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -56,6 +56,7 @@ export interface User extends UserPresence {
   tagStyle?: string | null;
   // Premium
   isPremium?: boolean;
+  premiumBadgeUrl?: string | null;
   premiumUntil?: string | null;
   premiumType?: string | null;
   beavers?: number;
@@ -217,6 +218,7 @@ export interface Chat {
   isArchived?: boolean;
   // Other member (for private chats)
   otherMember?: UserBasic | null;
+  subscriptionPrice?: number | null;
   // Last message
   lastMessage?: Message | null;
 }

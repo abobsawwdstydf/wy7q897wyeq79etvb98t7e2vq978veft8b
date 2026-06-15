@@ -42,9 +42,7 @@ export default function TasksModal({ chatId, onClose }: TasksModalProps) {
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/tasks', {
-        chatId: chatId || undefined,
-      });
+      const response = await api.get('/api/tasks' + (chatId ? '?chatId=' + encodeURIComponent(chatId) : ''));
       setTasks(response.tasks);
     } catch (error) {
       console.error('Load tasks error:', error);

@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from './stores/authStore';
 import { useChatStore } from './stores/chatStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useToastStore } from './stores/toastStore';
+import { useNavigationStore } from './stores/navigationStore';
 import { api } from './lib/api';
 import { getSocket } from './lib/socket';
 import AuthPage from './pages/AuthPage';
@@ -30,23 +31,14 @@ import ConnectionStatus from './components/ConnectionStatus';
 type AppView = 'chat' | 'wall' | 'friends' | 'profile' | 'hashtag';
 
 export default function App() {
-  const { token, user, checkAuth, isLoading, updateUser } = useAuthStore();
+  const { user, checkAuth, isLoading, updateUser } = useAuthStore();
   const { loadSettings, loadChatBackgrounds } = useSettingsStore();
   const { success } = useToastStore();
   const { activeChat } = useChatStore();
+  const { currentView, profileUserId, hashtagTag, highlightPostId, showAI, navigateTo, openProfile, openHashtag, openWallPost, openAI, closeAI, openFriends, closeFriends, clearHighlight } = useNavigationStore();
   const [sharedFolderToken, setSharedFolderToken] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('chat');
-  const [profileUserId, setProfileUserId] = useState<string | null>(null);
-  const [hashtagTag, setHashtagTag] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const [mobileFriendsOpen, setMobileFriendsOpen] = useState(false);
-  const currentViewRef = useRef<AppView>('chat');
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    currentViewRef.current = currentView;
-  }, [currentView]);
 
   // Определяем мобильное устройство
   useEffect(() => {
@@ -86,17 +78,16 @@ export default function App() {
 
   // Load settings and backgrounds ONLY after successful auth check
   useEffect(() => {
-    if (user && token && !isLoading) {
+    if (user && !isLoading) {
       Promise.all([
         loadSettings(),
         loadChatBackgrounds()
       ]).catch(console.error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, token, isLoading]);
+  }, [user, isLoading]);
 
   useEffect(() => {
-    // Handle hash routes like #/@username
     const handleHashRoute = () => {
       const hash = window.location.hash;
       if (hash.startsWith('#/@')) {
@@ -107,49 +98,9 @@ export default function App() {
         window.location.href = `/?channel=${channelUsername}`;
       }
     };
-
-    // Handle custom events for navigation
-    const handleOpenWall = () => {
-      setCurrentView('wall');
-    };
-
-    const handleOpenFriends = () => {
-      setCurrentView('friends');
-    };
-
-    const handleOpenAI = () => {
-      if (currentViewRef.current === 'wall') {
-        window.dispatchEvent(new Event('wall-open-ai'));
-        return;
-      }
-      window.dispatchEvent(new Event('open-ai-page'));
-    };
-
-    const handleOpenChats = () => {
-      setCurrentView('chat');
-    };
-
-    const handleOpenProfile = () => {
-      setProfileUserId(user?.id || null);
-      setCurrentView('profile');
-    };
-
     handleHashRoute();
     window.addEventListener('hashchange', handleHashRoute);
-    window.addEventListener('open-wall-page', handleOpenWall);
-    window.addEventListener('open-friends-page', handleOpenFriends);
-    window.addEventListener('open-ai-page', handleOpenAI);
-    window.addEventListener('open-chats-page', handleOpenChats);
-    window.addEventListener('open-profile-page', handleOpenProfile);
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashRoute);
-      window.removeEventListener('open-wall-page', handleOpenWall);
-      window.removeEventListener('open-friends-page', handleOpenFriends);
-      window.removeEventListener('open-ai-page', handleOpenAI);
-      window.removeEventListener('open-chats-page', handleOpenChats);
-      window.removeEventListener('open-profile-page', handleOpenProfile);
-    };
+    return () => window.removeEventListener('hashchange', handleHashRoute);
   }, []);
 
   // Роутинг по /@username, /wall/post/:postId и ?user=username
@@ -163,21 +114,18 @@ export default function App() {
     
     if (postMatch && user) {
       const postId = postMatch[1];
-      setHighlightPostId(postId);
-      setCurrentView('wall');
+      openWallPost(postId);
       window.history.replaceState({}, '', '/');
     } else if (hashtagMatch && user) {
       const tag = hashtagMatch[1];
-      setHashtagTag(tag);
-      setCurrentView('hashtag');
+      openHashtag(tag);
       window.history.replaceState({}, '', '/');
     } else if (usernameMatch && user) {
       const username = usernameMatch[1];
       api.searchUsers(username).then(users => {
         const foundUser = users.find(u => u.username === username);
         if (foundUser) {
-          setProfileUserId(foundUser.id);
-          setCurrentView('profile');
+          openProfile(foundUser.id);
           window.history.replaceState({}, '', '/');
         }
       }).catch(console.error);
@@ -185,8 +133,7 @@ export default function App() {
       api.searchUsers(queryUser).then(users => {
         const foundUser = users.find(u => u.username === queryUser);
         if (foundUser) {
-          setProfileUserId(foundUser.id);
-          setCurrentView('profile');
+          openProfile(foundUser.id);
           window.history.replaceState({}, '', '/');
         }
       }).catch(console.error);
@@ -254,62 +201,98 @@ export default function App() {
     <div className="h-full w-full flex flex-col">
       <ConnectionStatus />
       <AnimatePresence mode="wait">
-        {token && user ? (
+        {user ? (
           <motion.div key="app" className="h-full w-full flex-1 min-h-0 flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             {/* Main content */}
             <div className="flex-1 min-h-0 overflow-hidden flex">
-              {/* Sidebar on desktop and mobile when no active chat - hide when on wall */}
-              {currentView === 'chat' && (
-                <div className={`${isMobile && activeChat ? 'hidden' : 'flex'} w-full sm:w-80 flex-shrink-0 border-r border-border overflow-hidden`}>
+              {/* Sidebar - show on all views for consistent layout */}
+              {(currentView === 'chat' || currentView === 'wall' || currentView === 'friends') && (
+                <div className={`${isMobile && activeChat ? 'hidden' : 'flex'} w-full ${currentView === 'wall' ? 'sm:w-[56px]' : 'sm:w-[380px]'} flex-shrink-0 border-r border-border sm:rounded-2xl overflow-hidden transition-all duration-300`}>
                   <Sidebar 
-                    onOpenAI={() => {
-                      window.dispatchEvent(new Event('open-ai-page'));
-                    }}
-                    onOpenFriends={() => {
-                      setCurrentView('friends');
-                    }}
-                    onOpenWall={() => {
-                      setCurrentView('wall');
-                    }}
+                    onOpenAI={() => openAI()}
+                    onOpenFriends={() => openFriends()}
+                    onOpenWall={() => navigateTo('wall')}
                   />
                 </div>
               )}
               
               <div className={`${isMobile && currentView === 'chat' && !activeChat ? 'hidden' : 'flex'} flex-1 min-h-0 overflow-hidden`}>
-                {currentView === 'hashtag' && hashtagTag ? (
-                  <HashtagPage
-                    tag={hashtagTag}
-                    onClose={() => {
-                      setCurrentView('wall');
-                      setHashtagTag(null);
-                    }}
-                  />
-                ) : currentView === 'profile' && profileUserId ? (
-                  <div className="h-full bg-surface">
-                    <UserProfile
-                      userId={profileUserId}
-                      isSelf={profileUserId === user.id}
-                      onClose={() => {
-                        setCurrentView('chat');
-                        setProfileUserId(null);
-                      }}
-                    />
-                  </div>
-                ) : currentView === 'wall' ? (
-                  <WallPage highlightPostId={highlightPostId} onHighlightCleared={() => setHighlightPostId(null)} />
-                ) : currentView === 'friends' ? (
-                  <FriendsPage onClose={() => setCurrentView('chat')} />
-                ) : currentView === 'profile' ? (
-                  <div className="h-full bg-surface">
-                    <UserProfile
-                      userId={user.id}
-                      isSelf={true}
-                      onClose={() => setCurrentView('chat')}
-                    />
-                  </div>
-                ) : (
-                  <ChatPage />
-                )}
+                <AnimatePresence mode="wait">
+                  {currentView === 'hashtag' && hashtagTag ? (
+                    <motion.div
+                      key="hashtag"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="flex-1 min-h-0"
+                    >
+                      <HashtagPage
+                        tag={hashtagTag}
+                        onClose={() => navigateTo('wall')}
+                      />
+                    </motion.div>
+                  ) : currentView === 'profile' && profileUserId ? (
+                    <motion.div
+                      key="profile"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-1 min-h-0 flex items-center justify-center relative"
+                    >
+                      {/* Blur backdrop */}
+                      <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => navigateTo('chat')} />
+                      {/* Centered profile modal */}
+                      <motion.div
+                        initial={{ scale: 0.92, y: 16 }}
+                        animate={{ scale: 1, y: 0 }}
+                        exit={{ scale: 0.95, y: 12 }}
+                        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+                        className="relative z-10 w-full max-w-lg h-[85vh] sm:rounded-3xl rounded-none overflow-hidden liquid-glass border border-white/[0.08]"
+                      >
+                        <UserProfile
+                          userId={profileUserId}
+                          isSelf={profileUserId === user.id}
+                          onClose={() => navigateTo('chat')}
+                        />
+                      </motion.div>
+                    </motion.div>
+                  ) : currentView === 'wall' ? (
+                    <motion.div
+                      key="wall"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="flex-1 min-h-0"
+                    >
+                      <WallPage highlightPostId={highlightPostId} onHighlightCleared={() => clearHighlight()} />
+                    </motion.div>
+                  ) : currentView === 'friends' ? (
+                    <motion.div
+                      key="friends"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="flex-1 min-h-0"
+                    >
+                      <FriendsPage onClose={() => navigateTo('chat')} />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="chat"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="flex-1 min-h-0"
+                    >
+                      <ChatPage />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>
@@ -321,7 +304,7 @@ export default function App() {
       </AnimatePresence>
       
       {/* Mobile Bottom Navigation - только на мобильном */}
-      {token && user && isMobile && (
+      {user && isMobile && (
         <MobileBottomNav
           currentView={(mobileFriendsOpen ? 'friends' : currentView) as MobileView}
           onNavigate={(view) => {
@@ -330,22 +313,17 @@ export default function App() {
               return;
             }
             setMobileFriendsOpen(false);
-            setCurrentView(view as AppView);
+            navigateTo(view as AppView);
           }}
           onOpenAI={() => {
-            if (currentViewRef.current === 'wall') {
-              window.dispatchEvent(new Event('wall-open-ai'));
-              return;
-            }
-            window.dispatchEvent(new Event('open-ai-page'));
+            openAI();
           }}
           onOpenCreate={() => {
-            window.dispatchEvent(new Event('open-new-chat'));
+            useNavigationStore.getState().openNewChat();
           }}
           onOpenProfile={() => {
             setMobileFriendsOpen(false);
-            setProfileUserId(user.id);
-            setCurrentView('profile');
+            openProfile(user.id);
           }}
         />
       )}

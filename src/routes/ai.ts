@@ -240,7 +240,7 @@ async function consumeSSEStream(fetchResponse: globalThis.Response, res: Express
   let fullText = '';
 
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
 

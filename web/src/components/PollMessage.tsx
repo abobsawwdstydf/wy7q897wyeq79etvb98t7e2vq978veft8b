@@ -33,7 +33,7 @@ export default function PollMessage({ poll }: PollMessageProps) {
 
   const loadResults = async () => {
     try {
-      const data = await api.getPollResults(poll.id);
+      const data: any = await api.getPollResults(poll.id);
       setResults(data);
       
       // Проверяем за что проголосовал текущий пользователь

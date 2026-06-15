@@ -52,10 +52,8 @@ interface ChatState {
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  chats: [],
   activeChat: null,
   messages: {},
-  pinnedMessages: {},
   typingUsers: [],
   replyTo: null,
   editingMessage: null,
@@ -68,6 +66,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch {
       // Clear corrupted data
       localStorage.removeItem('nexo_drafts');
+      return {};
+    }
+  })(),
+  chats: (() => {
+    try {
+      const cached = loadDecrypted('nexo_chats_cache');
+      if (Array.isArray(cached)) {
+        return cached as Chat[];
+      }
+      return [];
+    } catch {
+      localStorage.removeItem('nexo_chats_cache');
+      return [];
+    }
+  })(),
+  pinnedMessages: (() => {
+    try {
+      const cached = loadDecrypted('nexo_pinned_messages_cache');
+      if (cached && typeof cached === 'object') {
+        return cached as Record<string, Message>;
+      }
+      return {};
+    } catch {
+      localStorage.removeItem('nexo_pinned_messages_cache');
       return {};
     }
   })(),
@@ -85,7 +107,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ isLoadingChats: true });
 
-      // ТОЛЬКО с сервера — никакого localStorage для данных
+      // Сначала пробуем сеть; в случае ошибки используем кэш (уже подгруженный в state)
       const chats = await api.getChats();
       // Auto-create favorites chat if not present
       if (!chats.some((c: any) => c.type === 'favorites')) {
@@ -102,9 +124,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }
       set({ chats, pinnedMessages, isLoadingChats: false });
+      try {
+        saveEncrypted('nexo_chats_cache', chats);
+        saveEncrypted('nexo_pinned_messages_cache', pinnedMessages);
+        saveTimestamp('nexo_chats_cache_ts', Date.now());
+      } catch {}
     } catch (error) {
       console.error('Load chats error:', error);
-      set({ isLoadingChats: false, chats: [] });
+      // Кэш уже в state, просто снимаем флаг загрузки
+      set({ isLoadingChats: false });
     }
   },
 
@@ -207,6 +235,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const bTime = b.messages?.[0]?.createdAt || b.createdAt;
         return new Date(bTime).getTime() - new Date(aTime).getTime();
       });
+
+      try { saveEncrypted('nexo_chats_cache', updatedChats); } catch {}
 
       return { messages: updatedMessages, chats: updatedChats };
     });
@@ -431,22 +461,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
   addChat: (chat) => {
     set((state) => {
       if (state.chats.some((c) => c.id === chat.id)) return state;
-      return { chats: [chat, ...state.chats] };
+      const next = [chat, ...state.chats];
+      try { saveEncrypted('nexo_chats_cache', next); } catch {}
+      return { chats: next };
     });
   },
 
   updateChat: (chat) => {
-    set((state) => ({
-      chats: state.chats.map((c) => (c.id === chat.id ? { ...c, ...chat } : c)),
-    }));
+    set((state) => {
+      const next = state.chats.map((c) => (c.id === chat.id ? { ...c, ...chat } : c));
+      try { saveEncrypted('nexo_chats_cache', next); } catch {}
+      return { chats: next };
+    });
   },
 
   removeChat: (chatId) => {
-    set((state) => ({
-      chats: state.chats.filter((c) => c.id !== chatId),
-      activeChat: state.activeChat === chatId ? null : state.activeChat,
-      messages: (() => { const m = { ...state.messages }; delete m[chatId]; return m; })(),
-    }));
+    set((state) => {
+      const next = state.chats.filter((c) => c.id !== chatId);
+      try { saveEncrypted('nexo_chats_cache', next); } catch {}
+      return {
+        chats: next,
+        activeChat: state.activeChat === chatId ? null : state.activeChat,
+        messages: (() => { const m = { ...state.messages }; delete m[chatId]; return m; })(),
+      };
+    });
   },
 
   clearMessages: (chatId) => {
@@ -486,6 +524,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       replyTo: null,
       editingMessage: null,
     });
+    try {
+      localStorage.removeItem('nexo_chats_cache');
+      localStorage.removeItem('nexo_pinned_messages_cache');
+      localStorage.removeItem('nexo_chats_cache_ts');
+    } catch {}
   },
 
   archiveChat: (chatId) => {

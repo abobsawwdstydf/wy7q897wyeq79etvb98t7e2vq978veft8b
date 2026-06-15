@@ -101,10 +101,9 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
         try {
           const formData = new FormData();
           formData.append('avatar', avatarFile);
-          const authToken = localStorage.getItem('nexo_token');
           await fetch(`/api/chats/${chat.id}/avatar`, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${authToken}` },
+            credentials: 'include',
             body: formData,
           });
         } catch (e) {
@@ -136,10 +135,9 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
         try {
           const formData = new FormData();
           formData.append('avatar', avatarFile);
-          const authToken = localStorage.getItem('nexo_token');
           await fetch(`/api/chats/${chat.id}/avatar`, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${authToken}` },
+            credentials: 'include',
             body: formData,
           });
         } catch (e) {
@@ -168,25 +166,35 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-center justify-center p-4 sm:p-0"
+      className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm sm:bg-black/60 sm:backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
       onTouchEnd={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div
-        initial={{ scale: 0.92, opacity: 0, y: 32 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.92, opacity: 0, y: 32 }}
-        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-        className="w-full sm:max-w-xl glass-strong rounded-3xl sm:rounded-3xl overflow-hidden relative sm:m-4 max-h-[100vh] sm:max-h-[90vh] flex flex-col"
+        initial={{ y: 100, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 100, opacity: 0, scale: 0.95 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="w-full sm:max-w-xl overflow-hidden relative sm:m-4 max-h-[85vh] sm:max-h-[90vh] flex flex-col rounded-t-[32px] sm:rounded-3xl"
       >
+        {/* Glass panel background for mobile, glass-strong for desktop */}
+        <div className="absolute inset-0 sm:bg-transparent sm:backdrop-blur-none bg-[rgba(11,19,38,0.6)] backdrop-blur-[40px] border border-white/[0.1] border-b-0 sm:border sm:border-white/[0.08] sm:bg-[rgba(20,20,30,0.85)] rounded-t-[32px] sm:rounded-3xl" />
+        {/* Gradient border glow */}
+        <div className="absolute -inset-px sm:rounded-3xl rounded-t-[32px] bg-gradient-to-br from-nexo-500/30 via-purple-500/15 to-pink-500/20 pointer-events-none opacity-50 blur-sm" />
+        <div className="absolute -inset-px sm:rounded-3xl rounded-t-[32px] bg-gradient-to-br from-nexo-500/15 via-transparent to-purple-500/10 pointer-events-none" />
         {/* Фоновые градиенты */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className={`absolute -top-32 -right-32 w-64 h-64 rounded-full bg-gradient-to-br ${modes.find(m => m.key === mode)?.color} opacity-15 blur-3xl`} />
           <div className={`absolute -bottom-32 -left-32 w-64 h-64 rounded-full bg-gradient-to-br ${modes.find(m => m.key === mode)?.color} opacity-15 blur-3xl`} />
         </div>
 
+        {/* Grabber handle - mobile only */}
+        <div className="relative flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+        </div>
+
         {/* Header */}
-        <div className="relative p-5 glass-strong border-b border-white/8">
+        <div className="relative p-5 sm:border-b border-white/8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${modes.find(m => m.key === mode)?.color} flex items-center justify-center shadow-lg glass`}>

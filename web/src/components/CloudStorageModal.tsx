@@ -84,10 +84,9 @@ export default function CloudStorageModal({ onClose, onSelectFile, embedded }: C
       formData.append('folder', currentFolder);
 
       try {
-        const authToken = localStorage.getItem('nexo_token');
         await fetch('/api/cloud/upload', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${authToken}` },
+          credentials: 'include',
           body: formData,
         });
         setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));

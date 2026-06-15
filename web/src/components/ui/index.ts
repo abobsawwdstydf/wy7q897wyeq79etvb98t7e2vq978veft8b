@@ -20,3 +20,4 @@ export { AnimatedCard, CardGrid, FeatureCard, StatCard, ProfileCard } from './An
 export { EnhancedModal } from './EnhancedModal';
 export { AnimatedText } from './AnimatedText';
 export { SyncIndicator } from './SyncIndicator';
+export { default as LiquidGlassModal, type LiquidGlassModalSize } from './LiquidGlassModal';

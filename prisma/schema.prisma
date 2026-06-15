@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -23,6 +23,11 @@ model User {
   lastSeen              DateTime          @default(now())
   isOnline              Boolean           @default(false)
   hideStoryViews        Boolean           @default(false)
+
+  @@index([isOnline])
+  @@index([isPremium])
+  @@index([subscribersCount])
+  @@index([createdAt])
   registrationIp        String?
   pushSubscription      String?
   pinnedChannelId       String?
@@ -30,9 +35,6 @@ model User {
   notifyMessages        Boolean           @default(true)
   notifyCalls           Boolean           @default(true)
   notifyFriends         Boolean           @default(true)
-  twoFASecret           String?
-  twoFAEnabled          Boolean           @default(false)
-  twoFAMethod           String?
   isVerified            Boolean           @default(false)
   verifiedBadgeUrl      String?
   verifiedBadgeType     String?
@@ -143,6 +145,7 @@ model Chat {
   notificationSettings ChatNotificationSetting[]
 
   @@index([type])
+  @@index([username])
   @@index([subscribersCount])
 }
 
@@ -244,6 +247,9 @@ model Media {
   localFileId    String?
   localFile      LocalFile?    @relation(fields: [localFileId], references: [id])
   message        Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([messageId, type])
 }
 
 model Reaction {
@@ -378,6 +384,11 @@ model CallLog {
   createdAt DateTime @default(now())
   callee    User?    @relation("CalleeCalls", fields: [calleeId], references: [id], onDelete: Cascade)
   caller    User     @relation("CallerCalls", fields: [callerId], references: [id], onDelete: Cascade)
+
+  @@index([callerId, createdAt])
+  @@index([calleeId, createdAt])
+  @@index([type])
+  @@index([status])
 }
 
 model VerifiedEntity {
@@ -428,25 +439,6 @@ model Thread {
   @@index([messageId])
 }
 
-model VerificationCode {
-  id        String   @id @default(uuid())
-  phone     String?
-  email     String?
-  userId    String?
-  code      String
-  purpose   String
-  method    String
-  token     String?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  used      Boolean  @default(false)
-
-  @@index([phone])
-  @@index([email])
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
-}
 
 model LocalFile {
   id              String           @id @default(uuid())
@@ -930,7 +922,7 @@ model NFTCard {
   gradientColors  String?  // JSON массив цветов для градиента
   borderColor     String?
   borderWidth     Int      @default(0)
-  priceFromНексо   Int      @default(0) // Цена от админа (0-1000000 бобров)
+  priceFromNexo   Int      @default(0) // Цена от админа (0-1000000 бобров)
   isStockEnabled  Boolean  @default(false) // Включена ли акция
   stockVolatility Float    @default(5.0) // Волатильность цены (%)
   currentPrice    Int      @default(0) // Текущая рыночная цена
@@ -949,6 +941,8 @@ model NFTCard {
   @@index([currentSupply])
   @@index([isStockEnabled])
   @@index([collectionId])
+  @@index([currentPrice])
+  @@index([name])
 }
 
 // NFT Instance - конкретный экземпляр карточки у пользователя
@@ -970,6 +964,8 @@ model NFTInstance {
   
   @@index([ownerId])
   @@index([cardId])
+  @@index([isEquipped])
+  @@index([serialNumber])
 }
 
 // ============================================
@@ -978,24 +974,28 @@ model NFTInstance {
 
 // WallPost - пост на стене
 model WallPost {
-  id          String   @id @default(uuid())
-  authorId    String
-  content     String?  // Текст поста
-  fontStyle   String?  // Стиль шрифта (JSON)
-  viewsCount  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(uuid())
+  authorId        String
+  content         String?  // Текст поста
+  fontStyle       String?  // Стиль шрифта (JSON)
+  viewsCount      Int      @default(0)
+  originalPostId  String?  // ID оригинального поста (для репостов)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   
   // Связи
-  media       WallPostMedia[]
-  reactions   WallPostReaction[]
-  comments    WallPostComment[]
-  hashtags    WallPostHashtag[]
-  mentions    WallMention[]
+  media           WallPostMedia[]
+  reactions       WallPostReaction[]
+  comments        WallPostComment[]
+  hashtags        WallPostHashtag[]
+  mentions        WallMention[]
+  originalPost    WallPost?  @relation("PostReposts", fields: [originalPostId], references: [id])
+  reposts         WallPost[] @relation("PostReposts")
   
   @@index([authorId])
   @@index([createdAt])
   @@index([viewsCount])
+  @@index([originalPostId])
 }
 
 // WallPostMedia - медиа файлы поста (фото, видео, голосовые)
@@ -1136,7 +1136,7 @@ model NFTTag {
   rarity          String   // "Common", "Rare", "Epic", "Legendary"
   totalSupply     Int
   currentSupply   Int      @default(0)
-  priceFromНексо   Int      @default(0)
+  priceFromNexo   Int      @default(0)
   isStockEnabled  Boolean  @default(false)
   stockVolatility Float    @default(5.0)
   currentPrice    Int      @default(0)
@@ -1180,7 +1180,7 @@ model NFTMarketListing {
   instanceId  String?  @unique // Конкретный экземпляр на продаже (null для листингов от Нексо)
   sellerId    String
   price       Int      // Цена в бобрах (до 1000 для P2P)
-  isFromНексо  Boolean  @default(false) // От админа или от пользователя
+  isFromNexo  Boolean  @default(false) // От админа или от пользователя
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -1190,7 +1190,7 @@ model NFTMarketListing {
   @@index([cardId])
   @@index([sellerId])
   @@index([price])
-  @@index([isFromНексо])
+  @@index([isFromNexo])
   @@index([createdAt])
 }
 
@@ -1201,7 +1201,7 @@ model NFTTagMarketListing {
   instanceId  String?  @unique // null для листингов от Нексо
   sellerId    String
   price       Int
-  isFromНексо  Boolean  @default(false)
+  isFromNexo  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -1211,7 +1211,7 @@ model NFTTagMarketListing {
   @@index([tagId])
   @@index([sellerId])
   @@index([price])
-  @@index([isFromНексо])
+  @@index([isFromNexo])
 }
 
 // NFT Gift History - история дарения карточек
@@ -1417,12 +1417,32 @@ model CollabPlaylist {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   members     PlaylistMember[]
+  tracks      PlaylistTrack[] @relation("CollabPlaylistTracks")
 
   @@index([ownerId])
   @@index([chatId])
 }
 
-// Playlist Track - треки в плейлисте
+model PlaylistTrack {
+  id         String    @id @default(uuid())
+  playlistId String
+  title      String
+  artist     String?
+  url        String
+  duration   Int?
+  addedById  String
+  coverUrl   String?
+  order      Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  collabPlaylist       CollabPlaylist?       @relation("CollabPlaylistTracks", fields: [playlistId], references: [id], onDelete: Cascade, map: "fk_playlisttrack_collab")
+  collaborativePlaylist CollaborativePlaylist? @relation("CollaborativePlaylistTracks", fields: [playlistId], references: [id], onDelete: Cascade, map: "fk_playlisttrack_collabpl")
+  votes    PlaylistVote[]
+
+  @@index([playlistId])
+  @@index([addedById])
+}
+
 // Playlist Member - участники плейлиста
 model PlaylistMember {
   id         String         @id @default(uuid())
@@ -1935,30 +1955,11 @@ model CollaborativePlaylist {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  tracks  PlaylistTrack[]
+  tracks  PlaylistTrack[] @relation("CollaborativePlaylistTracks")
   votes   PlaylistVote[]
   
   @@index([chatId])
   @@index([creatorId])
-}
-
-model PlaylistTrack {
-  id         String   @id @default(uuid())
-  playlistId String
-  addedBy    String
-  title      String
-  artist     String?
-  url        String
-  duration   Int?
-  coverUrl   String?
-  order      Int      @default(0)
-  createdAt  DateTime @default(now())
-  
-  playlist CollaborativePlaylist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  votes    PlaylistVote[]
-  
-  @@index([playlistId])
-  @@index([addedBy])
 }
 
 model PlaylistVote {

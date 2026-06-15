@@ -152,7 +152,7 @@ router.get('/tags', authenticateToken, async (req: AuthRequest, res) => {
         if (Array.isArray(parsed)) {
           allTags.push(...parsed);
         }
-      } catch {}
+      } catch { /* empty */ }
     }
     const uniqueTags = [...new Set(allTags)];
 

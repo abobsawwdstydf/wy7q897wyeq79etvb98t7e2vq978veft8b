@@ -23,7 +23,7 @@ export default function NFTCollectionsModal({ onClose }: NFTCollectionsModalProp
   const loadCollections = async () => {
     try {
       const data = await api.getNFTCollections();
-      setCollections(data);
+      setCollections(data as any[]);
     } catch (err) {
       console.error('Error loading collections:', err);
       error('Не удалось загрузить коллекции');
@@ -35,7 +35,7 @@ export default function NFTCollectionsModal({ onClose }: NFTCollectionsModalProp
   const loadProgress = async (collectionId: string) => {
     try {
       const data = await api.getCollectionProgress(collectionId);
-      setProgress(data);
+      setProgress(data as any);
     } catch (err) {
       console.error('Error loading progress:', err);
     }
@@ -50,7 +50,7 @@ export default function NFTCollectionsModal({ onClose }: NFTCollectionsModalProp
     if (!selectedCollection) return;
 
     try {
-      const result = await api.claimCollectionReward(selectedCollection.id);
+      const result: any = await api.claimCollectionReward(selectedCollection.id);
       success(`Получено ${result.reward} бобров!`);
       await loadProgress(selectedCollection.id);
     } catch (err: any) {

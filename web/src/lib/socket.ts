@@ -3,6 +3,7 @@ import { getApiUrl } from '../config';
 
 let socket: Socket | null = null;
 let connectAttempts = 0;
+let isReconnecting = false;
 const MAX_CONNECT_ATTEMPTS = 15;
 const CONNECT_TIMEOUT = 30000;
 const RECONNECT_KEY = 'nexo_ws_reconnect_state';
@@ -38,12 +39,17 @@ const getSocketUrl = () => {
     return window.location.origin;
   }
   if (apiUrl.startsWith('http')) {
-    return apiUrl.replace(/\/frontend-api-app\/?$/, '');
+    return apiUrl.replace(/\/+$/, '');
   }
   return window.location.origin;
 };
 
-export function connectSocket(token: string): Socket {
+export function connectSocket(token?: string): Socket | null {
+  if (!token) {
+    console.warn('[Socket] No token provided, skipping connection');
+    return null;
+  }
+
   if (socket?.connected) {
     return socket;
   }
@@ -58,6 +64,14 @@ export function connectSocket(token: string): Socket {
 
   socket = io(socketUrl, {
     auth: { token },
+    transportOptions: {
+      polling: {
+        extraHeaders: {
+          // Cookies are sent automatically with same-origin requests
+        }
+      }
+    },
+    withCredentials: true,
     transports: ['polling', 'websocket'],
     reconnection: true,
     reconnectionAttempts: MAX_CONNECT_ATTEMPTS,
@@ -73,6 +87,7 @@ export function connectSocket(token: string): Socket {
   socket.on('connect', () => {
     const prev = connectAttempts;
     connectAttempts = 0;
+    isReconnecting = false;
     emitStatus('connected');
 
     const reconnectState = loadReconnectState();
@@ -109,7 +124,7 @@ export function connectSocket(token: string): Socket {
     connectAttempts++;
 
     const delay = Math.min(1000 * Math.pow(2, connectAttempts - 1), 30000);
-    if (socket) socket.opts.reconnectionDelay = delay;
+    if (socket) (socket as any).opts.reconnectionDelay = delay;
 
     if (connectAttempts >= MAX_CONNECT_ATTEMPTS) {
       setTimeout(() => {
@@ -123,9 +138,10 @@ export function connectSocket(token: string): Socket {
 
   socket.on('reconnect_attempt', (attempt) => {
     connectAttempts = attempt;
+    isReconnecting = true;
     emitStatus('reconnecting');
     const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
-    socket!.opts.reconnectionDelay = delay;
+    (socket as any).opts.reconnectionDelay = delay;
   });
 
   socket.on('reconnect_failed', () => {
@@ -187,8 +203,8 @@ export function getConnectionState(): {
 } {
   return {
     connected: socket?.connected ?? false,
-    reconnecting: socket?.reconnecting ?? false,
-    attempt: socket?.retries ?? 0,
+    reconnecting: isReconnecting,
+    attempt: connectAttempts,
   };
 }
 
@@ -203,7 +219,7 @@ function emitStatus(status: ConnectionStatusType) {
 export function getConnectionStatus(): ConnectionStatusType {
   if (!socket) return 'idle';
   if (socket.connected) return 'connected';
-  if (socket.reconnecting) return 'reconnecting';
+  if (isReconnecting) return 'reconnecting';
   return 'connecting';
 }
 

@@ -33,20 +33,20 @@ export function WatchPartyModal({ callId, isHost, onClose }: WatchPartyModalProp
   const videoRef = useRef<HTMLVideoElement>(null);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  useEffect(() => {
-    const loadParty = async () => {
-      try {
-        const data = await api.get<WatchParty>(`/watch-party/${callId}`);
-        setParty(data);
-        if (data.videoUrl) {
-          setVideoUrl(data.videoUrl);
-          setVideoTitle(data.videoTitle);
-        }
-      } catch (error) {
-        console.error('Failed to load watch party:', error);
+  const loadParty = async () => {
+    try {
+      const data = await api.get<WatchParty>(`/watch-party/${callId}`);
+      setParty(data);
+      if (data.videoUrl) {
+        setVideoUrl(data.videoUrl);
+        setVideoTitle(data.videoTitle);
       }
-    };
+    } catch (error) {
+      console.error('Failed to load watch party:', error);
+    }
+  };
 
+  useEffect(() => {
     const handleSync = (data: { isPlaying: boolean; currentTime: number }) => {
       if (!videoRef.current || isHost) return;
 
@@ -75,7 +75,7 @@ export function WatchPartyModal({ callId, isHost, onClose }: WatchPartyModalProp
       });
     };
 
-    void loadParty();
+    loadParty();
 
     // Socket listeners
     if (socket) {

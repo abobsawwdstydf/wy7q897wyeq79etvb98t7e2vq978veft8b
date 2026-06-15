@@ -78,12 +78,12 @@ export default function CodeBlockEditor({ onClose, onSend }: CodeBlockEditorProp
       {/* Preview */}
       {code && (
         <div className="max-h-32 overflow-y-auto bg-[#1a1a1a] border-b border-white/10 p-4">
-          <Highlight theme={themes.dracula} code={code} language={language as any}>
-            {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <Highlight theme={themes.dracula} code={code} language={language}>
+            {({ className, style, tokens, getLineProps, getTokenProps }: any) => (
               <pre className={className} style={style}>
-                {tokens.map((line, i) => (
+                {tokens.map((line: any, i: number) => (
                   <div key={i} {...getLineProps({ line, key: i })}>
-                    {line.map((token, key) => (
+                    {line.map((token: any, key: number) => (
                       <span key={key} {...getTokenProps({ token, key })} />
                     ))}
                   </div>

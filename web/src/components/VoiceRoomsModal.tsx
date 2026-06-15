@@ -21,7 +21,7 @@ export default function VoiceRoomsModal({ onClose }: VoiceRoomsModalProps) {
   const loadRooms = async () => {
     try {
       const data = await api.getVoiceRooms();
-      setRooms(data);
+      setRooms(data as any[]);
     } catch (err) {
       console.error('Error loading rooms:', err);
       error('Не удалось загрузить комнаты');

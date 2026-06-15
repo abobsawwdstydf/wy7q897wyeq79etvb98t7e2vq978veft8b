@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Heart, TrendingUp, Target, Gift } from 'lucide-react';
 import api from '../lib/api';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '../stores/authStore';
 import BeaverIcon from './BeaverIcon';
 
 interface DonationModalProps {

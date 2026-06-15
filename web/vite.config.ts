@@ -292,11 +292,6 @@ export default defineConfig({
      },
      https: false,
       proxy: {
-        '/frontend-api-app': {
-          target: 'http://localhost:3001',
-          changeOrigin: true,
-          ws: true,
-        },
         '/api': {
           target: 'http://localhost:3001',
           changeOrigin: true,

@@ -83,13 +83,11 @@ export default function CommunitiesModal({ isOpen, onClose }: CommunitiesModalPr
   const loadPosts = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/communities/posts', {
-        params: {
-          category: selectedCategory !== 'all' ? selectedCategory : undefined,
-          sortBy,
-          search: searchQuery || undefined,
-        },
-      });
+      const qp = new URLSearchParams();
+      if (selectedCategory !== 'all') qp.set('category', selectedCategory);
+      qp.set('sortBy', sortBy);
+      if (searchQuery) qp.set('search', searchQuery);
+      const response = await api.get('/communities/posts?' + qp.toString());
       setPosts(response.data);
     } catch (error) {
       console.error('Error loading posts:', error);
@@ -101,12 +99,10 @@ export default function CommunitiesModal({ isOpen, onClose }: CommunitiesModalPr
   const loadCommunities = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/communities', {
-        params: {
-          category: selectedCategory !== 'all' ? selectedCategory : undefined,
-          search: searchQuery || undefined,
-        },
-      });
+      const qp = new URLSearchParams();
+      if (selectedCategory !== 'all') qp.set('category', selectedCategory);
+      if (searchQuery) qp.set('search', searchQuery);
+      const response = await api.get('/communities?' + qp.toString());
       setCommunities(response.data);
     } catch (error) {
       console.error('Error loading communities:', error);
@@ -138,7 +134,7 @@ export default function CommunitiesModal({ isOpen, onClose }: CommunitiesModalPr
 
   const handleJoinCommunity = async (communityId: string) => {
     try {
-      await api.post(`/communities/${communityId}/join`);
+      await api.post(`/communities/${communityId}/join`, {});
       loadCommunities();
     } catch (error) {
       console.error('Error joining community:', error);

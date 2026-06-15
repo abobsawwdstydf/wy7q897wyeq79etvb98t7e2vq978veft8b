@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Crown, Check, Coins, Calendar, Lock, Unlock } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import BeaverIcon from './BeaverIcon';
 
 interface SubscriptionInfo {
   channelId: string;

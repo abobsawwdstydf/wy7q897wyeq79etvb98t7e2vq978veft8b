@@ -3,14 +3,10 @@ import {
   EnhancedModal,
   AnimatedButton,
   AnimatedText,
-  GradientText,
   AnimatedInput,
   AnimatedTextarea,
   useToast,
-  ToastContainer,
   SyncIndicator,
-  SyncProgress,
-  ConnectionStatus,
   AnimatedCard,
   CardGrid,
   FeatureCard,
@@ -26,13 +22,14 @@ import {
   TrendingUp,
   Mail,
   Lock,
+  X,
 } from 'lucide-react';
 
 export const UIDemo: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
-  const { toasts, removeToast, success, error, info, warning } = useToast();
+  const { toasts, remove: removeToast, success, error, info, warning } = useToast();
 
   const handleSync = () => {
     setSyncStatus('syncing');
@@ -73,7 +70,7 @@ export const UIDemo: React.FC = () => {
       {/* Buttons Section */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Кнопки</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Кнопки</span>
         </h2>
         
         <div className="flex flex-wrap gap-4">
@@ -123,7 +120,7 @@ export const UIDemo: React.FC = () => {
       {/* Modal Section */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Модальные окна</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Модальные окна</span>
         </h2>
         
         <div className="flex gap-4">
@@ -187,7 +184,7 @@ export const UIDemo: React.FC = () => {
       {/* Inputs Section */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Поля ввода</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Поля ввода</span>
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
@@ -238,7 +235,7 @@ export const UIDemo: React.FC = () => {
       {/* Toast Section */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Уведомления</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Уведомления</span>
         </h2>
         
         <div className="flex flex-wrap gap-4">
@@ -271,26 +268,35 @@ export const UIDemo: React.FC = () => {
           </AnimatedButton>
         </div>
 
-        <ToastContainer
-          toasts={toasts}
-          onClose={removeToast}
-          position="top-right"
-        />
+        {toasts.map((t) => (
+          <div key={t.id} className="fixed top-4 right-4 z-[80] flex flex-col gap-2 pointer-events-none">
+            <div className="pointer-events-auto glass-toast border-l-4 rounded-xl p-3.5 shadow-2xl min-w-[300px] max-w-md">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">{t.message}</p>
+                </div>
+                <button onClick={() => removeToast(t.id)} className="p-1 rounded-md text-zinc-500 hover:text-white">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
       </section>
 
       {/* Sync Section */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Синхронизация</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Синхронизация</span>
         </h2>
         
         <div className="flex flex-wrap gap-6 items-center">
           <SyncIndicator status={syncStatus} showLabel size="lg" />
           
-          <ConnectionStatus
-            isOnline={true}
-            lastSync={new Date()}
-          />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 glass-subtle rounded-lg">
+            <div className="w-2 h-2 rounded-full bg-green-400" />
+            <span className="text-xs font-medium text-white">Онлайн</span>
+          </div>
           
           <AnimatedButton
             variant="primary"
@@ -303,11 +309,15 @@ export const UIDemo: React.FC = () => {
         
         {syncStatus === 'syncing' && (
           <div className="max-w-md">
-            <SyncProgress
-              progress={progress}
-              label="Синхронизация данных"
-              showPercentage
-            />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-300 font-medium">Синхронизация данных</span>
+                <span className="text-gray-400 font-mono">{Math.round(progress)}%</span>
+              </div>
+              <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-nexo-500 to-nexo-400 rounded-full transition-all duration-300 ease-out shadow-lg shadow-nexo-500/50" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
           </div>
         )}
       </section>
@@ -315,7 +325,7 @@ export const UIDemo: React.FC = () => {
       {/* Cards Section */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Карточки</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Карточки</span>
         </h2>
         
         <CardGrid columns={4} gap="lg">
@@ -400,7 +410,7 @@ export const UIDemo: React.FC = () => {
       {/* Text Animations */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Текстовые анимации</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Текстовые анимации</span>
         </h2>
         
         <div className="space-y-4">
@@ -429,10 +439,8 @@ export const UIDemo: React.FC = () => {
             className="text-2xl font-bold text-white"
           />
           
-          <div className="text-2xl font-bold">
-            <GradientText animate>
-              Градиентный анимированный текст
-            </GradientText>
+          <div className="text-2xl font-bold bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent animate-pulse">
+            Градиентный анимированный текст
           </div>
         </div>
       </section>
@@ -440,7 +448,7 @@ export const UIDemo: React.FC = () => {
       {/* Different Card Variants */}
       <section className="space-y-6">
         <h2 className="text-3xl font-bold text-white">
-          <GradientText>Варианты карточек</GradientText>
+          <span className="bg-gradient-to-r from-nexo-400 to-purple-400 bg-clip-text text-transparent">Варианты карточек</span>
         </h2>
         
         <CardGrid columns={2} gap="lg">

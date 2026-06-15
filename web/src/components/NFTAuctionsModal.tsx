@@ -26,7 +26,7 @@ export default function NFTAuctionsModal({ onClose }: NFTAuctionsModalProps) {
   const loadAuctions = async () => {
     try {
       const data = await api.getNFTAuctions();
-      setAuctions(data);
+      setAuctions(data as any[]);
     } catch (err) {
       console.error('Error loading auctions:', err);
       error('Не удалось загрузить аукционы');

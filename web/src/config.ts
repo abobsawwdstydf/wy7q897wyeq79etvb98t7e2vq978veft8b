@@ -9,18 +9,18 @@ const getStoredServerUrl = (): string => {
     const stored = localStorage.getItem('nexo_server_url');
     if (stored) return stored;
   }
-  return import.meta.env.VITE_API_URL || '/frontend-api-app';
+  return import.meta.env.VITE_API_URL || '';
 };
 
 /**
  * Returns the base URL for API calls (without /api suffix).
- * - For web (via Vite or same origin): relative path /frontend-api-app
+ * - For web (via Vite or same origin): empty string (same origin)
  * - For mobile/desktop apps: full URL from base-url.json
  */
 export function getApiUrl(): string {
   // В браузере на localhost ВСЕГДА используем относительный путь для работы через Vite Proxy
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return '/frontend-api-app';
+    return '';
   }
 
   // Для остальных случаев (мобилки, продакшен) берем из конфига или localStorage

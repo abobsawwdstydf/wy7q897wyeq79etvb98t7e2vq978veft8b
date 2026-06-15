@@ -183,10 +183,10 @@ export default function GroupSettings({ chat, onClose }: GroupSettingsProps) {
                   <img
                     src={chat.avatar}
                     alt=""
-                    className="w-32 h-32 rounded-full object-cover shadow-inner"
+                    className="w-32 h-32 rounded-xl object-cover shadow-inner"
                   />
                 ) : (
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
+                  <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
                     {initials}
                   </div>
                 )}
@@ -334,9 +334,9 @@ export default function GroupSettings({ chat, onClose }: GroupSettingsProps) {
                       className="flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-surface-hover transition-colors"
                     >
                       {u.avatar ? (
-                        <img src={u.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        <img src={u.avatar} alt="" className="w-8 h-8 rounded-xl object-cover" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                           {(u.displayName || u.username || '?')[0].toUpperCase()}
                         </div>
                       )}
@@ -369,9 +369,9 @@ export default function GroupSettings({ chat, onClose }: GroupSettingsProps) {
                   >
                     <div className="relative flex-shrink-0">
                       {member.user.avatar ? (
-                        <img src={member.user.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+                        <img src={member.user.avatar} alt="" className="w-9 h-9 rounded-xl object-cover" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                           {(member.user.displayName || member.user.username || '?')[0].toUpperCase()}
                         </div>
                       )}

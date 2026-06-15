@@ -83,7 +83,7 @@ function AvatarInner({ src, name, size = 'md', className = '', online, isVerifie
             <video
               ref={videoRef}
               src={src}
-              className={`${sizeClass} rounded-full object-cover select-none pointer-events-none`}
+              className={`${sizeClass} rounded-xl object-cover select-none pointer-events-none`}
               muted
               loop
               playsInline
@@ -92,13 +92,13 @@ function AvatarInner({ src, name, size = 'md', className = '', online, isVerifie
             <img
               src={src}
               alt={name}
-              className={`${sizeClass} rounded-full object-cover select-none pointer-events-none ${isAnimated ? 'transition-transform hover:scale-105' : ''}`}
+              className={`${sizeClass} rounded-xl object-cover select-none pointer-events-none ${isAnimated ? 'transition-transform hover:scale-105' : ''}`}
               draggable={false}
             />
           )
         ) : (
           <div
-            className={`${sizeClass} rounded-full bg-gradient-to-br ${gradientClass} flex items-center justify-center text-white font-medium select-none`}
+            className={`${sizeClass} rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center text-white font-medium select-none`}
           >
             {initials}
           </div>

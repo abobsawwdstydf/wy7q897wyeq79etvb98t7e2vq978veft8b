@@ -348,7 +348,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
 
   // ======= MAIN VIEW =======
   const renderMain = () => (
-    <motion.div key="main" className="flex flex-col h-full" initial={false} animate="center" exit="exit" variants={viewVariants} custom={-1} transition={{ duration: 0.2 }}>
+    <motion.div key="main" className="relative z-[1] flex flex-col h-full min-h-0" initial={false} animate="center" exit="exit" variants={viewVariants} custom={-1} transition={{ duration: 0.2 }}>
       {/* Header — жидкое стекло */}
       <div className="relative overflow-hidden flex-shrink-0">
         <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/15 via-purple-600/8 to-transparent pointer-events-none" />
@@ -360,9 +360,9 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
               <div className="absolute -inset-0.5 bg-gradient-to-r from-nexo-500/50 via-purple-500/30 to-nexo-500/50 rounded-full opacity-60 blur-sm group-hover:opacity-90 transition duration-500" />
               <div className="relative">
                 {user?.avatar ? (
-                  <img src={user.avatar} alt="" className="w-[64px] h-[64px] rounded-full object-cover ring-2 ring-white/10" />
+                  <img src={user.avatar} alt="" className="w-[64px] h-[64px] rounded-xl object-cover ring-2 ring-white/10" />
                 ) : (
-                  <div className="w-[64px] h-[64px] rounded-full bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center ring-2 ring-white/10 relative overflow-hidden backdrop-blur-sm">
+                  <div className="w-[64px] h-[64px] rounded-xl bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center ring-2 ring-white/10 relative overflow-hidden backdrop-blur-sm">
                     <div className="absolute inset-0 bg-gradient-to-tr from-nexo-500/10 to-purple-500/10" />
                     <span className="relative z-10 text-xl font-bold text-white/90">{initials}</span>
                   </div>
@@ -395,10 +395,10 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
             <button
               key={i}
               onClick={item.onClick}
-              className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all duration-300 active:scale-[0.98] backdrop-blur-sm border ${
+              className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all duration-300 active:scale-[0.98] backdrop-blur-sm border liquid-glass-subtle ${
                 isHighlight
-                  ? 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/20 hover:border-yellow-500/30 hover:from-yellow-500/15 hover:to-orange-500/15'
-                  : 'border-transparent hover:bg-white/[0.06] hover:border-white/[0.06]'
+                  ? 'border-yellow-500/20 hover:border-yellow-500/30'
+                  : 'hover:border-white/[0.06]'
               }`}
             >
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 border ${
@@ -441,26 +441,27 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
   // ======= PROFILE VIEW =======
   // Используем единый UserProfile компонент с isSelf=true
   const renderProfile = () => (
-    <motion.div key="profile" className="flex flex-col h-full" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div key="profile" className="relative z-[1] flex flex-col h-full min-h-0" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
       {user && (
         <UserProfile
           userId={user.id}
           isSelf={true}
           onClose={() => changeView('main')}
+          embedded={true}
         />
       )}
     </motion.div>
   );
   // ======= SETTINGS VIEW =======
   const renderSettings = () => (
-    <motion.div key="settings" className="flex flex-col h-full" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div key="settings" className="relative z-[1] flex flex-col h-full min-h-0" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
       <div className="h-14 flex items-center gap-3 px-4 border-b border-white/[0.08] flex-shrink-0">
         <button onClick={() => changeView('main')} className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all">
           <ArrowLeft size={20} />
         </button>
         <h3 className="text-sm font-semibold text-white flex-1">{t('settings')}</h3>
       </div>
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 min-h-0 overflow-y-auto py-2">
         <div className="px-5 py-3">
           <h4 className="text-xs text-zinc-500 uppercase tracking-wide mb-3">{t('language')}</h4>
           <div className="space-y-1">
@@ -505,7 +506,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                   updateUser({ hideStoryViews: newVal });
                 } catch {}
               }}
-              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
+              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
             >
               <Eye size={18} className="text-zinc-400 flex-shrink-0" />
               <div className="flex-1 min-w-0 text-left">
@@ -528,7 +529,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
             {/* All Notifications */}
             <button
               onClick={() => updateNotificationSetting('notifyAll', !notificationSettings.notifyAll)}
-              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
+              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
             >
               <Bell size={18} className={`flex-shrink-0 ${notificationSettings.notifyAll ? 'text-nexo-400' : 'text-zinc-400'}`} />
               <div className="flex-1 min-w-0 text-left">
@@ -543,7 +544,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
             {/* Messages */}
             <button
               onClick={() => updateNotificationSetting('notifyMessages', !notificationSettings.notifyMessages)}
-              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
+              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
             >
               <MessageSquare size={18} className={`flex-shrink-0 ${notificationSettings.notifyMessages ? 'text-emerald-400' : 'text-zinc-400'}`} />
               <div className="flex-1 min-w-0 text-left">
@@ -558,7 +559,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
             {/* Friends */}
             <button
               onClick={() => updateNotificationSetting('notifyFriends', !notificationSettings.notifyFriends)}
-              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
+              className="w-full flex items-center gap-4 px-3 py-3 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
             >
               <UserPlus size={18} className={`flex-shrink-0 ${notificationSettings.notifyFriends ? 'text-purple-400' : 'text-zinc-400'}`} />
               <div className="flex-1 min-w-0 text-left">
@@ -582,7 +583,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
           </h4>
           <button
             onClick={() => setShowDevices(true)}
-            className="w-full flex items-center gap-4 px-3 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
+            className="w-full flex items-center gap-4 px-3 py-3 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] transition-all"
           >
             <Monitor size={18} className="text-nexo-400" />
             <div className="flex-1 min-w-0 text-left">
@@ -594,7 +595,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
         </div>
         <div className="px-5 py-3">
           <h4 className="text-xs text-zinc-500 uppercase tracking-wide mb-3">{t('about')}</h4>
-          <div className="flex items-center gap-4 px-3 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+          <div className="flex items-center gap-4 px-3 py-3 rounded-xl liquid-glass-subtle border border-white/[0.06]">
             <Info size={18} className="text-zinc-400" />
             <div className="flex-1 min-w-0">
               <p className="text-sm text-zinc-200">Нексо</p>
@@ -642,7 +643,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
     </motion.div>
   );
   const renderFriends = () => (
-    <motion.div key="friends" className="flex flex-col h-full" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div key="friends" className="relative z-[1] flex flex-col h-full min-h-0" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
       <div className="h-14 flex items-center gap-3 px-4 border-b border-white/[0.08] flex-shrink-0">
         <button onClick={() => { changeView('main'); setFriendSearch(''); setFriendSearchResults([]); }} className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all">
           <ArrowLeft size={20} />
@@ -658,7 +659,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
             placeholder={t('searchFriends')}
             value={friendSearch}
             onChange={(e) => setFriendSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] text-sm text-white placeholder-zinc-500 border border-white/[0.06] focus:border-nexo-500/50 focus:bg-white/[0.06] transition-all"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-zinc-500 liquid-glass-input border border-white/[0.06] focus:border-nexo-500/50 focus:bg-white/[0.06] transition-all"
             autoFocus
           />
         </div>
@@ -695,11 +696,11 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                   return (
                     <div className="space-y-1">
                       {friendSearchResults.map((u) => (
-                        <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                        <div key={u.id} className="flex items-center gap-3 p-3 rounded-xl liquid-glass-subtle border border-white/[0.06]">
                           {u.avatar ? (
-                            <img src={u.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                            <img src={u.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
                               {(u.displayName || u.username || '?')[0].toUpperCase()}
                             </div>
                           )}
@@ -729,11 +730,11 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                 </h4>
                 <div className="space-y-2">
                   {friendRequests.map((req) => (
-                    <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                    <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl liquid-glass-subtle border border-white/[0.06]">
                       {req.sender?.avatar ? (
-                        <img src={req.sender.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img src={req.sender.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
                           {(req.sender?.displayName || req.sender?.username || '?')[0].toUpperCase()}
                         </div>
                       )}
@@ -775,10 +776,10 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                     <div key={friend.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.04] transition-all group/friend">
                       <div className="relative">
                         {friend.avatar ? (
-                          <img src={friend.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                            {(friend.displayName || friend.username || '?')[0].toUpperCase()}
+                           <img src={friend.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                         ) : (
+                           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                             {(friend.displayName || friend.username || '?')[0].toUpperCase()}
                           </div>
                         )}
                         {friend.isOnline && (
@@ -809,7 +810,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
     </motion.div>
   );
   const renderCalls = () => (
-    <motion.div key="calls" className="flex flex-col h-full" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div key="calls" className="relative z-[1] flex flex-col h-full min-h-0" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
       <div className="h-14 flex items-center gap-3 px-4 border-b border-white/[0.08] flex-shrink-0">
         <button onClick={() => changeView('main')} className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all">
           <ArrowLeft size={20} />
@@ -852,10 +853,10 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                 <div key={call.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.04] transition-all group">
                   <div className="relative flex-shrink-0">
                     {other?.avatar ? (
-                      <img src={other.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                        {(other?.displayName || other?.username || '?')[0].toUpperCase()}
+                       <img src={other.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                     ) : (
+                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                         {(other?.displayName || other?.username || '?')[0].toUpperCase()}
                       </div>
                     )}
                   </div>
@@ -888,7 +889,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
     </motion.div>
   );
   const renderAbout = () => (
-    <motion.div key="about" className="flex flex-col h-full" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div key="about" className="relative z-[1] flex flex-col h-full min-h-0" initial={{ x: 100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 100, opacity: 0 }} transition={{ duration: 0.2 }}>
       <div className="h-14 flex items-center gap-3 px-4 border-b border-white/[0.08] flex-shrink-0">
         <button onClick={() => changeView('main')} className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-all">
           <ArrowLeft size={20} />
@@ -908,19 +909,19 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
         <div className="mt-8 space-y-2 w-full">
           <button
             onClick={() => setLegalPage('terms')}
-            className="w-full py-2.5 px-4 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] text-zinc-400 hover:text-white text-sm transition-all"
+            className="w-full py-2.5 px-4 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] text-zinc-400 hover:text-white text-sm transition-all"
           >
             📄 Пользовательское соглашение
           </button>
           <button
             onClick={() => setLegalPage('privacy')}
-            className="w-full py-2.5 px-4 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] text-zinc-400 hover:text-white text-sm transition-all"
+            className="w-full py-2.5 px-4 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] text-zinc-400 hover:text-white text-sm transition-all"
           >
             🔒 Политика конфиденциальности
           </button>
           <button
             onClick={() => window.open('/yookassainfo', '_blank')}
-            className="w-full py-2.5 px-4 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] text-zinc-400 hover:text-white text-sm transition-all"
+            className="w-full py-2.5 px-4 rounded-xl liquid-glass-subtle hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.1] text-zinc-400 hover:text-white text-sm transition-all"
           >
             💳 Пополнение через YooKassa
           </button>
@@ -933,22 +934,31 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 z-50" onClick={onClose} />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 backdrop-blur-sm sm:bg-black/50 sm:backdrop-blur-md z-50" onClick={onClose} />
           <motion.div
-            initial={{ x: -320, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -320, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 sm:left-3 sm:top-3 sm:bottom-3 sm:w-[340px] sm:max-w-[calc(100vw-24px)] z-50 flex flex-col overflow-hidden rounded-none sm:rounded-3xl"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            className="fixed inset-x-0 bottom-0 sm:inset-auto sm:left-3 sm:top-3 sm:bottom-3 sm:w-[340px] sm:max-w-[calc(100vw-24px)] z-50 flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-3xl max-h-[85vh] sm:max-h-[calc(100vh-24px)]"
           >
+            {/* Glass panel background */}
+            <div className="absolute inset-0 sm:hidden bg-[rgba(11,19,38,0.6)] backdrop-blur-[40px] border border-white/[0.1] border-b-0 rounded-t-[32px]" />
+            {/* Gradient border glow */}
+            <div className="absolute -inset-px rounded-t-[32px] sm:rounded-3xl bg-gradient-to-br from-nexo-500/30 via-purple-500/15 to-pink-500/20 pointer-events-none opacity-50 blur-sm" />
+            <div className="absolute -inset-px rounded-t-[32px] sm:rounded-3xl bg-gradient-to-br from-nexo-500/15 via-transparent to-purple-500/10 pointer-events-none" />
             {/* Liquid glass background layers */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[rgba(18,18,24,0.92)] via-[rgba(12,12,18,0.95)] to-[rgba(20,20,28,0.93)] backdrop-blur-3xl backdrop-saturate-150" />
+            <div className="absolute inset-0 liquid-glass-strong rounded-t-[32px] sm:rounded-3xl" />
             <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/8 via-transparent to-purple-500/5 pointer-events-none" />
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent pointer-events-none" />
             <div className="absolute top-0 left-0 bottom-0 w-px bg-gradient-to-b from-white/10 via-white/5 to-transparent pointer-events-none" />
             <div className="absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-white/10 via-white/5 to-transparent pointer-events-none" />
-            <AnimatePresence mode="wait" custom={slideDir}>
+            {/* Grabber handle - mobile only */}
+            <div className="relative flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
+              <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+            </div>
+            <AnimatePresence custom={slideDir} initial={false}>
               {view === 'main' && renderMain()}
               {view === 'profile' && renderProfile()}
               {view === 'settings' && renderSettings()}

@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, AtSign, Edit3, Check, Loader2, Image as ImageIcon, FileText, Link as LinkIcon, Download, ExternalLink, Play, UserPlus, UserMinus, UserCheck, Clock, PhoneIncoming, PhoneOutgoing, PhoneMissed, Pin, Hash, MessageSquare, Lock, Music, Crown, Camera, Newspaper, QrCode, Users } from 'lucide-react';
+import { X, Calendar, AtSign, Edit3, Check, Loader2, Image as ImageIcon, FileText, Link as LinkIcon, Download, ExternalLink, Play, UserPlus, UserMinus, UserCheck, Clock, PhoneIncoming, PhoneOutgoing, PhoneMissed, Pin, Hash, MessageSquare, Lock, Music, Crown, Camera, Newspaper, QrCode, Users, Share2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
@@ -19,18 +19,21 @@ import DatePicker from './DatePicker';
 import PremiumBadgeUpload from './PremiumBadgeUpload';
 import VerifiedBadge from './VerifiedBadge';
 import QRCodeModal from './QRCodeModal';
+import ShareProfileModal from './ShareProfileModal';
+import LiquidGlassModal from './ui/LiquidGlassModal';
 
 interface UserProfileProps {
   userId: string;
   chatId?: string;
   onClose: () => void;
   isSelf?: boolean;
+  embedded?: boolean;
 }
 
 type MediaTab = 'media' | 'files' | 'links';
 type ProfileTab = MediaTab | 'calls' | 'music' | 'nft_gifts' | 'nft_tags' | 'hashtags';
 
-export default function UserProfile({ userId, chatId, onClose, isSelf }: UserProfileProps) {
+export default function UserProfile({ userId, chatId, onClose, isSelf, embedded }: UserProfileProps) {
   const { user: authUser, updateUser } = useAuthStore();
   const isPremium = useAuthStore(state => state.isPremium());
   const { t, lang } = useLang();
@@ -92,6 +95,7 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
   const [showNFTInventory, setShowNFTInventory] = useState(false);
 
   const [showQRCode, setShowQRCode] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Hashtags state
   const [userHashtags, setUserHashtags] = useState<Array<{
@@ -400,46 +404,16 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
     ...(isSelf ? [{ key: 'hashtags' as ProfileTab, label: 'Хэштеги', icon: Hash }] : []),
   ];
 
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 z-50"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, x: 50 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 50 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300, mass: 0.8 }}
-        className="fixed inset-0 sm:inset-auto sm:right-3 sm:top-3 sm:bottom-3 sm:w-[420px] sm:max-w-[calc(100%-24px)] bg-surface-secondary/80 backdrop-blur-2xl shadow-[0_0_120px_rgba(0,0,0,0.6)] border-0 sm:border sm:border-white/5 rounded-none sm:rounded-[2rem] z-50 flex flex-col overflow-hidden"
-      >
-        {/* Шапка */}
-        <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/5 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-nexo-500/20 to-purple-500/10 pointer-events-none" />
-          <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-sm relative z-10">
-            {isSelf ? t('myProfile') : t('profileTitle')}
-          </h2>
-          <motion.button
-            whileTap={{ scale: 0.92 }}
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-black/20 text-zinc-400 hover:text-white hover:bg-white/10 transition-all border border-white/5 relative z-10"
-          >
-            <X size={18} />
-          </motion.button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-nexo-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : profile ? (
-          <div className="flex-1 overflow-y-auto">
-            {/* Аватар */}
-            <div className="flex flex-col items-center pt-8 pb-4 px-6 relative overflow-visible">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] bg-nexo-500/10 rounded-full blur-[80px] pointer-events-none" />
+  const profileBody = (
+    isLoading ? (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-nexo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    ) : profile ? (
+      <div className="flex-1 overflow-y-auto pb-24 sm:pb-0">
+        {/* Аватар */}
+        <div className="flex flex-col items-center pt-8 pb-4 px-6 relative overflow-visible">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] bg-nexo-500/10 rounded-full blur-[80px] pointer-events-none" />
 
               {/* NFT Profile Background */}
               {equippedNFTCard && (
@@ -481,10 +455,10 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
                     <img
                       src={profile.avatar}
                       alt=""
-                      className="w-32 h-32 rounded-full object-cover ring-4 ring-surface bg-surface"
+                      className="w-32 h-32 rounded-xl object-cover ring-4 ring-surface bg-surface"
                     />
                   ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-surface to-surface-secondary flex items-center justify-center text-white font-bold text-4xl ring-4 ring-surface relative overflow-hidden">
+                    <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-surface to-surface-secondary flex items-center justify-center text-white font-bold text-4xl ring-4 ring-surface relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-tr from-accent/20 to-purple-500/20" />
                       <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400 drop-shadow-md">{initials}</span>
                     </div>
@@ -1006,10 +980,10 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
                       <img
                         src={profile.pinnedChannel.avatar}
                         alt=""
-                        className="w-12 h-12 rounded-full object-cover ring-2 ring-nexo-500/30"
+                        className="w-12 h-12 rounded-xl object-cover ring-2 ring-nexo-500/30"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold ring-2 ring-nexo-500/30">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold ring-2 ring-nexo-500/30">
                         <Hash size={20} />
                       </div>
                     )}
@@ -1472,9 +1446,11 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
           <div className="flex-1 flex items-center justify-center text-zinc-500">
             {t('profileNotFound')}
           </div>
-        )}
-      </motion.div>
+        )
+  );
 
+  const profileModals = (
+    <>
       {/* Media lightbox gallery */}
       <AnimatePresence>
         {lightboxIndex !== null && (
@@ -1790,6 +1766,33 @@ export default function UserProfile({ userId, chatId, onClose, isSelf }: UserPro
           onClose={() => setShowQRCode(false)}
         />
       )}
+      {showShareModal && profile && (
+        <ShareProfileModal
+          user={{
+            id: profile.id,
+            username: profile.username || '',
+            displayName: profile.displayName || profile.username || '',
+            avatar: profile.avatar || null,
+          }}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </>
+  );
+
+  if (embedded) return profileBody;
+
+  return (
+    <LiquidGlassModal
+      isOpen={true}
+      onClose={onClose}
+      size="lg"
+      fullScreenOnMobile={true}
+    >
+      <div className="flex flex-col min-h-0 h-full">
+        {profileBody}
+      </div>
+      {profileModals}
+    </LiquidGlassModal>
   );
 }

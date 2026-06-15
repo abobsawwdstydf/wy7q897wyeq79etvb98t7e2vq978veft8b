@@ -180,14 +180,14 @@ const BLOCKED_EXTENSIONS = new Set([
   '.hta', '.cpl', '.inf', '.reg',
 ]);
 
-/** Multer middleware for general file uploads (max 25GB, all formats allowed). 
+/** Multer middleware for general file uploads (max 100MB, reasonable file count). 
  * Uses memory storage - files are kept in RAM temporarily during upload processing.
  */
 export const uploadFile = multer({
   storage: multer.memoryStorage(), // Store in memory buffer, NOT on disk
   limits: {
-    fileSize: 25 * 1024 * 1024 * 1024, // 25 GB
-    files: 1200, // Max 1200 files per request (for album support)
+    fileSize: 100 * 1024 * 1024, // 100 MB
+    files: 20, // Max 20 files per request (for album support)
   },
   fileFilter: (_req, _file, cb) => {
     // All file types are allowed

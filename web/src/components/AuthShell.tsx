@@ -57,7 +57,7 @@ export function AuthShell({ children, onBack, showGrid = false }: AuthShellProps
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={onBack}
-          className="absolute top-4 left-4 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all duration-200 text-white/50 hover:text-white/80 z-20"
+          className="absolute top-4 left-4 p-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all duration-200 text-white/50 hover:text-white/80 z-20"
         >
           <ArrowLeft size={18} />
         </motion.button>
@@ -81,7 +81,7 @@ export function AuthCard({ children, className = '', scrollable = false }: AuthC
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`bg-[#141418]/85 backdrop-blur-2xl rounded-[1.75rem] p-7 border border-white/[0.07] shadow-2xl shadow-black/60 relative overflow-hidden ${className}`}
+      className={`bg-[#141418]/85 backdrop-blur-2xl rounded-[2rem] p-7 border border-white/[0.07] shadow-2xl shadow-black/60 relative overflow-hidden ${className}`}
     >
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#6366f1]/40 to-transparent" />
       <div className={scrollable ? 'max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-hide -mr-2 pr-2' : ''}>
@@ -93,18 +93,18 @@ export function AuthCard({ children, className = '', scrollable = false }: AuthC
 
 export function AuthLogo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const sizeClass =
-    size === 'sm' ? 'w-14 h-14 rounded-[0.9rem]' : size === 'lg' ? 'w-24 h-24 rounded-[1.5rem]' : 'w-16 h-16 rounded-[1rem]';
-  const glowClass = size === 'sm' ? '-m-2' : size === 'lg' ? '-m-4 rounded-[2rem]' : '-m-2';
+    size === 'sm' ? 'w-14 h-14 rounded-[1.2rem]' : size === 'lg' ? 'w-24 h-24 rounded-[1.8rem]' : 'w-16 h-16 rounded-[1.3rem]';
+  const glowClass = size === 'sm' ? '-m-2' : size === 'lg' ? '-m-4 rounded-[2.2rem]' : '-m-2';
   return (
     <motion.div
       animate={{ scale: [1, 1.05, 1] }}
       transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       className="relative"
     >
-      <div className={`absolute inset-0 ${glowClass} rounded-[1.2rem] bg-[#6366f1]/30 blur-xl`} />
+      <div className={`absolute inset-0 ${glowClass} bg-[#6366f1]/30 blur-xl`} />
       <motion.img
         src="/logo.png"
-        alt="Nexo"
+        alt="Нексо"
         className={`relative ${sizeClass} shadow-lg shadow-[#6366f1]/25 object-cover`}
         style={
           size === 'lg'

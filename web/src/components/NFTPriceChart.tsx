@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { api } from '../lib/api';
+import BeaverIcon from './BeaverIcon';
 
 interface PriceHistory {
   id: string;

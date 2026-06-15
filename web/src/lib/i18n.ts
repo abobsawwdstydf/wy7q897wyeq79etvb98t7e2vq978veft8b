@@ -535,7 +535,7 @@ const translations = {
     removeAvatar: 'Remove avatar',
     namePlaceholder: 'Name',
     notSpecified: 'Not specified',
-    onNexoSince: 'On Nexo since',
+    onNexoSince: 'On Нексо since',
     cancel: 'Cancel',
     confirm: 'Confirm',
     save: 'Save',

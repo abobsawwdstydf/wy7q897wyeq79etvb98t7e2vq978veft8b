@@ -49,7 +49,7 @@ export default function InvoicePaymentModal({ invoice, onClose, onSuccess }: Inv
     try {
       setIsPaying(true);
       
-      await api.post(`/invoices/${invoice.id}/pay`);
+      await api.post(`/invoices/${invoice.id}/pay`, {});
 
       // Notify via socket
       const socket = getSocket();

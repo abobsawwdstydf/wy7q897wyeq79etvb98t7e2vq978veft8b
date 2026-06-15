@@ -234,7 +234,7 @@ export default function WelcomeAnimation({ onComplete }: WelcomeAnimationProps) 
                 <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/30 to-purple-600/30 blur-2xl rounded-full scale-150" />
                 <img
                   src="/logo.png"
-                  alt="Nexo"
+                  alt="Нексо"
                   className="relative w-24 h-24 md:w-28 md:h-28 rounded-3xl shadow-2xl shadow-nexo-500/40 object-cover"
                 />
               </motion.div>

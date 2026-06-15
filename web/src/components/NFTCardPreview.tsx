@@ -19,7 +19,7 @@ interface NFTCardPreviewProps {
 
 export default function NFTCardPreview({ card, className = '', showInfo = true }: NFTCardPreviewProps) {
   const effectsRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!effectsRef.current) return;

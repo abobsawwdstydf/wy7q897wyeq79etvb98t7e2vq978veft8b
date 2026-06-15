@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Lock, Crown, Coins, Check, X, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import BeaverIcon from './BeaverIcon';
 
 interface ChannelPaywallProps {
   channelId: string;

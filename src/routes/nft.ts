@@ -7,7 +7,8 @@ import path from 'path';
 import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
-import { isValidAdminToken, sessions } from './admin';
+import { isValidAdminToken } from './admin';
+import { getAdminSession } from '../services/auth';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -24,12 +25,11 @@ async function checkAdminAccess(req: AuthRequest): Promise<boolean> {
   // If middleware set isAdmin flag and we have admin token
   if (req.isAdmin && req.adminToken) {
     // Проверяем, есть ли токен в сессиях
-    const isValid = sessions.has(req.adminToken);
+    const adminSession = await getAdminSession(req.adminToken);
+    const isValid = adminSession !== null;
     console.log('[NFT] Admin token validation:', {
       token: req.adminToken.substring(0, 30) + '...',
       isValid,
-      sessionsSize: sessions.size,
-      sessionTokens: Array.from(sessions.keys()).map(t => t.substring(0, 30) + '...'),
     });
     
     // Если токен валидный - разрешаем доступ
@@ -173,7 +173,7 @@ router.post('/cards', authenticateTokenOrAdmin, async (req, res) => {
       gradientColors,
       borderColor,
       borderWidth,
-      priceFromНексо,
+      priceFromNexo,
       isStockEnabled,
       stockVolatility,
     } = req.body;
@@ -193,8 +193,8 @@ router.post('/cards', authenticateTokenOrAdmin, async (req, res) => {
           gradientColors: gradientColors ? JSON.stringify(gradientColors) : null,
           borderColor,
           borderWidth: borderWidth || 0,
-          priceFromНексо: priceFromНексо || 0,
-          currentPrice: priceFromНексо || 0,
+          priceFromNexo: priceFromNexo || 0,
+          currentPrice: priceFromNexo || 0,
           isStockEnabled: isStockEnabled || false,
           stockVolatility: stockVolatility || 5,
         },
@@ -212,11 +212,11 @@ router.post('/cards', authenticateTokenOrAdmin, async (req, res) => {
           data: {
             cardId: card.id,
             sellerId: adminUser.id,
-            price: priceFromНексо || 0,
-            isFromНексо: true,
+            price: priceFromNexo || 0,
+            isFromNexo: true,
           },
         });
-        console.log('[NFT] Auto-created market listing for card:', card.name, 'Price:', priceFromНексо || 0);
+        console.log('[NFT] Auto-created market listing for card:', card.name, 'Price:', priceFromNexo || 0);
       }
       
       return { card, listing };
@@ -246,7 +246,7 @@ router.put('/cards/:id', authenticateTokenOrAdmin, async (req, res) => {
     const allowedFields = [
       'name', 'description', 'rarity', 'totalSupply', 'photoUrl',
       'effectUrls', 'effectSettings', 'backgroundColor', 'gradientColors',
-      'borderColor', 'borderWidth', 'priceFromНексо', 'isStockEnabled',
+      'borderColor', 'borderWidth', 'priceFromNexo', 'isStockEnabled',
       'stockVolatility', 'currentPrice', 'lastPriceUpdate'
     ];
     
@@ -261,8 +261,8 @@ router.put('/cards/:id', authenticateTokenOrAdmin, async (req, res) => {
     if (updateData.totalSupply !== undefined) {
       updateData.totalSupply = Math.max(1, Math.min(1000000, parseInt(updateData.totalSupply) || 1));
     }
-    if (updateData.priceFromНексо !== undefined) {
-      updateData.priceFromНексо = Math.max(0, Math.min(1000000, parseInt(updateData.priceFromНексо) || 0));
+    if (updateData.priceFromNexo !== undefined) {
+      updateData.priceFromNexo = Math.max(0, Math.min(1000000, parseInt(updateData.priceFromNexo) || 0));
     }
     if (updateData.currentPrice !== undefined) {
       updateData.currentPrice = Math.max(1, Math.min(1000000, parseInt(updateData.currentPrice) || 1));
@@ -540,14 +540,14 @@ router.get('/market', async (req, res) => {
       verified,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-      isFromНексо,
+      isFromNexo,
     } = req.query;
     
     const where: any = {};
     
     // Фильтры
-    if (isFromНексо !== undefined) {
-      where.isFromНексо = isFromНексо === 'true';
+    if (isFromNexo !== undefined) {
+      where.isFromNexo = isFromNexo === 'true';
     }
     
     if (minPrice || maxPrice) {
@@ -643,7 +643,7 @@ router.post('/market/list', authenticateTokenOrAdmin, async (req, res) => {
         instanceId,
         sellerId: authReq.userId,
         price,
-        isFromНексо: isAdmin,
+        isFromNexo: isAdmin,
       },
       include: { card: true },
     });
@@ -688,7 +688,7 @@ router.post('/market/:listingId/buy', authenticateTokenOrAdmin, async (req, res)
       }
       
       // Если от Нексо - создать новый экземпляр
-      if (lockedListing.isFromНексо) {
+      if (lockedListing.isFromNexo) {
         // Проверить тираж
         if (lockedListing.card.currentSupply >= lockedListing.card.totalSupply) {
           throw new Error('Sold out');
@@ -1023,7 +1023,7 @@ router.post('/tags', authenticateTokenOrAdmin, async (req, res) => {
       const tag = await tx.nFTTag.create({
         data: {
           ...req.body,
-          currentPrice: req.body.priceFromНексо || 0,
+          currentPrice: req.body.priceFromNexo || 0,
         },
       });
       
@@ -1038,11 +1038,11 @@ router.post('/tags', authenticateTokenOrAdmin, async (req, res) => {
           data: {
             tagId: tag.id,
             sellerId: adminUser.id,
-            price: req.body.priceFromНексо || 0,
-            isFromНексо: true,
+            price: req.body.priceFromNexo || 0,
+            isFromNexo: true,
           },
         });
-        console.log('[NFT] Auto-created tag market listing for:', tag.name, 'Price:', req.body.priceFromНексо || 0);
+        console.log('[NFT] Auto-created tag market listing for:', tag.name, 'Price:', req.body.priceFromNexo || 0);
       }
       
       return { tag, listing };
@@ -1154,7 +1154,7 @@ router.post('/tag-market/list', authenticateTokenOrAdmin, async (req, res) => {
     if (!isAdmin && price > 1000) return res.status(400).json({ error: 'P2P listings limited to 1000 beavers' });
 
     const listing = await prisma.nFTTagMarketListing.create({
-      data: { tagId: instance.tagId, instanceId, sellerId: authReq.userId, price, isFromНексо: isAdmin },
+      data: { tagId: instance.tagId, instanceId, sellerId: authReq.userId, price, isFromNexo: isAdmin },
       include: { tag: true },
     });
     res.json(listing);
@@ -1168,9 +1168,9 @@ router.post('/tag-market/list', authenticateTokenOrAdmin, async (req, res) => {
 // Получить объявления тегов (доступно всем)
 router.get('/tag-market', async (req, res) => {
   try {
-    const { isFromНексо, rarity, minPrice, maxPrice, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const { isFromNexo, rarity, minPrice, maxPrice, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     const where: any = {};
-    if (isFromНексо !== undefined) where.isFromНексо = isFromНексо === 'true';
+    if (isFromNexo !== undefined) where.isFromNexo = isFromNexo === 'true';
     if (minPrice || maxPrice) {
       where.price = {};
       if (minPrice) where.price.gte = parseInt(minPrice as string);
@@ -1212,7 +1212,7 @@ router.post('/tag-market/:listingId/buy', authenticateTokenOrAdmin, async (req, 
       const buyer = await tx.user.findUnique({ where: { id: authReq.userId } });
       if (!buyer || buyer.beavers < lockedListing.price) return res.status(400).json({ error: 'Insufficient beavers' });
 
-      if (lockedListing.isFromНексо) {
+      if (lockedListing.isFromNexo) {
         if (lockedListing.tag.currentSupply >= lockedListing.tag.totalSupply) return res.status(400).json({ error: 'Sold out' });
         const serialNumber = lockedListing.tag.currentSupply + 1;
         const instance = await tx.nFTTagInstance.create({

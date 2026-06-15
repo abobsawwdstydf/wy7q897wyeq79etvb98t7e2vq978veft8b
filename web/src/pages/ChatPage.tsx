@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
+import { useNavigationStore } from '../stores/navigationStore';
 import { getSocket, disconnectSocket } from '../lib/socket';
 import { api } from '../lib/api';
 import { playNotificationSound, playUvedSound, isChatMuted } from '../lib/sounds';
@@ -18,6 +19,7 @@ import NFTInventoryModal from '../components/NFTInventoryModal';
 import CollabPlaylistModal from '../components/CollabPlaylistModal';
 import BeaverIcon from '../components/BeaverIcon';
 import { normalizeMediaUrl } from '../lib/mediaUrl';
+import { useNFTNotifications } from '../hooks/useNFTNotifications';
 
 export default function ChatPage() {
   const {
@@ -52,19 +54,15 @@ export default function ChatPage() {
   const [incomingNotif, setIncomingNotif] = useState<{ name: string; text: string } | null>(null);
   const incomingNotifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // NFT state
-  const [nftGiftReceived, setNftGiftReceived] = useState<{
-    fromUserId: string;
-    cardName: string;
-    message: string;
-    instanceId: string;
-  } | null>(null);
-  const [nftPriceNotif, setNftPriceNotif] = useState<{
-    cardName: string;
-    change: number;
-    newPrice: number;
-  } | null>(null);
-  const [showNFTInventoryFromNotif, setShowNFTInventoryFromNotif] = useState(false);
+  // NFT notifications hook
+  const {
+    nftGiftReceived,
+    nftPriceNotif,
+    showNFTInventoryFromNotif,
+    dismissGift,
+    dismissPriceNotif,
+    setShowNFTInventoryFromNotif,
+  } = useNFTNotifications();
 
   // Group call state
   const [groupCallOpen, setGroupCallOpen] = useState(false);
@@ -76,8 +74,7 @@ export default function ChatPage() {
   const { t } = useLang();
 
   // Nexo AI state
-  const [showAI, setShowAI] = useState(false);
-  const [showFriends, setShowFriends] = useState(false);
+  const { showAI, openAI, closeAI, showFriends, openFriends, closeFriends } = useNavigationStore();
   const [isMobile, setIsMobile] = useState(false);
 
   // Определяем мобильное устройство
@@ -86,13 +83,6 @@ export default function ChatPage() {
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
-  }, []);
-
-  // Listen for AI open event from Sidebar
-  useEffect(() => {
-    const handleOpenAI = () => setShowAI(true);
-    window.addEventListener('open-ai-page', handleOpenAI);
-    return () => window.removeEventListener('open-ai-page', handleOpenAI);
   }, []);
 
   // State for call restore confirmation
@@ -347,62 +337,7 @@ export default function ChatPage() {
     };
   }, []);
 
-  // NFT Socket уведомления
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
 
-    // Получение NFT подарка
-    const handleNFTGiftReceived = (data: {
-      fromUserId: string;
-      cardName: string;
-      message: string;
-      instanceId: string;
-    }) => {
-      setNftGiftReceived(data);
-    };
-
-    // Изменение цены NFT
-    const handleNFTPriceChanged = (data: {
-      cardId: string;
-      cardName: string;
-      oldPrice: number;
-      newPrice: number;
-      change: number;
-    }) => {
-      setNftPriceNotif({
-        cardName: data.cardName,
-        change: data.change,
-        newPrice: data.newPrice,
-      });
-      // Автоскрыть через 5 секунд
-      setTimeout(() => setNftPriceNotif(null), 5000);
-    };
-
-    // NFT продана
-    const handleNFTSold = (data: {
-      cardName: string;
-      price: number;
-      buyerId: string;
-    }) => {
-      setNftPriceNotif({
-        cardName: `${data.cardName} продана!`,
-        change: 0,
-        newPrice: data.price,
-      });
-      setTimeout(() => setNftPriceNotif(null), 5000);
-    };
-
-    socket.on('nft:gift_received', handleNFTGiftReceived);
-    socket.on('nft:price_changed', handleNFTPriceChanged);
-    socket.on('nft:sold', handleNFTSold);
-
-    return () => {
-      socket.off('nft:gift_received', handleNFTGiftReceived);
-      socket.off('nft:price_changed', handleNFTPriceChanged);
-      socket.off('nft:sold', handleNFTSold);
-    };
-  }, []);
 
   useEffect(() => {
     const socket = getSocket();
@@ -652,19 +587,27 @@ export default function ChatPage() {
       <AnimatePresence>
         {showAI && (
           <motion.div
-            initial={{ opacity: 0, x: isMobile ? 0 : 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: isMobile ? 0 : 40 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className={`fixed inset-0 z-[150] sm:z-[140] ${
-              isMobile
-                ? '' // На мобилках - полный экран
-                : 'right-0 top-0 bottom-0 w-[480px]' // На ПК - боковая панель
-            }`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
+            onClick={() => closeAI()}
           >
-            <div className={`h-full bg-[#0a0a0f] ${isMobile ? '' : 'border-l border-white/10 shadow-2xl'}`}>
-              <NexoAIPage onClose={() => setShowAI(false)} />
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className={`${
+                isMobile
+                  ? 'fixed inset-0 rounded-none'
+                  : 'fixed inset-8 rounded-2xl shadow-2xl overflow-hidden'
+              } bg-[#0a0a0f] border border-white/10`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <NexoAIPage onClose={() => closeAI()} />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -680,7 +623,7 @@ export default function ChatPage() {
             className={`${isMobile ? 'fixed inset-0 z-[150]' : 'absolute right-0 top-0 bottom-0 w-[480px] z-[140]'}`}
           >
             <div className={`h-full bg-[#0a0a0f] ${isMobile ? '' : 'border-l border-white/10 shadow-2xl'}`}>
-              <FriendsPage onClose={() => setShowFriends(false)} />
+              <FriendsPage onClose={() => closeFriends()} />
             </div>
           </motion.div>
         )}
@@ -791,10 +734,7 @@ export default function ChatPage() {
       {nftGiftReceived && (
         <NFTGiftReceivedModal
           data={nftGiftReceived}
-          onClose={() => {
-            setNftGiftReceived(null);
-            setShowNFTInventoryFromNotif(true);
-          }}
+          onClose={dismissGift}
         />
       )}
     </AnimatePresence>
@@ -826,7 +766,7 @@ export default function ChatPage() {
             </div>
           </div>
           <button
-            onClick={() => setNftPriceNotif(null)}
+            onClick={dismissPriceNotif}
             className="ml-2 text-white/40 hover:text-white transition-colors text-lg leading-none"
           >×</button>
         </motion.div>

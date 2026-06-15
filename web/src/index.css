@@ -53,10 +53,21 @@ html, body, #root {
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #09090b;
+  background-color: #050508;
   color: #fafafa;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Фон основного экрана — полупрозрачный с blur */
+.chat-bg {
+  background-color: rgba(5, 5, 8, 0.85);
+  backdrop-filter: blur(32px) saturate(150%);
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(168, 85, 247, 0.03) 0%, transparent 50%);
 }
 
 /* Скроллбары - тонкие и незаметные */
@@ -159,6 +170,7 @@ body {
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.35),
     inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
@@ -185,6 +197,77 @@ body {
     135deg,
     rgba(18, 18, 24, 0.88) 0%,
     rgba(12, 12, 16, 0.92) 100%
+  );
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Единый стиль кнопок — жидкое стекло */
+.btn-liquid-glass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: linear-gradient(
+    135deg,
+    rgba(22, 22, 28, 0.85) 0%,
+    rgba(16, 16, 22, 0.9) 50%,
+    rgba(20, 20, 26, 0.88) 100%
+  );
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.35),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -0.5px 0 rgba(255, 255, 255, 0.02);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-liquid-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 20%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.12) 80%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.btn-liquid-glass:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(28, 28, 36, 0.9) 0%,
+    rgba(20, 20, 26, 0.93) 50%,
+    rgba(24, 24, 32, 0.91) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-liquid-glass:active {
+  transform: translateY(0);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 16, 22, 0.88) 0%,
+    rgba(12, 12, 16, 0.92) 50%,
+    rgba(18, 18, 24, 0.9) 100%
   );
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
@@ -388,6 +471,86 @@ body {
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.5),
     inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Smooth view transitions */
+.view-transition-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.view-transition-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+.view-transition-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+.view-transition-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+/* Glass glow effect for interactive elements */
+.glass-glow {
+  position: relative;
+}
+.glass-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.3));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(8px);
+}
+.glass-glow:hover::after {
+  opacity: 1;
+}
+
+/* Floating glass panel (for side panels) */
+.glass-floating {
+  background: linear-gradient(
+    160deg,
+    rgba(16, 16, 22, 0.96) 0%,
+    rgba(10, 10, 14, 0.98) 100%
+  );
+  backdrop-filter: blur(64px) saturate(200%);
+  -webkit-backdrop-filter: blur(64px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.6),
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Ambient light animation for glass surfaces */
+@keyframes glass-shimmer {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.glass-shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 30%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.2) 70%,
+    transparent 100%
+  );
+  animation: glass-shimmer 4s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* Элементы списка */
@@ -882,14 +1045,7 @@ body {
   transition: background 0.1s;
 }
 
-/* Фон основного экрана */
-.chat-bg {
-  background-color: #09090b;
-  background-image:
-    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 60% 80%, rgba(168, 85, 247, 0.03) 0%, transparent 50%);
-}
+/* Фон основного экрана уже определён выше */
 
 /* ======================== */
 /*   Состояния выделения    */

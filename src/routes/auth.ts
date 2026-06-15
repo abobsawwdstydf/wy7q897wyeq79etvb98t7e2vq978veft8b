@@ -1,31 +1,51 @@
-import { Router, Request } from 'express';
+import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { prisma } from '../db';
 import { config } from '../config';
 import { USER_SELECT } from '../shared';
-import { 
-  authenticateToken, 
-  AuthRequest, 
-  checkAccountLockout, 
-  recordFailedLogin, 
-  resetLoginAttempts,
-  revokeToken 
+import {
+  authenticateToken,
+  AuthRequest,
+  generateAccessToken,
+  generateRefreshToken,
+  setAuthCookies,
+  clearAuthCookies,
 } from '../middleware/auth';
-import rateLimit from 'express-rate-limit';
+import {
+  revokeToken,
+  checkAccountLockout,
+  recordFailedLogin,
+  resetLoginAttempts,
+  storeRefreshToken,
+  validateRefreshToken,
+  deleteRefreshToken,
+  revokeAllUserRefreshTokens,
+  registerRefreshToken,
+} from '../services/auth';
+import { validatePassword } from '../lib/password';
+import { generateCsrfToken, validateCsrfToken, CSRF_CONFIG } from '../lib/csrf';
 
 const router = Router();
+
+// Stricter rate limiter for login/register to prevent brute-force
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Слишком много попыток входа, попробуйте позже' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    // SECURITY FIX: Проверка MIME типа и расширения
     const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     const ext = file.originalname.toLowerCase().match(/\.[^.]+$/)?.[0];
-    
     if (allowedMimes.includes(file.mimetype) && ext && allowedExts.includes(ext)) {
       cb(null, true);
     } else {
@@ -34,64 +54,36 @@ const upload = multer({
   },
 });
 
-const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 час
-  max: process.env.NODE_ENV === 'production' ? 5 : 1000, // 5 регистраций в час в продакшене
-  message: { error: 'Слишком много попыток регистрации. Подождите час.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  skip: (req) => process.env.NODE_ENV !== 'production', // Только в продакшене
-  keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
-});
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 минут
-  max: process.env.NODE_ENV === 'production' ? 10 : 1000, // 10 попыток входа в 15 минут в продакшене
-  message: { error: 'Слишком много попыток входа. Подождите 15 минут.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  skip: (req) => process.env.NODE_ENV !== 'production', // Только в продакшене
-  keyGenerator: (req) => req.ip || req.socket.remoteAddress || 'unknown',
-});
-
 /**
- * SECURITY FIX: Валидация пароля
+ * Установка CSRF cookie + токена в response
  */
-function validatePassword(password: string): { valid: boolean; error?: string } {
-  if (password.length < 6) {
-    return { valid: false, error: 'Пароль должен содержать минимум 6 символов' };
-  }
-  if (password.length > 50) {
-    return { valid: false, error: 'Пароль не более 50 символов' };
-  }
-  return { valid: true };
+function setCsrfCookie(res: Response, userId: string): string {
+  const token = generateCsrfToken();
+  res.cookie(CSRF_CONFIG.COOKIE_NAME, token, {
+    httpOnly: false, // Доступен из JS
+    secure: config.isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: CSRF_CONFIG.MAX_AGE * 1000,
+  });
+  return token;
 }
 
-/**
- * SECURITY FIX: Санитизация имени файла
- */
-function sanitizeFilename(filename: string): string {
-  // Удаляем всё кроме букв, цифр, точки, дефиса и подчёркивания
-  return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
+// ═══════════════════════════════════════════════════════════════════
+// РЕГИСТРАЦИЯ
+// ═══════════════════════════════════════════════════════════════════
 
-// Регистрация
-// @ts-ignore
-router.post('/register', registerLimiter, upload.single('avatar') as any, async (req: Request, res) => {
+router.post('/register', loginLimiter, upload.single('avatar') as any, async (req: Request, res: Response) => {
   try {
     const { username, displayName, phone, password, bio, birthday } = req.body;
     const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
 
-    // SECURITY FIX: Валидация всех обязательных полей
     if (!username || !displayName || !phone || !password || !birthday) {
       res.status(400).json({ error: 'Username, имя, телефон, пароль и дата рождения обязательны' });
       return;
     }
 
-    // SECURITY FIX: Валидация username (латиница, цифры, -_.)
-    if (!/^[a-zA-Z0-9_.\-]{3,17}$/.test(username)) {
+    if (!/^[a-zA-Z0-9_.-]{3,17}$/.test(username)) {
       res.status(400).json({ error: 'Username: 3-17 символов, только латиница, цифры и -_.' });
       return;
     }
@@ -100,33 +92,27 @@ router.post('/register', registerLimiter, upload.single('avatar') as any, async 
       return;
     }
 
-    // SECURITY FIX: Валидация телефона
     if (!/^\+[1-9]\d{6,14}$/.test(phone)) {
       res.status(400).json({ error: 'Телефон в формате +79991234567' });
       return;
     }
 
-    // SECURITY FIX: Валидация пароля
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
       res.status(400).json({ error: passwordValidation.error });
       return;
     }
 
-    // SECURITY FIX: Валидация displayName (защита от XSS)
     const xssPattern = /<script|javascript:|onerror=|onclick=|onload=|<iframe|<object|<embed|data:text\/html/i;
     if (displayName.length > 50 || xssPattern.test(displayName)) {
       res.status(400).json({ error: 'Недопустимое имя' });
       return;
     }
-    
-    // SECURITY FIX: Валидация bio (защита от XSS)
     if (bio && (bio.length > 500 || xssPattern.test(bio))) {
       res.status(400).json({ error: 'Недопустимое описание' });
       return;
     }
 
-    // SECURITY FIX: Валидация даты рождения (не сегодня и не в будущем)
     if (birthday) {
       const birthdayDate = new Date(birthday);
       const today = new Date();
@@ -138,50 +124,33 @@ router.post('/register', registerLimiter, upload.single('avatar') as any, async 
       }
     }
 
-    // Проверка существующего username
-    const existingUsername = await prisma.user.findUnique({ 
-      where: { username: username.toLowerCase() } 
-    });
+    const existingUsername = await prisma.user.findUnique({ where: { username: username.toLowerCase() } });
     if (existingUsername) {
       res.status(400).json({ error: 'Username занят' });
       return;
     }
 
-    // Проверка существующего телефона
     const existingPhone = await prisma.user.findFirst({ where: { phone } });
     if (existingPhone) {
       res.status(400).json({ error: 'Этот номер уже зарегистрирован' });
       return;
     }
 
-    // REMOVED: IP-based registration limit check for development
-    // const accountsFromIp = await prisma.user.count({ where: { registrationIp: clientIp } });
-    // if (accountsFromIp >= config.maxRegistrationsPerIp) {
-    //   res.status(403).json({ error: `Лимит регистраций с этого IP` });
-    //   return;
-    // }
-
-    // Обработка аватара
     let avatarPath: string | null = null;
     if (req.file) {
       const fs = await import('fs');
       const path = await import('path');
       const { UPLOADS_ROOT } = await import('../shared');
-      
-      // SECURITY FIX: Генерация случайного имени файла
       const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
       const randomName = `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${ext}`;
       avatarPath = `/uploads/avatars/${randomName}`;
-      
       const dir = path.join(UPLOADS_ROOT, 'avatars');
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, randomName), req.file.buffer);
     }
 
-    // Хеширование пароля
-    const hashedPassword = await bcrypt.hash(password, 12); // SECURITY FIX: Увеличен cost с 10 до 12
-    
-    // Создание пользователя
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const user = await prisma.user.create({
       data: {
         username: username.toLowerCase(),
@@ -198,21 +167,29 @@ router.post('/register', registerLimiter, upload.single('avatar') as any, async 
       select: USER_SELECT,
     });
 
-    // SECURITY FIX: Токен с коротким временем жизни
-    const token = jwt.sign(
-      { userId: user.id }, 
-      config.jwtSecret, 
-      { expiresIn: `${config.sessionTimeoutHours}h` }
-    );
-    
-    res.json({ token, user: { ...user, isOnline: true } });
+    // Генерируем пару токенов
+    const { token: accessToken, jti: accessJti } = generateAccessToken(user.id);
+    const { token: refreshToken, jti: refreshJti } = generateRefreshToken(user.id);
+
+    // Сохраняем refresh token в Redis
+    await storeRefreshToken(refreshJti, user.id, config.refreshTokenTtlDays * 24 * 60 * 60);
+    await registerRefreshToken(user.id, refreshJti);
+
+    // Устанавливаем cookies
+    setAuthCookies(res, accessToken, refreshToken);
+    setCsrfCookie(res, user.id);
+
+    res.json({ user: { ...user, isOnline: true }, accessToken, csrfToken: generateCsrfToken() });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
-// Проверка доступности username
+// ═══════════════════════════════════════════════════════════════════
+// ПРОВЕРКА ДОСТУПНОСТИ
+// ═══════════════════════════════════════════════════════════════════
+
 router.get('/check-username', async (req, res) => {
   try {
     const { username } = req.query;
@@ -220,7 +197,7 @@ router.get('/check-username', async (req, res) => {
       res.status(400).json({ error: 'Username обязателен' });
       return;
     }
-    if (!/^[a-zA-Z0-9_.\-]{3,17}$/.test(username)) {
+    if (!/^[a-zA-Z0-9_.-]{3,17}$/.test(username)) {
       res.json({ available: false, reason: 'invalid' });
       return;
     }
@@ -228,16 +205,13 @@ router.get('/check-username', async (req, res) => {
       res.json({ available: false, reason: 'invalid' });
       return;
     }
-    const existing = await prisma.user.findUnique({ 
-      where: { username: username.toLowerCase() } 
-    });
+    const existing = await prisma.user.findUnique({ where: { username: username.toLowerCase() } });
     res.json({ available: !existing });
   } catch {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
-// Проверка доступности телефона
 router.get('/check-phone', async (req, res) => {
   try {
     const { phone } = req.query;
@@ -252,47 +226,43 @@ router.get('/check-phone', async (req, res) => {
   }
 });
 
-// Вход
-// @ts-ignore
-router.post('/login', loginLimiter, async (req, res) => {
+// ═══════════════════════════════════════════════════════════════════
+// ВХОД
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { phone, password } = req.body;
-    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
 
     if (!phone || !password) {
       res.status(400).json({ error: 'Логин/телефон и пароль обязательны' });
       return;
     }
 
-    // SECURITY FIX: Проверка блокировки аккаунта
-    const lockStatus = checkAccountLockout(phone);
+    // Проверка блокировки аккаунта
+    const lockStatus = await checkAccountLockout(phone);
     if (lockStatus.locked) {
-      res.status(429).json({ 
-        error: `Аккаунт временно заблокирован. Попробуйте через ${lockStatus.remainingTime} минут.` 
+      res.status(429).json({
+        error: `Аккаунт временно заблокирован. Попробуйте через ${lockStatus.remainingTime} минут.`
       });
       return;
     }
 
-    // Определяем тип входа (телефон или username)
     const isPhone = phone.startsWith('+');
-    
+
     const user = await prisma.user.findFirst({
-      where: isPhone 
-        ? { phone } 
-        : { username: phone.toLowerCase() },
+      where: isPhone ? { phone } : { username: phone.toLowerCase() },
       select: { ...USER_SELECT, password: true, fakePassword: true, fakeChats: true },
     });
 
     if (!user) {
-      // SECURITY FIX: Регистрация неудачной попытки
-      recordFailedLogin(phone);
+      await recordFailedLogin(phone);
       res.status(400).json({ error: 'Неверный логин/номер или пароль' });
       return;
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
-    
-    // Check fake password (duress mode)
+
     let isFakeLogin = false;
     if (!validPassword && user.fakePassword) {
       const validFakePassword = await bcrypt.compare(password, user.fakePassword);
@@ -302,48 +272,96 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     if (!validPassword && !isFakeLogin) {
-      // SECURITY FIX: Регистрация неудачной попытки
-      recordFailedLogin(phone);
+      await recordFailedLogin(phone);
       res.status(400).json({ error: 'Неверный логин/номер или пароль' });
       return;
     }
 
-    // SECURITY FIX: Сброс счётчика попыток после успешного входа
-    resetLoginAttempts(phone);
+    await resetLoginAttempts(phone);
 
-    // Обновление статуса онлайн
     await prisma.user.update({
       where: { id: user.id },
       data: { isOnline: true, lastSeen: new Date() },
     });
 
-    // SECURITY FIX: Токен с коротким временем жизни
-    // For fake login, embed a flag in the token
-    const tokenPayload = isFakeLogin 
-      ? { userId: user.id, fakeMode: true }
-      : { userId: user.id };
-    const token = jwt.sign(
-      tokenPayload, 
-      config.jwtSecret, 
-      { expiresIn: `${config.sessionTimeoutHours}h` }
-    );
-    
+    // Генерируем пару токенов
+    const { token: accessToken, jti: accessJti } = generateAccessToken(user.id, isFakeLogin);
+    const { token: refreshToken, jti: refreshJti } = generateRefreshToken(user.id);
+
+    await storeRefreshToken(refreshJti, user.id, config.refreshTokenTtlDays * 24 * 60 * 60);
+    await registerRefreshToken(user.id, refreshJti);
+
+    setAuthCookies(res, accessToken, refreshToken);
+    const csrfToken = setCsrfCookie(res, user.id);
+
     const { password: _, fakePassword: __, fakeChats, ...userWithoutPassword } = user;
 
-    // In fake mode, return limited user data with fakeChats list
     const responseUser = isFakeLogin
       ? { ...userWithoutPassword, isOnline: true, fakeMode: true, fakeChats: fakeChats ? JSON.parse(fakeChats) : [] }
       : { ...userWithoutPassword, isOnline: true };
 
-    res.json({ token, user: responseUser });
+    res.json({ user: responseUser, accessToken, csrfToken });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
-// Получение текущего пользователя
-router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
+// ═══════════════════════════════════════════════════════════════════
+// ОБНОВЛЕНИЕ ACCESS TOKEN (refresh)
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/refresh', async (req: Request, res: Response) => {
+  try {
+    const refreshTokenStr = (req as any).cookies?.nexo_refresh_token;
+    if (!refreshTokenStr) {
+      res.status(401).json({ error: 'Refresh token отсутствует' });
+      return;
+    }
+
+    let decoded: any;
+    try {
+      decoded = require('jsonwebtoken').verify(refreshTokenStr, config.jwtRefreshSecret);
+    } catch {
+      res.status(401).json({ error: 'Refresh token недействителен' });
+      return;
+    }
+
+    if (decoded.type !== 'refresh') {
+      res.status(401).json({ error: 'Недействительный тип токена' });
+      return;
+    }
+
+    const tokenData = await validateRefreshToken(decoded.jti);
+    if (!tokenData) {
+      res.status(401).json({ error: 'Refresh token отозван' });
+      return;
+    }
+
+    // Удаляем старый refresh token (ротация)
+    await deleteRefreshToken(decoded.jti);
+
+    // Генерируем новую пару
+    const { token: accessToken, jti: accessJti } = generateAccessToken(tokenData.userId, tokenData.fakeMode);
+    const { token: refreshToken, jti: refreshJti } = generateRefreshToken(tokenData.userId);
+
+    await storeRefreshToken(refreshJti, tokenData.userId, config.refreshTokenTtlDays * 24 * 60 * 60);
+    await registerRefreshToken(tokenData.userId, refreshJti);
+
+    setAuthCookies(res, accessToken, refreshToken);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ПОЛУЧЕНИЕ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
+// ═══════════════════════════════════════════════════════════════════
+
+router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
@@ -355,30 +373,43 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
       return;
     }
 
-    res.json({ user });
+    const csrfToken = setCsrfCookie(res, user.id);
+    const { token: accessToken } = generateAccessToken(user.id);
+
+    res.json({ user, accessToken, csrfToken });
   } catch {
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
-// SECURITY FIX: Выход (отзыв токена)
-router.post('/logout', authenticateToken, async (req: AuthRequest, res) => {
+// ═══════════════════════════════════════════════════════════════════
+// ВЫХОД
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (token) {
-      revokeToken(token);
+    // Отзываем refresh token
+    const refreshTokenStr = (req as any).cookies?.nexo_refresh_token;
+    if (refreshTokenStr) {
+      try {
+        const decoded = require('jsonwebtoken').decode(refreshTokenStr) as any;
+        if (decoded?.jti) {
+          await deleteRefreshToken(decoded.jti);
+        }
+      } catch { /* ignore decode error */ }
     }
-    
-    // Обновление статуса оффлайн
+
+    // Отзываем все refresh tokens пользователя
     if (req.userId) {
+      await revokeAllUserRefreshTokens(req.userId);
+
       await prisma.user.update({
         where: { id: req.userId },
         data: { isOnline: false, lastSeen: new Date() },
       });
     }
-    
+
+    clearAuthCookies(res);
     res.json({ success: true });
   } catch (error) {
     console.error('Logout error:', error);
@@ -386,35 +417,25 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res) => {
   }
 });
 
-// ============================================
+// ═══════════════════════════════════════════════════════════════════
 // DEVICE AUTH - QR-код вход с других устройств
-// ============================================
+// ═══════════════════════════════════════════════════════════════════
 
-// Инициализация device token (вызывается при генерации QR-кода)
-router.post('/device/init', async (req, res) => {
+router.post('/device/init', async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
-
     if (!token || typeof token !== 'string' || token.length < 10) {
       res.status(400).json({ error: 'Неверный токен устройства' });
       return;
     }
 
-    // Проверяем, не существует ли уже такой токен
     const existing = await prisma.deviceToken.findUnique({ where: { token } });
     if (existing) {
       res.json({ success: true });
       return;
     }
 
-    // Создаём новый pending token
-    await prisma.deviceToken.create({
-      data: {
-        token,
-        status: 'pending',
-      },
-    });
-
+    await prisma.deviceToken.create({ data: { token, status: 'pending' } });
     res.json({ success: true });
   } catch (error) {
     console.error('Device init error:', error);
@@ -422,11 +443,9 @@ router.post('/device/init', async (req, res) => {
   }
 });
 
-// Помечаем, что QR был отсканирован (вызывается со страницы подтверждения, когда она открылась)
-router.post('/device/scan', async (req, res) => {
+router.post('/device/scan', async (req: Request, res: Response) => {
   try {
     const { device } = req.body;
-
     if (!device || typeof device !== 'string') {
       res.status(400).json({ error: 'device обязателен' });
       return;
@@ -444,28 +463,22 @@ router.post('/device/scan', async (req, res) => {
   }
 });
 
-// Проверка статуса device token (polling с устройства, которое сканирует QR, и с QR-страницы)
-router.get('/device/check', async (req, res) => {
+router.get('/device/check', async (req: Request, res: Response) => {
   try {
     const { device } = req.query;
-
     if (!device || typeof device !== 'string') {
       res.status(400).json({ error: 'device обязателен' });
       return;
     }
 
-    const deviceToken = await prisma.deviceToken.findUnique({
-      where: { token: device },
-    });
+    const deviceToken = await prisma.deviceToken.findUnique({ where: { token: device } });
 
     if (!deviceToken) {
-      // Токен не найден - значит ещё не был зарегистрирован
       res.json({ confirmed: false, denied: false, pending: true });
       return;
     }
 
     if (deviceToken.status === 'confirmed' && deviceToken.userId) {
-      // Получаем данные пользователя, который подтвердил вход
       const user = await prisma.user.findUnique({
         where: { id: deviceToken.userId },
         select: USER_SELECT,
@@ -476,24 +489,25 @@ router.get('/device/check', async (req, res) => {
         return;
       }
 
-      // Генерируем JWT токен для нового устройства
-      const jwtToken = jwt.sign(
-        { userId: user.id },
-        config.jwtSecret,
-        { expiresIn: `${config.sessionTimeoutHours}h` }
-      );
+      // Генерируем пару токенов для нового устройства
+      const { token: accessToken } = generateAccessToken(user.id);
+      const { token: refreshToken, jti: refreshJti } = generateRefreshToken(user.id);
 
-      // Удаляем использованный device token через 30 секунд, чтобы QR-страница тоже успела увидеть подтверждение
+      await storeRefreshToken(refreshJti, user.id, config.refreshTokenTtlDays * 24 * 60 * 60);
+      await registerRefreshToken(user.id, refreshJti);
+
+      // Устанавливаем cookies для нового устройства
+      setAuthCookies(res, accessToken, refreshToken);
+
       setTimeout(() => {
         prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
       }, 30000);
 
-      res.json({ confirmed: true, token: jwtToken, user, scanned: true });
+      res.json({ confirmed: true, user, scanned: true });
       return;
     }
 
     if (deviceToken.status === 'denied') {
-      // Удаляем отклонённый token через 30 секунд
       setTimeout(() => {
         prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
       }, 30000);
@@ -501,7 +515,6 @@ router.get('/device/check', async (req, res) => {
       return;
     }
 
-    // Статус pending или scanned
     res.json({
       confirmed: false,
       denied: false,
@@ -514,39 +527,27 @@ router.get('/device/check', async (req, res) => {
   }
 });
 
-// Подтверждение device token (вызывается на устройстве, где уже авторизованы)
-router.post('/device/confirm', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/device/confirm', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { device } = req.body;
-
     if (!device || typeof device !== 'string') {
       res.status(400).json({ error: 'device обязателен' });
       return;
     }
 
-    const deviceToken = await prisma.deviceToken.findUnique({
-      where: { token: device },
-    });
-
+    const deviceToken = await prisma.deviceToken.findUnique({ where: { token: device } });
     if (!deviceToken) {
       res.status(404).json({ error: 'Токен не найден или истёк' });
       return;
     }
-
     if (deviceToken.status !== 'pending') {
       res.status(400).json({ error: 'Токен уже обработан' });
       return;
     }
 
-    // Подтверждаем
     await prisma.deviceToken.update({
       where: { token: device },
-      data: {
-        status: 'confirmed',
-        userId: req.userId,
-        confirmedAt: new Date(),
-        confirmedBy: req.userId,
-      },
+      data: { status: 'confirmed', userId: req.userId, confirmedAt: new Date(), confirmedBy: req.userId },
     });
 
     res.json({ success: true });
@@ -556,30 +557,21 @@ router.post('/device/confirm', authenticateToken, async (req: AuthRequest, res) 
   }
 });
 
-// Отклонение device token
-router.post('/device/deny', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/device/deny', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { device } = req.body;
-
     if (!device || typeof device !== 'string') {
       res.status(400).json({ error: 'device обязателен' });
       return;
     }
 
-    const deviceToken = await prisma.deviceToken.findUnique({
-      where: { token: device },
-    });
-
+    const deviceToken = await prisma.deviceToken.findUnique({ where: { token: device } });
     if (!deviceToken) {
       res.status(404).json({ error: 'Токен не найден' });
       return;
     }
 
-    await prisma.deviceToken.update({
-      where: { token: device },
-      data: { status: 'denied' },
-    });
-
+    await prisma.deviceToken.update({ where: { token: device }, data: { status: 'denied' } });
     res.json({ success: true });
   } catch (error) {
     console.error('Device deny error:', error);
@@ -587,59 +579,65 @@ router.post('/device/deny', authenticateToken, async (req: AuthRequest, res) => 
   }
 });
 
-// SECURITY FIX: Смена пароля (отзыв всех токенов)
-router.post('/change-password', authenticateToken, async (req: AuthRequest, res) => {
+// ═══════════════════════════════════════════════════════════════════
+// СМЕНА ПАРОЛЯ
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/change-password', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
       res.status(400).json({ error: 'Текущий и новый пароль обязательны' });
       return;
     }
-    
-    // Валидация нового пароля
+
     const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.valid) {
       res.status(400).json({ error: passwordValidation.error });
       return;
     }
-    
-    // Проверка текущего пароля
+
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { password: true },
     });
-    
+
     if (!user) {
       res.status(404).json({ error: 'Пользователь не найден' });
       return;
     }
-    
+
     const validPassword = await bcrypt.compare(currentPassword, user.password);
     if (!validPassword) {
       res.status(400).json({ error: 'Неверный текущий пароль' });
       return;
     }
-    
-    // Обновление пароля
+
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await prisma.user.update({
-      where: { id: req.userId },
-      data: { password: hashedPassword },
-    });
-    
-    // SECURITY FIX: Отзыв текущего токена (пользователь должен войти заново)
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (token) {
-      revokeToken(token);
+    await prisma.user.update({ where: { id: req.userId }, data: { password: hashedPassword } });
+
+    // Отзываем все refresh tokens (принудительный re-login)
+    if (req.userId) {
+      await revokeAllUserRefreshTokens(req.userId);
     }
-    
+
+    clearAuthCookies(res);
+
     res.json({ success: true, message: 'Пароль изменён. Пожалуйста, войдите заново.' });
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CSRF TOKEN ENDPOINT
+// ═══════════════════════════════════════════════════════════════════
+
+router.get('/csrf-token', authenticateToken, async (req: AuthRequest, res: Response) => {
+  const csrfToken = setCsrfCookie(res, req.userId!);
+  res.json({ csrfToken });
 });
 
 export default router;

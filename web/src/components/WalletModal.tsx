@@ -308,7 +308,7 @@ export default function WalletModal({ onClose, embedded, initialView = 'main' }:
                           >
                             <div className="w-9 h-9 rounded-full bg-nexo-500/20 flex items-center justify-center text-sm font-bold text-nexo-400 flex-shrink-0">
                               {u.avatar ? (
-                                <img src={u.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                                <img src={u.avatar} alt="" className="w-full h-full rounded-xl object-cover" />
                               ) : (
                                 (u.displayName || u.username || '?')[0].toUpperCase()
                               )}
@@ -332,7 +332,7 @@ export default function WalletModal({ onClose, embedded, initialView = 'main' }:
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                       <div className="w-10 h-10 rounded-full bg-nexo-500/20 flex items-center justify-center text-sm font-bold text-nexo-400 flex-shrink-0">
                         {sendTarget.avatar ? (
-                          <img src={sendTarget.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                          <img src={sendTarget.avatar} alt="" className="w-full h-full rounded-xl object-cover" />
                         ) : (
                           (sendTarget.displayName || sendTarget.username || '?')[0].toUpperCase()
                         )}

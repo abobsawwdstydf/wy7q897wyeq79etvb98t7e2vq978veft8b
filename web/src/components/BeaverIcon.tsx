@@ -25,7 +25,7 @@ export default function BeaverIcon({ size = 20, className = '', animate = false 
         // Fallback to PNG if SVG not found
         const target = e.target as HTMLImageElement;
         target.src = '/beaver-coin.png';
-        target.onError = null; // Prevent infinite loop
+        target.onerror = null; // Prevent infinite loop
       }}
     />
   );

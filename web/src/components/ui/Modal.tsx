@@ -74,17 +74,17 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"
       onClick={handleBackdrop}
     >
-      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         className={cn(
-          'relative w-full glass-strong rounded-2xl shadow-2xl animate-scale-in',
+          'relative w-full liquid-glass rounded-2xl shadow-2xl animate-scale-in',
           'flex flex-col',
           sizeClasses[size],
           fullScreenOnMobile && 'sm:rounded-2xl rounded-none sm:max-h-[calc(100vh-2rem)] max-h-screen sm:h-auto h-screen',

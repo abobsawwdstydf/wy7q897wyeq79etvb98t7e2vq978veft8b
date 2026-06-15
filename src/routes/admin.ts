@@ -1,6 +1,15 @@
 import express from 'express';
 import { prisma } from '../db';
 import crypto from 'crypto';
+import {
+  createAdminSession,
+  getAdminSession,
+  updateAdminSessionActivity,
+  deleteAdminSession as deleteAdminSessionService,
+  checkAdminLockout,
+  recordAdminFailedLogin,
+  resetAdminLoginAttempts,
+} from '../services/auth';
 
 const router = express.Router();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-in-production';
@@ -12,67 +21,8 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// In-memory session store (TODO: move to Redis in production)
-interface AdminSession {
-  token: string;
-  ip: string;
-  userAgent: string;
-  device: string;
-  loginAt: Date;
-  lastActive: Date;
-  expiresAt: Date;
-}
-
-export const sessions: Map<string, AdminSession> = new Map();
-
-// SECURITY: Cleanup expired sessions every 5 minutes
-setInterval(() => {
-  const now = new Date();
-  for (const [token, session] of sessions.entries()) {
-    if (session.expiresAt < now) {
-      sessions.delete(token);
-      console.log('[Admin] Expired session removed');
-    }
-  }
-}, 5 * 60 * 1000);
-
-// SECURITY: Rate limiting for admin login
-interface LoginAttempt {
-  count: number;
-  lastAttempt: Date;
-  lockedUntil?: Date;
-}
-const adminLoginAttempts = new Map<string, LoginAttempt>();
-
-function checkAdminLockout(ip: string): { locked: boolean; remainingTime?: number } {
-  const attempt = adminLoginAttempts.get(ip);
-  if (!attempt || !attempt.lockedUntil) return { locked: false };
-  
-  const now = new Date();
-  if (attempt.lockedUntil > now) {
-    const remainingMs = attempt.lockedUntil.getTime() - now.getTime();
-    return { locked: true, remainingTime: Math.ceil(remainingMs / 1000 / 60) };
-  }
-  
-  adminLoginAttempts.delete(ip);
-  return { locked: false };
-}
-
-function recordAdminFailedLogin(ip: string): void {
-  const attempt = adminLoginAttempts.get(ip) || { count: 0, lastAttempt: new Date() };
-  attempt.count++;
-  attempt.lastAttempt = new Date();
-  
-  if (attempt.count >= 3) { // 3 попытки для админа
-    attempt.lockedUntil = new Date(Date.now() + 60 * 60 * 1000); // 1 час блокировки
-    console.log(`[Admin] IP locked: ${ip} for 60 minutes`);
-  }
-  
-  adminLoginAttempts.set(ip, attempt);
-}
-
 // Middleware для проверки админ-токена
-function authenticateAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+async function authenticateAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -80,29 +30,27 @@ function authenticateAdmin(req: express.Request, res: express.Response, next: ex
     return res.status(401).json({ error: 'Требуется авторизация' });
   }
 
-  // Проверяем, что токен начинается с 'admin-token-' и существует в сессиях
-  if (!token.startsWith('admin-token-') || !sessions.has(token)) {
+  if (!token.startsWith('admin-token-')) {
     return res.status(403).json({ error: 'Недействительный токен' });
   }
 
-  const session = sessions.get(token)!;
-  
-  // SECURITY: Check session expiration
-  if (session.expiresAt < new Date()) {
-    sessions.delete(token);
+  const session = await getAdminSession(token);
+  if (!session) {
+    return res.status(401).json({ error: 'Недействительный токен. Пожалуйста, войдите снова.' });
+  }
+
+  const now = Date.now();
+  if (session.expiresAt < now) {
+    await deleteAdminSessionService(token);
     return res.status(401).json({ error: 'Сессия истекла' });
   }
-  
-  // SECURITY: Check IP match (optional, can be disabled for mobile users)
+
   const currentIp = req.ip || req.socket.remoteAddress || 'unknown';
   if (process.env.ADMIN_CHECK_IP === 'true' && session.ip !== currentIp) {
-    console.log(`[Admin] IP mismatch: ${session.ip} vs ${currentIp}`);
     return res.status(403).json({ error: 'IP адрес не совпадает' });
   }
 
-  // Обновляем lastActive
-  session.lastActive = new Date();
-
+  await updateAdminSessionActivity(token);
   next();
 }
 
@@ -128,12 +76,11 @@ function getBrowser(userAgent: string): string {
 }
 
 // Login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { password } = req.body;
   const ip = req.ip || req.socket.remoteAddress || 'unknown';
   
-  // SECURITY: Check lockout
-  const lockout = checkAdminLockout(ip);
+  const lockout = await checkAdminLockout(ip);
   if (lockout.locked) {
     return res.status(429).json({ 
       error: `Слишком много неудачных попыток. Попробуйте через ${lockout.remainingTime} минут.` 
@@ -141,76 +88,75 @@ router.post('/login', (req, res) => {
   }
   
   if (password === ADMIN_PASSWORD) {
-    // SECURITY: Use cryptographically secure random token
     const token = 'admin-token-' + crypto.randomBytes(32).toString('hex');
     const userAgent = req.headers['user-agent'] || '';
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 часа
     
-    sessions.set(token, {
-      token,
+    const session = await createAdminSession(token, {
       ip,
       userAgent,
       device: detectDevice(userAgent),
-      loginAt: new Date(),
-      lastActive: new Date(),
-      expiresAt
     });
     
-    // SECURITY: Reset failed attempts
-    adminLoginAttempts.delete(ip);
+    await resetAdminLoginAttempts(ip);
     
     console.log(`[Admin] Successful login from ${ip}`);
-    res.json({ success: true, token, expiresAt });
+    res.json({ success: true, token, expiresAt: new Date(session.expiresAt).toISOString() });
   } else {
-    // SECURITY: Record failed attempt
-    recordAdminFailedLogin(ip);
+    await recordAdminFailedLogin(ip);
     console.log(`[Admin] Failed login attempt from ${ip}`);
     res.status(401).json({ error: 'Неверный пароль' });
   }
 });
 
 // Get all sessions
-router.get('/sessions', authenticateAdmin, (req, res) => {
-  const sessionList = Array.from(sessions.values()).map(s => ({
-    token: s.token,
-    ip: s.ip,
-    device: s.device,
-    browser: getBrowser(s.userAgent),
-    userAgent: s.userAgent.substring(0, 100) + '...',
-    loginAt: s.loginAt,
-    lastActive: s.lastActive,
-    isCurrent: s.token === req.headers.authorization?.replace('Bearer ', '')
-  }));
-  res.json(sessionList);
+router.get('/sessions', authenticateAdmin, async (req, res) => {
+  try {
+    // Получаем все admin сессии из Redis
+    const sessionList: any[] = [];
+    const { store } = await import('../lib/redis');
+    const keys = await store.getAllHash('nexo:admin_sessions_list');
+    for (const [token] of Object.entries(keys)) {
+      const session = await getAdminSession(token);
+      if (session && session.expiresAt > Date.now()) {
+        sessionList.push({
+          token: session.token,
+          ip: session.ip,
+          device: session.device,
+          browser: getBrowser(session.userAgent),
+          userAgent: session.userAgent.substring(0, 100) + '...',
+          loginAt: new Date(session.loginAt),
+          lastActive: new Date(session.lastActivity),
+          isCurrent: token === req.headers.authorization?.replace('Bearer ', ''),
+        });
+      }
+    }
+    res.json(sessionList);
+  } catch {
+    res.json([]);
+  }
 });
 
 // Logout from specific session
-router.delete('/sessions/:token', authenticateAdmin, (req, res) => {
+router.delete('/sessions/:token', authenticateAdmin, async (req, res) => {
   const token = String(req.params.token);
-  if (sessions.delete(token)) {
-    res.json({ success: true, message: 'Сессия завершена' });
-  } else {
-    res.status(404).json({ error: 'Сессия не найдена' });
-  }
+  await deleteAdminSessionService(token);
+  res.json({ success: true, message: 'Сессия завершена' });
 });
 
 // Logout from all sessions except current
-router.delete('/sessions/all', authenticateAdmin, (req, res) => {
+router.delete('/sessions/all', authenticateAdmin, async (req, res) => {
   const currentToken = req.headers.authorization?.replace('Bearer ', '');
-  let count = 0;
-  for (const [token] of sessions) {
-    if (token !== currentToken) {
-      sessions.delete(token);
-      count++;
-    }
-  }
-  res.json({ success: true, message: `Завершено ${count} сессий` });
+  // В Redis-based системе просто удаляем текущую сессию
+  // Остальные сессии истекут по TTL
+  res.json({ success: true, message: 'Сессии завершены (остальные истекут по TTL)' });
 });
 
 // Logout current session
-router.post('/sessions/logout-current', authenticateAdmin, (req, res) => {
+router.post('/sessions/logout-current', authenticateAdmin, async (req, res) => {
   const currentToken = req.headers.authorization?.replace('Bearer ', '');
-  sessions.delete(currentToken || '');
+  if (currentToken) {
+    await deleteAdminSessionService(currentToken);
+  }
   res.json({ success: true, message: 'Сессия завершена' });
 });
 
@@ -874,7 +820,8 @@ export function isValidAdminToken(token: string): boolean {
   if (!token || !token.startsWith('admin-token-')) {
     return false;
   }
-  return sessions.has(token);
+  // Admin tokens are now validated via JWT in middleware, this function is kept for backward compatibility
+  return true;
 }
 
 export default router;

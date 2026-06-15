@@ -48,7 +48,7 @@ export default function DevicesModal({ onClose }: DevicesModalProps) {
     if (!confirm('Выйти с этого устройства?')) return;
     
     try {
-      await api.post(`/devices/${deviceId}/logout`);
+      await api.post(`/devices/${deviceId}/logout`, {});
       success('Устройство отключено');
       loadDevices();
     } catch (err) {

@@ -154,10 +154,16 @@ export function validateTotalUploadSize(files: { size: number }[]): { valid: boo
  */
 export function sanitizeFilename(filename: string): string {
   // Удаляем путь (защита от path traversal)
-  let sanitized = filename.replace(/^.*[\\\/]/, '');
+  let sanitized = filename.replace(/^.*[\\/]/, '');
   
   // Удаляем опасные символы
-  sanitized = sanitized.replace(/[<>:"|?*\x00-\x1f]/g, '_');
+  sanitized = sanitized.replace(/[<>:"|?*]/g, '_');
+  for (let i = 0; i < sanitized.length; i++) {
+    const code = sanitized.charCodeAt(i);
+    if (code >= 0x00 && code <= 0x1f) {
+      sanitized = sanitized.substring(0, i) + '_' + sanitized.substring(i + 1);
+    }
+  }
   
   // Ограничиваем длину
   if (sanitized.length > 255) {

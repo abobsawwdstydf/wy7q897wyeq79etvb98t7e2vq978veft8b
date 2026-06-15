@@ -3,19 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send,
   Paperclip,
-  Smile,
-  Mic,
   X,
   Reply,
   Pencil,
-  Image as ImageIcon,
   FileText,
-  Clock,
-  Calendar,
   Check,
-  Music,
   Video,
-  FileText as TemplateIcon,
 } from 'lucide-react';
 import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
@@ -24,6 +17,12 @@ import { getSocket } from '../lib/socket';
 import { useLang } from '../lib/i18n';
 import { AUDIO_EXTENSIONS, MAX_FILE_SIZE } from '../lib/types';
 import { playSendSound } from '../lib/sounds';
+import type { Attachment } from './input/types';
+import VoiceRecorder from './input/VoiceRecorder';
+import AttachmentBar from './input/AttachmentBar';
+import SchedulePicker from './input/SchedulePicker';
+import MentionSuggestions from './input/MentionSuggestions';
+import EmojiBar from './input/EmojiBar';
 import CameraModal from './CameraModal';
 import AttachMenu from './AttachMenu';
 import PollModal from './PollModal';
@@ -35,28 +34,18 @@ import ContactCardModal from './ContactCardModal';
 import TemplatesModal from './TemplatesModal';
 import QuickReplyModal from './QuickReplyModal';
 
-interface Attachment {
-  file: File;
-  preview?: string;
-  type: 'image' | 'video' | 'file' | 'audio';
-}
-
 interface MessageInputProps {
   chatId: string;
 }
 
 export default function MessageInput({ chatId }: MessageInputProps) {
   const { user } = useAuthStore();
-  const isPremium = useAuthStore(state => state.isPremium());
   const { t } = useLang();
   const { replyTo, editingMessage, setReplyTo, setEditingMessage, getDraft, setDraft, chats } = useChatStore();
   const [text, setText] = useState(() => getDraft(chatId));
 
   const chat = chats.find(c => c.id === chatId);
-  const isGroup = chat?.type === 'group';
   const chatMembers = (chat?.members || []).filter((m) => m.user.id !== user?.id);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -64,15 +53,12 @@ export default function MessageInput({ chatId }: MessageInputProps) {
   const [mentionIndex, setMentionIndex] = useState(0);
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
-  const [scheduleStep, setScheduleStep] = useState<'presets' | 'custom'>('presets');
   const [scheduleHour, setScheduleHour] = useState('12');
   const [scheduleMinute, setScheduleMinute] = useState('00');
   const [scheduleCalDate, setScheduleCalDate] = useState('');
   const [scheduleCalMonth, setScheduleCalMonth] = useState(new Date().getMonth());
   const [scheduleCalYear, setScheduleCalYear] = useState(new Date().getFullYear());
   const [scheduleToast, setScheduleToast] = useState<string | null>(null);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showAttachMenu, setShowAttachMenuState] = useState(false);
   const [showPoll, setShowPoll] = useState(false);
@@ -85,14 +71,14 @@ export default function MessageInput({ chatId }: MessageInputProps) {
   const [showGrammarCheck, setShowGrammarCheck] = useState(false);
   const [grammarResult, setGrammarResult] = useState<{ corrected: string; hasChanges: boolean; original: string } | null>(null);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
-  
-  // Video notes
+
   const [recordMode, setRecordMode] = useState<'voice' | 'video'>('voice');
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const [pressTimer, setPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [showStickerPanel, setShowStickerPanel] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
-  const filteredMembers = mentionQuery !== null && isGroup
+  const filteredMembers = mentionQuery !== null && (chat?.type === 'group')
     ? chatMembers.filter((m) => {
         const q = mentionQuery.toLowerCase();
         return m.user.displayName.toLowerCase().includes(q) || m.user.username.toLowerCase().includes(q);
@@ -120,27 +106,13 @@ export default function MessageInput({ chatId }: MessageInputProps) {
   };
 
   const emojiAnchorRef = useRef<HTMLButtonElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animFrameRef = useRef<number>(0);
-  const recordingTimeRef = useRef<number>(0);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [liveBars, setLiveBars] = useState<number[]>(() => Array(32).fill(5));
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-      if (mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop();
-      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, []);
 
@@ -217,21 +189,18 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         const uploadPromises = attachments.map(att => api.uploadFile(att.file));
         const results = await Promise.all(uploadPromises);
 
-        // Проверяем что все файлы загрузились
         for (let i = 0; i < results.length; i++) {
           if (!results[i] || !results[i].url) {
             throw new Error(`Файл ${attachments[i].file.name} не загрузился`);
           }
         }
 
-        // Определяем тип первого файла для основного типа сообщения
         const firstResult = results[0];
         const mediaType = firstResult.mimetype.startsWith('image/') ? 'image'
           : firstResult.mimetype.startsWith('video/') ? 'video'
           : firstResult.mimetype.startsWith('audio/') ? 'audio'
           : 'file';
 
-        // Создаём массив media для всех файлов
         const media = results.map((result, index) => ({
           type: result.mimetype.startsWith('image/') ? 'image'
             : result.mimetype.startsWith('video/') ? 'video'
@@ -243,7 +212,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
           duration: result.duration,
         }));
 
-        // Отправляем одно сообщение со всеми файлами
         socket.emit('send_message', {
           chatId,
           content: trimmed || null,
@@ -299,14 +267,12 @@ export default function MessageInput({ chatId }: MessageInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Горячие клавиши для быстрых ответов (Ctrl+1-9)
     if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
       e.preventDefault();
       setShowQuickReplies(true);
       return;
     }
 
-    // Открыть быстрые ответы по "/"
     if (e.key === '/' && text === '') {
       e.preventDefault();
       setShowQuickReplies(true);
@@ -351,12 +317,7 @@ export default function MessageInput({ chatId }: MessageInputProps) {
   const removeAttachment = (index: number) => {
     const att = attachments[index];
     if (att.preview) URL.revokeObjectURL(att.preview);
-    setAttachments(prev => {
-      const updated = prev.filter((_, i) => i !== index);
-      // Check arrows after next render
-      setTimeout(checkScrollArrows, 50);
-      return updated;
-    });
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const addAttachment = (file: File, type: 'image' | 'video' | 'file' | 'audio', preview?: string) => {
@@ -365,10 +326,7 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         alert(t('tooManyFiles'));
         return prev;
       }
-      const updated = [...prev, { file, preview, type }];
-      // Check arrows after next render
-      setTimeout(checkScrollArrows, 50);
-      return updated;
+      return [...prev, { file, preview, type }];
     });
   };
 
@@ -425,24 +383,20 @@ export default function MessageInput({ chatId }: MessageInputProps) {
   };
 
   const handleStickerInsert = (sticker: any) => {
-    // Проверяем, есть ли уже текст или другие стикеры
     const hasContent = text.trim().length > 0;
-    
+
     if (!hasContent) {
-      // Если нет текста - отправляем стикер как отдельное сообщение
       handleStickerSend(sticker);
       setShowStickers(false);
       return;
     }
-    
-    // Если есть текст - вставляем стикер в текст
+
     const stickerCode = `[sticker:${sticker.id}:${sticker.fileUrl}]`;
     const cursorPos = inputRef.current?.selectionStart || text.length;
     const newText = text.slice(0, cursorPos) + stickerCode + text.slice(cursorPos);
     setText(newText);
     setDraft(chatId, newText);
     inputRef.current?.focus();
-    // Устанавливаем курсор после стикера
     setTimeout(() => {
       if (inputRef.current) {
         const newPos = cursorPos + stickerCode.length;
@@ -510,142 +464,8 @@ export default function MessageInput({ chatId }: MessageInputProps) {
     setShowAttachMenuState(false);
   };
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const mimeType = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
-        ? 'audio/ogg;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm';
-      const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
-      const recorder = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = recorder;
-      chunksRef.current = [];
-
-      const actx = new AudioContext();
-      const source = actx.createMediaStreamSource(stream);
-      const analyser = actx.createAnalyser();
-      analyser.fftSize = 512; // Increased from 256 for better resolution
-      analyser.smoothingTimeConstant = 0.4; // Lower = more responsive, less smooth
-      analyser.minDecibels = -45; // More sensitive (default -100)
-      analyser.maxDecibels = -10; // More sensitive (default -30)
-      source.connect(analyser);
-      audioContextRef.current = actx;
-      analyserRef.current = analyser;
-
-      const timeDomainData = new Uint8Array(analyser.frequencyBinCount);
-      const updateBars = () => {
-        if (!analyserRef.current) return;
-        analyserRef.current.getByteTimeDomainData(timeDomainData);
-        const bars: number[] = [];
-        const step = Math.floor(timeDomainData.length / 32);
-        for (let i = 0; i < 32; i++) {
-          let sum = 0;
-          for (let j = 0; j < step; j++) {
-            const val = Math.abs(timeDomainData[i * step + j] - 128);
-            sum += val;
-          }
-          const avg = sum / step;
-          // More sensitive mapping: 0-128 to 15-100 with exaggeration
-          bars.push(Math.max(15, Math.min(100, avg * 2.2 + 15)));
-        }
-        setLiveBars(bars);
-        animFrameRef.current = requestAnimationFrame(updateBars);
-      };
-      animFrameRef.current = requestAnimationFrame(updateBars);
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        const file = new File([blob], `voice.${ext}`, { type: mimeType });
-
-        try {
-          const result = await api.uploadFile(file);
-          
-          if (!result || !result.url) {
-            throw new Error('Не получен URL файла от сервера');
-          }
-
-          const socket = getSocket();
-          if (socket) {
-            socket.emit('send_message', {
-              chatId,
-              content: null,
-              type: 'voice',
-              mediaUrl: result.url,
-              mediaType: 'voice',
-              fileName: result.filename || file.name,
-              fileSize: result.size || file.size,
-              duration: recordingTimeRef.current,
-              replyToId: replyTo?.id || null,
-            });
-            setReplyTo(null);
-          }
-        } catch (e) {
-          console.error('Ошибка отправки голосового:', e);
-          alert('Не удалось отправить голосовое сообщение.');
-        }
-      };
-
-      recorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-      recordingTimeRef.current = 0;
-      timerRef.current = setInterval(() => {
-        recordingTimeRef.current += 1;
-        setRecordingTime((t) => t + 1);
-      }, 1000);
-    } catch (e) {
-      console.error('Ошибка записи:', e);
-    }
-  };
-
-  const cleanupAnalyser = () => {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    analyserRef.current = null;
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    setLiveBars(Array(32).fill(5));
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    if (timerRef.current) clearInterval(timerRef.current);
-    cleanupAnalyser();
-    setIsRecording(false);
-    setRecordingTime(0);
-  };
-
-  const cancelRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.ondataavailable = null;
-      mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    if (timerRef.current) clearInterval(timerRef.current);
-    cleanupAnalyser();
-    setIsRecording(false);
-    setRecordingTime(0);
-    recordingTimeRef.current = 0;
-  };
-
-  const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
+  const startVoiceRecording = () => {
+    setIsRecording(true);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -665,7 +485,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
 
-      // Check file size before adding
       if (file.size > MAX_FILE_SIZE) {
         alert(`${file.name}: файл слишком большой (макс. ${(MAX_FILE_SIZE / 1024 / 1024 / 1024).toFixed(1)} ГБ)`);
         return;
@@ -686,27 +505,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
 
   const hasContent = text.trim() || attachments.length > 0;
 
-  // Check if arrows should be visible
-  const checkScrollArrows = () => {
-    const el = attachmentsScrollRef.current;
-    if (el) {
-      setShowLeftArrow(el.scrollLeft > 0);
-      setShowRightArrow(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
-    }
-  };
-
-  const scrollAttachments = (direction: 'left' | 'right') => {
-    const el = attachmentsScrollRef.current;
-    if (el) {
-      const scrollAmount = 200;
-      el.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
-      });
-    }
-  };
-
-  // Проверка грамматики
   const checkGrammar = async () => {
     if (!text.trim()) return;
 
@@ -720,7 +518,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
     }
   };
 
-  // Применить исправление грамматики
   const applyGrammarFix = () => {
     if (grammarResult?.corrected) {
       setText(grammarResult.corrected);
@@ -797,141 +594,56 @@ export default function MessageInput({ chatId }: MessageInputProps) {
 
       <AnimatePresence>
         {attachments.length > 0 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0, y: 10 }}
-            animate={{ height: 'auto', opacity: 1, y: 0 }}
-            exit={{ height: 0, opacity: 0, y: 10 }}
-            onAnimationComplete={checkScrollArrows}
-            className="mb-2 max-w-3xl mx-auto px-1.5 relative"
-          >
-            {/* Left scroll arrow */}
-            {showLeftArrow && (
-              <button
-                onClick={() => scrollAttachments('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-lg"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m15 18-6-6 6-6"/>
-                </svg>
-              </button>
-            )}
-
-            {/* Right scroll arrow */}
-            {showRightArrow && (
-              <button
-                onClick={() => scrollAttachments('right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 text-white flex items-center justify-center hover:bg-black/80 transition-all shadow-lg"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m9 18 6-6-6-6"/>
-                </svg>
-              </button>
-            )}
-
-            {/* Compact horizontal scroll for attachments */}
-            <div
-              ref={attachmentsScrollRef}
-              onScroll={checkScrollArrows}
-              className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 pl-2 pr-2"
-            >
-              {attachments.map((att, index) => (
-                <div key={index} className="relative flex-shrink-0 w-16 h-16 bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-lg overflow-hidden shadow-lg group">
-                  <div className="w-full h-full relative">
-                    {att.preview ? (
-                      <img src={att.preview} alt="" className="w-full h-full object-cover" />
-                    ) : att.type === 'video' ? (
-                      <div className="w-full h-full bg-gradient-to-br from-nexo-500/30 to-purple-600/30 flex items-center justify-center">
-                        <ImageIcon size={16} className="text-nexo-300" />
-                      </div>
-                    ) : att.type === 'audio' ? (
-                      <div className="w-full h-full bg-gradient-to-br from-emerald-500/30 to-teal-600/30 flex items-center justify-center">
-                        <Music size={16} className="text-emerald-300" />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-sky-500/30 to-blue-600/30 flex items-center justify-center">
-                        <FileText size={16} className="text-sky-300" />
-                      </div>
-                    )}
-                    {/* Remove button - visible on hover */}
-                    <button
-                      onClick={() => removeAttachment(index)}
-                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500/90 hover:bg-red-600 flex items-center justify-center text-white transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <X size={8} />
-                    </button>
-                  </div>
-                  {/* File count badge for many files */}
-                  {index === attachments.length - 1 && attachments.length > 5 && (
-                    <div className="absolute bottom-0 right-0 left-0 bg-black/60 text-[8px] text-white text-center py-0.5">
-                      +{attachments.length - 1}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            {isSending && (
-              <div className="mt-1 flex items-center gap-1.5 text-nexo-400 text-xs">
-                <div className="w-3 h-3 border-2 border-nexo-400 border-t-transparent rounded-full animate-spin" />
-                <span>{t('uploading')}</span>
-              </div>
-            )}
-          </motion.div>
+          <AttachmentBar
+            attachments={attachments}
+            isSending={isSending}
+            onRemove={removeAttachment}
+            t={t as (key: string) => string}
+          />
         )}
       </AnimatePresence>
 
       {isRecording ? (
-        <div className="flex items-center gap-3 max-w-3xl mx-auto px-2">
-          {/* Cancel button */}
-          <button
-            onClick={cancelRecording}
-            className="p-3 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all flex-shrink-0"
-          >
-            <X size={20} />
-          </button>
-          
-          {/* Waveform visualization */}
-          <div className="flex-1 flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-sm text-white font-mono w-12 text-center">{formatTime(recordingTime)}</span>
-            </div>
-            <div className="flex items-center gap-0.5 h-12 w-full justify-center">
-              {liveBars.map((height, i) => (
-                <div
-                  key={i}
-                  className="w-1 bg-gradient-to-t from-red-500 via-orange-400 to-yellow-300 rounded-full transition-all duration-75"
-                  style={{ 
-                    height: `${Math.max(20, height)}%`,
-                    opacity: 0.7 + (height / 200)
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Send button */}
-          <button
-            onClick={stopRecording}
-            className="p-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 flex-shrink-0"
-          >
-            <Send size={20} />
-          </button>
-        </div>
+        <VoiceRecorder
+          chatId={chatId}
+          replyToId={replyTo?.id}
+          onSent={() => setIsRecording(false)}
+          onCancel={() => setIsRecording(false)}
+        />
       ) : (
         <>
-          {/* Mobile layout - all buttons inside field */}
+          {/* Inline sticker/emoji panel (Telegram-style) — above input bar */}
+          <div className="max-w-3xl mx-auto mb-2">
+            <AnimatePresence>
+              {showStickerPanel && (
+                <MediaPicker
+                  inline
+                  onClose={() => setShowStickerPanel(false)}
+                  onSelectEmoji={(emoji) => {
+                    const el = inputRef.current;
+                    if (!el) return;
+                    const cursorPos = el.selectionStart;
+                    const before = text.substring(0, cursorPos);
+                    const after = text.substring(cursorPos);
+                    setText(before + emoji + after);
+                    setTimeout(() => {
+                      el.focus();
+                      const newPos = cursorPos + emoji.length;
+                      el.setSelectionRange(newPos, newPos);
+                    }, 0);
+                  }}
+                  onSendSticker={handleStickerSend}
+                  onSendGif={handleGifSend}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Mobile layout */}
           <div className="flex items-end justify-center max-w-3xl mx-auto sm:hidden px-2 pb-2">
-            <div className="flex-1 max-w-2xl bg-[#1a1a1f]/90 backdrop-blur-xl border border-white/[0.08] rounded-[1.5rem] px-1.5 py-1.5 flex items-center gap-0.5 focus-within:border-white/[0.15] transition-all duration-200 shadow-lg shadow-black/20">
-              <button
-                ref={emojiAnchorRef}
-                onClick={() => setShowMediaPicker(prev => !prev)}
-                data-mediapicker-anchor
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 flex-shrink-0 ${showMediaPicker ? 'text-yellow-400 bg-yellow-400/10' : 'text-white/35 hover:text-white/70 hover:bg-white/[0.06]'}`}
-                title="Эмодзи, стикеры и GIF"
-              >
-                <Smile size={19} />
-              </button>
-              
+            <div className="flex-1 max-w-2xl bg-[#1a1a1f]/90 backdrop-blur-xl border border-white/[0.08] rounded-[2rem] px-1.5 py-1.5 flex items-center gap-0.5 focus-within:border-white/[0.15] transition-all duration-200 shadow-lg shadow-black/20">
+              <EmojiBar ref={emojiAnchorRef} showMediaPicker={showStickerPanel} onTogglePicker={() => setShowStickerPanel(prev => !prev)} />
+
               <textarea
                 ref={inputRef}
                 value={text}
@@ -946,7 +658,7 @@ export default function MessageInput({ chatId }: MessageInputProps) {
                 className="flex-1 bg-transparent text-white placeholder-white/25 resize-none outline-none max-h-[120px] overflow-y-auto scrollbar-hide text-[15px] leading-relaxed px-2 py-1.5"
                 style={{ minHeight: '28px' }}
               />
-              
+
               <button
                 onClick={() => setShowAttachMenuState(true)}
                 className="w-9 h-9 rounded-full flex items-center justify-center text-white/35 hover:text-white/70 hover:bg-white/[0.06] transition-all duration-150 flex-shrink-0"
@@ -986,7 +698,7 @@ export default function MessageInput({ chatId }: MessageInputProps) {
                   } else if (recordMode === 'video') {
                     setShowVideoRecorder(true);
                   } else {
-                    startRecording();
+                    startVoiceRecording();
                   }
                 }}
                 disabled={isSending || (!hasContent && isRecording)}
@@ -999,24 +711,16 @@ export default function MessageInput({ chatId }: MessageInputProps) {
                 ) : recordMode === 'video' ? (
                   <Video size={17} className="text-white" />
                 ) : (
-                  <Mic size={17} className="text-white" />
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
                 )}
               </button>
             </div>
           </div>
 
-          {/* Desktop layout - all buttons inside field */}
+          {/* Desktop layout */}
           <div className="hidden sm:flex items-end justify-center gap-3 max-w-3xl mx-auto">
-            <div className="flex-1 max-w-2xl bg-[#1a1a1f]/90 backdrop-blur-xl border border-white/[0.08] rounded-[1.5rem] px-1.5 py-1.5 flex items-center gap-0.5 focus-within:border-white/[0.15] transition-all duration-200 shadow-lg shadow-black/20">
-              <button
-                ref={emojiAnchorRef}
-                onClick={() => setShowMediaPicker(prev => !prev)}
-                data-mediapicker-anchor
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 flex-shrink-0 ${showMediaPicker ? 'text-yellow-400 bg-yellow-400/10' : 'text-white/35 hover:text-white/70 hover:bg-white/[0.06]'}`}
-                title="Эмодзи, стикеры и GIF"
-              >
-                <Smile size={19} />
-              </button>
+            <div className="flex-1 max-w-2xl bg-[#1a1a1f]/90 backdrop-blur-xl border border-white/[0.08] rounded-[2rem] px-1.5 py-1.5 flex items-center gap-0.5 focus-within:border-white/[0.15] transition-all duration-200 shadow-lg shadow-black/20">
+              <EmojiBar ref={emojiAnchorRef} showMediaPicker={showStickerPanel} onTogglePicker={() => setShowStickerPanel(prev => !prev)} />
               <textarea
                 ref={inputRef}
                 value={text}
@@ -1071,7 +775,7 @@ export default function MessageInput({ chatId }: MessageInputProps) {
                   } else if (recordMode === 'video') {
                     setShowVideoRecorder(true);
                   } else {
-                    startRecording();
+                    startVoiceRecording();
                   }
                 }}
                 disabled={isSending || (!hasContent && isRecording)}
@@ -1084,11 +788,20 @@ export default function MessageInput({ chatId }: MessageInputProps) {
                 ) : recordMode === 'video' ? (
                   <Video size={18} className="text-white" />
                 ) : (
-                  <Mic size={18} className="text-white" />
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
                 )}
               </button>
             </div>
           </div>
+
+          {/* Mention Suggestions */}
+          {mentionQuery !== null && (
+            <MentionSuggestions
+              members={filteredMembers}
+              mentionIndex={mentionIndex}
+              onSelect={insertMention}
+            />
+          )}
         </>
       )}
 
@@ -1110,32 +823,8 @@ export default function MessageInput({ chatId }: MessageInputProps) {
       />
 
       <AnimatePresence>
-        {showMediaPicker && (
-          <MediaPicker
-            onClose={() => setShowMediaPicker(false)}
-            anchorRef={emojiAnchorRef}
-            onSelectEmoji={(emoji) => {
-              const el = inputRef.current;
-              if (!el) return;
-              const cursorPos = el.selectionStart;
-              const before = text.substring(0, cursorPos);
-              const after = text.substring(cursorPos);
-              setText(before + emoji + after);
-              setTimeout(() => {
-                el.focus();
-                const newPos = cursorPos + emoji.length;
-                el.setSelectionRange(newPos, newPos);
-              }, 0);
-            }}
-            onSendSticker={handleStickerSend}
-            onSendGif={handleGifSend}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {showSchedule && (
-          <ScheduleCalendar
+          <SchedulePicker
             calDate={scheduleCalDate}
             setCalDate={setScheduleCalDate}
             calMonth={scheduleCalMonth}
@@ -1171,7 +860,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Camera Modal */}
       <AnimatePresence>
         {showCamera && (
           <CameraModal
@@ -1181,7 +869,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Attach Menu */}
       <AnimatePresence>
         {showAttachMenu && (
           <AttachMenu
@@ -1197,7 +884,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Sticker Picker */}
       <AnimatePresence>
         {showStickers && (
           <StickerPicker
@@ -1218,7 +904,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Poll Modal */}
       <AnimatePresence>
         {showPoll && (
           <PollModal
@@ -1228,7 +913,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Location Modal */}
       <AnimatePresence>
         {showLocation && (
           <LocationModal
@@ -1238,7 +922,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Contact Card Modal */}
       <AnimatePresence>
         {showContactCard && (
           <ContactCardModal
@@ -1257,17 +940,15 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Templates Modal */}
       <AnimatePresence>
         {showTemplates && (
           <TemplatesModal
             onClose={() => setShowTemplates(false)}
-            onInsert={handleTemplateInsert}
+            onSelect={handleTemplateInsert}
           />
         )}
       </AnimatePresence>
 
-      {/* Quick Reply Modal */}
       <AnimatePresence>
         {showQuickReplies && (
           <QuickReplyModal
@@ -1281,7 +962,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Grammar Check Modal */}
       <AnimatePresence>
         {showGrammarCheck && (
           <motion.div
@@ -1385,7 +1065,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
         )}
       </AnimatePresence>
 
-      {/* Video Note Recorder */}
       <AnimatePresence>
         {showVideoRecorder && (
           <VideoNoteRecorder
@@ -1397,169 +1076,6 @@ export default function MessageInput({ chatId }: MessageInputProps) {
           />
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-// Schedule Calendar Component
-function ScheduleCalendar({
-  calDate, setCalDate, calMonth, setCalMonth, calYear, setCalYear,
-  hour, setHour, minute, setMinute, onSend, t,
-}: {
-  calDate: string;
-  setCalDate: (v: string) => void;
-  calMonth: number;
-  setCalMonth: (v: number) => void;
-  calYear: number;
-  setCalYear: (v: number) => void;
-  hour: string;
-  setHour: (v: string) => void;
-  minute: string;
-  setMinute: (v: string) => void;
-  onSend: (iso: string) => void;
-  t: (k: any) => any;
-}) {
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const firstDay = new Date(calYear, calMonth, 1).getDay();
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d2 = 1; d2 <= daysInMonth; d2++) cells.push(d2);
-
-  const prevMonth = () => {
-    if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
-    else setCalMonth(calMonth - 1);
-  };
-  const nextMonth = () => {
-    if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
-    else setCalMonth(calMonth + 1);
-  };
-
-  const selectDay = (day: number) => {
-    const m = String(calMonth + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    setCalDate(`${calYear}-${m}-${d}`);
-  };
-
-  const isSelected = (day: number) => {
-    const m = String(calMonth + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    return `${calYear}-${m}-${d}` === calDate;
-  };
-
-  const isToday = (day: number) => {
-    return today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === day;
-  };
-
-  const isPast = (day: number) => {
-    const m = String(calMonth + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    return `${calYear}-${m}-${d}` < todayStr;
-  };
-
-  const canSend = (() => {
-    if (!calDate) return false;
-    const dt = new Date(`${calDate}T${hour}:${minute}:00`);
-    return dt.getTime() > Date.now();
-  })();
-
-  const handleSend = () => {
-    if (!canSend) return;
-    const m = String(calMonth + 1).padStart(2, '0');
-    const d = String(calDate.split('-')[2] || '01').padStart(2, '0');
-    onSend(`${calYear}-${m}-${d}T${hour}:${minute}:00`);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={() => {}}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="relative w-full max-w-sm rounded-2xl bg-surface-secondary border border-white/10 shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-4 border-b border-white/5">
-          <div className="flex items-center justify-between mb-2">
-            <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <span className="text-sm font-semibold text-white">
-              {new Date(calYear, calMonth).toLocaleString(t('ru-RU' as any) || 'ru-RU', { month: 'long', year: 'numeric' })}
-            </span>
-            <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
-            </button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-500 mb-2">
-            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((d) => (
-              <div key={d} className="py-1">{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((day, i) => (
-              day ? (
-                <button
-                  key={i}
-                  onClick={() => selectDay(day)}
-                  disabled={isPast(day)}
-                  className={`aspect-square rounded-lg text-sm transition-colors ${
-                    isSelected(day)
-                      ? 'bg-nexo-500 text-white font-semibold'
-                      : isToday(day)
-                        ? 'text-nexo-400 font-semibold ring-1 ring-nexo-500/50'
-                        : isPast(day)
-                          ? 'text-zinc-600 cursor-not-allowed'
-                          : 'text-zinc-300 hover:bg-white/10'
-                  }`}
-                >
-                  {day}
-                </button>
-              ) : (
-                <span key={i} className="aspect-square" />
-              )
-            ))}
-          </div>
-        </div>
-
-        <div className="px-3 pb-2">
-          <label className="text-[11px] text-zinc-500 mb-1 block">{t('scheduleTime')}</label>
-          <div className="flex items-center gap-2">
-            <select
-              value={hour}
-              onChange={(e) => setHour(e.target.value)}
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-nexo-500/50 appearance-none text-center"
-            >
-              {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map((h) => (
-                <option key={h} value={h} className="bg-zinc-800">{h}</option>
-              ))}
-            </select>
-            <span className="text-zinc-400 font-bold">:</span>
-            <select
-              value={minute}
-              onChange={(e) => setMinute(e.target.value)}
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-zinc-200 focus:outline-none focus:border-nexo-500/50 appearance-none text-center"
-            >
-              {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
-                <option key={m} value={m} className="bg-zinc-800">{m}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="px-3 pb-3">
-          <button
-            onClick={handleSend}
-            disabled={!canSend}
-            className="w-full py-2 rounded-xl bg-accent hover:bg-accent-hover disabled:bg-zinc-700 disabled:text-zinc-500 text-white text-sm font-medium transition-colors"
-          >
-            {t('scheduleSend')}
-          </button>
-        </div>
-      </motion.div>
     </div>
   );
 }

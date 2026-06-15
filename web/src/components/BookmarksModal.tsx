@@ -30,9 +30,7 @@ export default function BookmarksModal({ onClose }: BookmarksModalProps) {
   const loadBookmarks = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/bookmarks', {
-        search: search || undefined,
-      });
+      const response = await api.get('/api/bookmarks' + (search ? '?search=' + encodeURIComponent(search) : ''));
       setBookmarks(response.bookmarks);
     } catch (error) {
       console.error('Load bookmarks error:', error);

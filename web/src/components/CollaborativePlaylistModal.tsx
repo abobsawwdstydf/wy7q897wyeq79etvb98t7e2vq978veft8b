@@ -106,9 +106,7 @@ export default function CollaborativePlaylistModal({ isOpen, onClose, chatId }: 
         const formData = new FormData();
         formData.append('file', selectedFile);
         
-        const response = await api.post(`/collaborative-playlists/${chatId}/tracks/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const response = await api.post(`/collaborative-playlists/${chatId}/tracks/upload`, formData);
         
         setSelectedFile(null);
         setNewTrackUrl('');

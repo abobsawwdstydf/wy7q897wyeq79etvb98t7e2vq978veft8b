@@ -10,14 +10,22 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:clean-demo": "tsx prisma/clean-demo-data.ts",
-    "db:clean-wall": "tsx prisma/clean-demo-wall-data.ts"
+    "db:clean-wall": "tsx prisma/clean-demo-wall-data.ts",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",
     "@privacyresearch/libsignal-protocol-typescript": "^0.0.16",
+    "@types/cookie-parser": "^1.4.10",
     "@types/sharp": "^0.31.1",
     "axios": "^1.14.0",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^4.21.2",
@@ -27,6 +35,7 @@
     "jsonwebtoken": "^9.0.2",
     "mime-types": "^2.1.35",
     "multer": "^1.4.5-lts.1",
+    "pg": "^8.21.0",
     "redis": "^5.11.0",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.1",
@@ -44,8 +53,14 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.0",
     "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "eslint": "^8.57.1",
+    "prettier": "^3.8.4",
     "prisma": "^6.3.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8"
   }
 }

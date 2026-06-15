@@ -95,9 +95,9 @@ function SenderInfo({ userId, date }: { userId: string; date: string }) {
   return (
     <div className="flex items-center gap-2 mt-1.5 p-1.5 bg-white/5 rounded-lg">
       {info?.avatar ? (
-        <img src={info.avatar} className="w-6 h-6 rounded-full object-cover" alt="" />
+        <img src={info.avatar} className="w-6 h-6 rounded-xl object-cover" alt="" />
       ) : (
-        <div className="w-6 h-6 rounded-full bg-purple-500/30 flex items-center justify-center flex-shrink-0">
+        <div className="w-6 h-6 rounded-xl bg-purple-500/30 flex items-center justify-center flex-shrink-0">
           <User className="w-3 h-3 text-purple-300" />
         </div>
       )}

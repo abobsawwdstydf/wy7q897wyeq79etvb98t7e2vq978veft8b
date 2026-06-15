@@ -156,18 +156,12 @@ export async function subscribeToNotifications(): Promise<PushSubscription | nul
  */
 async function sendSubscriptionToServer(subscription: PushSubscription): Promise<boolean> {
   try {
-    const token = localStorage.getItem('nexo_token');
-    if (!token) {
-      console.warn('[Push] No auth token, skipping server subscription');
-      return false;
-    }
-
     const response = await fetch(`${getApiUrl()}/api/users/push-subscription`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       },
+      credentials: 'include',
       body: JSON.stringify({ subscription: subscription.toJSON() })
     });
 
@@ -197,15 +191,10 @@ export async function unsubscribeFromNotifications(): Promise<boolean> {
       await subscription.unsubscribe();
       
       // Remove from server
-      const token = localStorage.getItem('nexo_token');
-      if (token) {
-        await fetch(`${getApiUrl()}/api/users/push-subscription`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
+      await fetch(`${getApiUrl()}/api/users/push-subscription`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       
       console.log('[Push] Unsubscribed from push notifications');
       return true;

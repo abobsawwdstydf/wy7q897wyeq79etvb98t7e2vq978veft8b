@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Mic, MicOff, Loader2, X, ArrowLeft, Trash2, Smile } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import { api } from '../lib/api';
+import { api, getApiBase } from '../lib/api';
 import CodeBlock from '../components/CodeBlock';
 import EmojiPicker from '../components/EmojiPicker';
 
@@ -15,7 +15,7 @@ interface AIMessage {
 }
 
 export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
-  const { token } = useAuthStore();
+  const { } = useAuthStore();
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -187,12 +187,12 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
       const history = messages.map(m => ({ role: m.role, content: m.content }));
       history.push({ role: 'user', content: userInput });
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/ai/chat/stream`, {
+      const response = await fetch(`${getApiBase()}/ai/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({ messages: history }),
         signal: abortControllerRef.current.signal,
       });
@@ -255,7 +255,7 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
       setIsSending(false);
       abortControllerRef.current = null;
     }
-  }, [input, isSending, messages, token]);
+  }, [input, isSending, messages]);
 
   /** Отправка по Enter */
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -370,7 +370,7 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
             >
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/30 to-purple-600/30 blur-2xl rounded-full" />
-                <img src="/no_bg.png" alt="Нексо AI" className="relative w-20 h-20 rounded-full object-cover animate-float" />
+                <img src="/no_bg.png" alt="Нексо AI" className="relative w-20 h-20 rounded-xl object-cover animate-float" />
               </div>
               <div className="max-w-xs">
                 <h2 className="text-lg font-bold text-white mb-2">Нексо AI</h2>

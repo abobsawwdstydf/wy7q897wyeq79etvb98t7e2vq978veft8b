@@ -4,13 +4,14 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import mime from 'mime-types';
 import { config } from './config';
 import { prisma } from './db';
 import authRoutes from './routes/auth';
+import filesRoutes from './routes/files';
 
 // Initialize database connection
 prisma.$connect().then(() => {
@@ -28,11 +29,9 @@ import callLogRoutes from './routes/callLogs';
 import messageViewRoutes from './routes/messageViews';
 import adminRoutes from './routes/admin';
 import { setupSocket } from './socket';
-import { authenticateToken, authenticateTokenOrAdmin, AuthRequest } from './middleware/auth';
-import { decryptFileToBuffer, isEncryptionEnabled } from './encrypt';
+import { authenticateToken } from './middleware/auth';
 import { UPLOADS_ROOT } from './shared';
 import { startSelfDestructCleanup } from './lib/selfDestructCleanup';
-import { localStorage } from './lib/localStorage';
 import threadsRoutes from './routes/threads';
 import aiRoutes from './routes/ai';
 import secretChatsRoutes from './routes/secretChats';
@@ -121,16 +120,6 @@ import chatExportRoutes from './routes/chatExport';
 
 const app = express();
 
-// REWRITE MIDDLEWARE (MUST BE FIRST)
-// Rewrite /frontend-api-app -> / so all routes and static files work correctly
-app.use((req, _res, next) => {
-  if (req.url.startsWith('/frontend-api-app')) {
-    const oldUrl = req.url;
-    req.url = req.url.substring('/frontend-api-app'.length) || '/';
-    console.log(`[REWRITE] ${oldUrl} -> ${req.url}`);
-  }
-  next();
-});
 
 const server = createServer(app);
 const io = new Server(server, {
@@ -151,11 +140,14 @@ const io = new Server(server, {
 app.set('trust proxy', 1);
 
 // SECURITY FIX: Улучшенные заголовки безопасности
+const isDev = process.env.NODE_ENV !== 'production';
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // TODO: Убрать unsafe-* в продакшене
+      scriptSrc: isDev
+        ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
+        : ["'self'", "'unsafe-inline'"], // unsafe-inline для Vue приложения
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
@@ -166,13 +158,13 @@ app.use(helmet({
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
-      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+      upgradeInsecureRequests: !isDev ? [] : null,
     },
   },
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
   hsts: {
-    maxAge: 31536000, // 1 год
+    maxAge: 31536000,
     includeSubDomains: true,
     preload: true,
   },
@@ -186,7 +178,7 @@ app.use(helmet({
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (config.corsOrigins.includes(origin) || config.corsOrigins.includes('*')) {
+    if (config.corsOrigins.includes(origin)) {
       return callback(null, true);
     }
     console.warn(`[CORS] Blocked origin: ${origin}`);
@@ -194,21 +186,21 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-CSRF-Token'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 600,
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser());
 
-// Rate limiting for auth endpoints (prevent brute-force)
+// General auth rate limiting (more generous for non-sensitive endpoints)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500, // Увеличен лимит для auth endpoints
-  message: { error: 'Слишком много попыток, попробуйте позже' },
+  max: 500,
+  message: { error: 'Слишком много запросов, попробуйте позже' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Не применять rate limiting к /me, check-username, check-phone
     return req.path === '/me' || req.path === '/check-username' || req.path === '/check-phone';
   },
 });
@@ -239,367 +231,105 @@ const apiLimiter = rateLimit({
   },
 });
 
-// Redirect old /uploads/files/ paths to new API
-app.get('/uploads/files/:fileId', (req, res) => {
-  const { fileId } = req.params;
-  console.log(`[FILES] Redirecting old path /uploads/files/${fileId} to /api/files/${fileId}/download`);
-  res.redirect(301, `/api/files/${fileId}/download`);
-});
-
-// Endpoint для скачивания файлов из локального хранилища
-app.get('/api/files/:fileId/download', async (req, res) => {
-  try {
-    const { fileId } = req.params;
-    console.log(`[FILES] Download request: ${fileId}`);
-
-    // CORS for media
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD');
-    res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
-
-    if (!fileId) {
-      console.warn(`[FILES] Invalid fileId: ${fileId}`);
-      res.status(400).json({ error: 'Неверный ID файла' });
-      return;
-    }
-
-    // Try local storage first (new system)
-    if (fileId.startsWith('local_')) {
-      const localFile = await prisma.localFile.findUnique({
-        where: { fileId },
-        include: { chunks: { orderBy: { chunkIndex: 'asc' } } }
-      });
-
-      if (!localFile) {
-        console.warn(`[FILES] File ${fileId} not found in DB`);
-        res.status(404).json({ error: 'Файл не найден' });
-        return;
-      }
-
-      if (!localFile.chunks || localFile.chunks.length === 0) {
-        console.warn(`[FILES] File ${fileId} has no chunks`);
-        res.status(404).json({ error: 'Файл повреждён (нет чанков)' });
-        return;
-      }
-
-      console.log(`[FILES] File found: ${localFile.originalName} (${localFile.mimeType}, ${localFile.totalSize}b, ${localFile.chunks.length} chunks)`);
-
-      let fileBuffer: Buffer;
-      try {
-        fileBuffer = await localStorage.downloadFile(localFile.fileId, localFile.chunks);
-      } catch (downloadError: any) {
-        console.error(`[FILES] Download error:`, downloadError.message);
-        res.status(503).json({ error: 'Файл временно недоступен' });
-        return;
-      }
-
-      console.log(`[FILES] File downloaded: ${fileBuffer.length}b`);
-
-      await prisma.localFile.update({
-        where: { fileId },
-        data: { lastAccessed: new Date(), accessCount: { increment: 1 } }
-      }).catch(() => {}); // ignore update errors
-
-      const isInline = localFile.mimeType.startsWith('image/') ||
-                       localFile.mimeType.startsWith('video/') ||
-                       localFile.mimeType.startsWith('audio/');
-
-      if (isInline) {
-        res.setHeader('Content-Type', localFile.mimeType);
-        res.setHeader('Content-Length', fileBuffer.length);
-        res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-
-        const range = req.headers.range;
-        if (range) {
-          const parts = range.replace(/bytes=/, '').split('-');
-          const start = parseInt(parts[0], 10);
-          const end = parts[1] ? parseInt(parts[1], 10) : fileBuffer.length - 1;
-
-          if (start >= fileBuffer.length) {
-            res.writeHead(416, { 'Content-Range': `bytes */${fileBuffer.length}` });
-            res.end();
-            return;
-          }
-
-          const chunk = fileBuffer.slice(start, Math.min(end + 1, fileBuffer.length));
-          res.writeHead(206, {
-            'Content-Range': `bytes ${start}-${Math.min(end, fileBuffer.length - 1)}/${fileBuffer.length}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': chunk.length,
-            'Content-Type': localFile.mimeType,
-          });
-          res.end(chunk);
-        } else {
-          res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(localFile.originalName)}"`);
-          res.end(fileBuffer);
-        }
-      } else {
-        res.setHeader('Content-Type', localFile.mimeType);
-        res.setHeader('Content-Length', fileBuffer.length);
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(localFile.originalName)}"`);
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-        res.end(fileBuffer);
-      }
-      return;
-    }
-
-    res.status(400).json({ error: 'Неподдерживаемый тип файла' });
-
-  } catch (error: any) {
-    console.error('[FILES] Download error:', error.message, error.stack);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Ошибка скачивания: ' + error.message });
-    }
-  }
-});
-
-// Public endpoint for video notes file serving (no auth required)
-app.get('/api/video-notes/file/:filename', async (req, res) => {
-  try {
-    const filename = String(req.params.filename);
-    
-    // Validate filename to prevent directory traversal
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-      return res.status(400).json({ error: 'Invalid filename' });
-    }
-    
-    const path = require('path');
-    const fs = require('fs/promises');
-    const filePath = path.join(process.cwd(), 'uploads', 'video-notes', filename);
-
-    // Check if file exists
-    try {
-      await fs.access(filePath);
-    } catch {
-      return res.status(404).json({ error: 'Video note not found' });
-    }
-
-    // Get file stats for Content-Length
-    const stats = await fs.stat(filePath);
-
-    // Support Range requests for video streaming
-    const range = req.headers.range;
-    if (range) {
-      const parts = range.replace(/bytes=/, '').split('-');
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
-      const chunksize = end - start + 1;
-
-      res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${stats.size}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
-        'Content-Type': 'video/webm',
-      });
-
-      const stream = require('fs').createReadStream(filePath, { start, end });
-      stream.pipe(res);
-    } else {
-      res.writeHead(200, {
-        'Content-Length': stats.size,
-        'Content-Type': 'video/webm',
-      });
-
-      const stream = require('fs').createReadStream(filePath);
-      stream.pipe(res);
-    }
-  } catch (error) {
-    console.error('Error serving video note:', error);
-    res.status(500).json({ error: 'Failed to serve video note' });
-  }
-});
+// File serving routes (public endpoints - auth if needed handled inside)
+app.use('/api', filesRoutes);
 
 // API маршруты
-// @ts-ignore
 app.use('/api/auth', authLimiter, authRoutes);
-// @ts-ignore
 app.use('/api/users', apiLimiter, authenticateToken, userRoutes);
-// @ts-ignore
 app.use('/api/chats', apiLimiter, authenticateToken, chatRoutes);
-// @ts-ignore
 app.use('/api/stories', apiLimiter, authenticateToken, storyRoutes);
-// @ts-ignore
 app.use('/api/friends', apiLimiter, authenticateToken, friendRoutes);
-// @ts-ignore
 app.use('/api/call-logs', apiLimiter, authenticateToken, callLogRoutes);
-// @ts-ignore
-app.use('/api/messages', apiLimiter, authenticateToken, messageViewRoutes);
-// @ts-ignore
 app.use('/api/messages', apiLimiter, authenticateToken, messageRoutes);
-// @ts-ignore
+app.use('/api/message-views', apiLimiter, authenticateToken, messageViewRoutes);
 app.use('/api/threads', apiLimiter, authenticateToken, threadsRoutes);
-// @ts-ignore
 app.use('/api/ai', apiLimiter, authenticateToken, aiRoutes);
-// @ts-ignore
 app.use('/api/secret-chats', apiLimiter, authenticateToken, secretChatsRoutes);
-// @ts-ignore
 app.use('/api/stickers', apiLimiter, authenticateToken, stickersRoutes);
-// @ts-ignore
 app.use('/api/search', apiLimiter, authenticateToken, searchRoutes);
-// @ts-ignore
 app.use('/api/search/v2', apiLimiter, authenticateToken, searchEnhancedRoutes);
-// @ts-ignore
 app.use('/api/media', apiLimiter, authenticateToken, mediaRoutes);
-// @ts-ignore
 app.use('/api/webhooks', apiLimiter, authenticateToken, webhooksRoutes);
-// @ts-ignore
 app.use('/api/auto-responders', apiLimiter, authenticateToken, autoRespondersRoutes);
-// @ts-ignore
 app.use('/api/ocr', apiLimiter, authenticateToken, ocrRoutes);
-// @ts-ignore
 app.use('/api/speech-to-text', apiLimiter, authenticateToken, speechToTextRoutes);
-// @ts-ignore
 app.use('/api/self-destruct', apiLimiter, authenticateToken, selfDestructRoutes);
-// @ts-ignore
 app.use('/api/privacy', apiLimiter, authenticateToken, privacyRoutes);
-// @ts-ignore
 app.use('/api/customization', apiLimiter, authenticateToken, customizationRoutes);
-// @ts-ignore
 app.use('/api/folders', apiLimiter, authenticateToken, foldersRoutes);
-// @ts-ignore
 app.use('/api/tags', apiLimiter, authenticateToken, tagsRoutes);
-// @ts-ignore
 app.use('/api/quick-replies', apiLimiter, authenticateToken, quickRepliesRoutes);
-// @ts-ignore
 app.use('/api/utilities', apiLimiter, authenticateToken, utilitiesRoutes);
-// @ts-ignore
 app.use('/api/premium', apiLimiter, authenticateToken, premiumRoutes);
-// @ts-ignore
-// Video notes - GET requests are public, POST requires auth (handled in route)
 app.use('/api/video-notes', apiLimiter, videoNotesRoutes);
-// @ts-ignore
 app.use('/api/status', apiLimiter, authenticateToken, statusRoutes);
-// @ts-ignore
-// Profile music - GET /file/:filename is public, other routes require auth (handled in route)
 app.use('/api/profile-music', apiLimiter, profileMusicRoutes);
-// @ts-ignore
 app.use('/api/chat-backgrounds', apiLimiter, authenticateToken, chatBackgroundsRoutes);
-// @ts-ignore
 app.use('/api/custom-emojis', apiLimiter, authenticateToken, customEmojisRoutes);
-// @ts-ignore
 app.use('/api/cloud', apiLimiter, authenticateToken, cloudStorageRoutes);
-// @ts-ignore
 app.use('/api/channel-subscriptions', apiLimiter, authenticateToken, channelSubscriptionsRoutes);
-// @ts-ignore
-// Wallet routes - webhook is public (called by YooKassa), rest requires auth
-// The router handles auth internally for the webhook endpoint
 app.use('/api/wallet', apiLimiter, walletRoutes);
-// @ts-ignore
 app.use('/api/watch-party', apiLimiter, authenticateToken, watchPartyRoutes);
-// @ts-ignore
 app.use('/api/message-tags', apiLimiter, authenticateToken, messageTagsRoutes);
-// @ts-ignore
 app.use('/api/media-search', apiLimiter, authenticateToken, mediaSearchRoutes);
-// @ts-ignore
 app.use('/api/archive', apiLimiter, authenticateToken, archiveRoutes);
-// @ts-ignore
-// NFT routes - GET requests are public, POST/PUT/DELETE require auth (handled in route)
 app.use('/api/nft', apiLimiter, nftRoutes);
-// @ts-ignore
-// Wall routes - feed and posts
 app.use('/api/wall', apiLimiter, wallRoutes);
-// @ts-ignore
 app.use('/api/admin', apiLimiter, authenticateToken, adminRoutes);
-// @ts-ignore
 app.use('/api/devices', apiLimiter, authenticateToken, devicesRoutes);
-// @ts-ignore
 app.use('/api/bookmarks', apiLimiter, authenticateToken, bookmarksRoutes);
-// @ts-ignore
 app.use('/api/templates', apiLimiter, authenticateToken, templatesRoutes);
-// @ts-ignore
 app.use('/api/tasks', apiLimiter, authenticateToken, tasksRoutes);
-// @ts-ignore
 app.use('/api/calendar', apiLimiter, authenticateToken, calendarRoutes);
-// @ts-ignore
 app.use('/api/drawing-board', apiLimiter, authenticateToken, drawingBoardRoutes);
-// @ts-ignore
 app.use('/api/code-blocks', apiLimiter, authenticateToken, codeBlocksRoutes);
-// @ts-ignore
 app.use('/api/contacts', apiLimiter, authenticateToken, contactsRoutes);
-// @ts-ignore
 app.use('/api/badges', apiLimiter, badgesRoutes);
-// @ts-ignore
 app.use('/api/playlists', apiLimiter, playlistsRoutes);
-// @ts-ignore
 app.use('/api/drawing-chat', apiLimiter, drawingChatRoutes);
-// @ts-ignore
 app.use('/api/map-routes', apiLimiter, mapRoutesRoutes);
-// @ts-ignore
 app.use('/api/fake-password', apiLimiter, fakePasswordRoutes);
-// @ts-ignore
 app.use('/api/invoices', apiLimiter, authenticateToken, invoicesRoutes);
-// @ts-ignore
 app.use('/api/blocking', apiLimiter, authenticateToken, blockingRoutes);
 
 // NEW FEATURES - STAGE 2
-// @ts-ignore
 app.use('/api/reactions', apiLimiter, authenticateToken, reactionsRoutes);
-// @ts-ignore
 app.use('/api/user-status', apiLimiter, authenticateToken, userStatusRoutes);
-// @ts-ignore
 app.use('/api/polls', apiLimiter, authenticateToken, pollsRoutes);
-// @ts-ignore
 app.use('/api/voice-rooms', apiLimiter, authenticateToken, voiceRoomsRoutes);
-// @ts-ignore
 app.use('/api/nft/collections', apiLimiter, authenticateToken, nftCollectionsRoutes);
-// @ts-ignore
 app.use('/api/nft/auctions', apiLimiter, authenticateToken, nftAuctionsRoutes);
-// @ts-ignore
 app.use('/api/nft/trades', apiLimiter, authenticateToken, nftTradesRoutes);
-// @ts-ignore
 app.use('/api/achievements', apiLimiter, authenticateToken, achievementsRoutes);
 
 // NEW ADVANCED FEATURES
-// @ts-ignore
 app.use('/api/collaborative-docs', apiLimiter, authenticateToken, collaborativeDocsRoutes);
-// @ts-ignore
 app.use('/api/chat-notes', apiLimiter, authenticateToken, chatNotesRoutes);
-// @ts-ignore
 app.use('/api/disappearing-messages', apiLimiter, authenticateToken, disappearingMessagesRoutes);
-// @ts-ignore
 app.use('/api/donations', apiLimiter, authenticateToken, donationsRoutes);
-// @ts-ignore
 app.use('/api/marketplace', apiLimiter, authenticateToken, marketplaceRoutes);
-// @ts-ignore
 app.use('/api/collaborative-playlists', apiLimiter, authenticateToken, collaborativePlaylistsRoutes);
 app.use('/api/music-playlists', apiLimiter, authenticateToken, musicPlaylistsRoutes);
-// @ts-ignore
 app.use('/api/live-streams', apiLimiter, authenticateToken, liveStreamsRoutes);
-// @ts-ignore
 app.use('/api/communities', apiLimiter, authenticateToken, communitiesRoutes);
 
 // NEW FEATURES - Reports, Data Export, Call Recordings, Voice Transcripts, Chat Notifications
-// @ts-ignore
 app.use('/api/reports', apiLimiter, authenticateToken, reportsRoutes);
-// @ts-ignore
 app.use('/api/data-export', apiLimiter, authenticateToken, dataExportRoutes);
-// @ts-ignore
 app.use('/api/call-recordings', apiLimiter, authenticateToken, callRecordingsRoutes);
-// @ts-ignore
 app.use('/api/voice-transcripts', apiLimiter, authenticateToken, voiceTranscriptsRoutes);
-// @ts-ignore
 app.use('/api/chat-notifications', apiLimiter, authenticateToken, chatNotificationsRoutes);
 
 // NEW FEATURES - Stage 3
-// @ts-ignore
 app.use('/api/premium-effects', apiLimiter, authenticateToken, premiumEffectsRoutes);
-// @ts-ignore
 app.use('/api/live-location', apiLimiter, authenticateToken, liveLocationRoutes);
-// @ts-ignore
 app.use('/api/private-media', apiLimiter, authenticateToken, privateMediaRoutes);
-// @ts-ignore
 app.use('/api/screen-share', apiLimiter, authenticateToken, screenShareRoutes);
-// @ts-ignore
 app.use('/api/plugins', apiLimiter, authenticateToken, widgetsRoutes);
-// @ts-ignore
 app.use('/api/story-polls', apiLimiter, authenticateToken, storyPollsRoutes);
-// @ts-ignore
 app.use('/api/channel-threads', apiLimiter, authenticateToken, channelThreadsRoutes);
-// @ts-ignore
 app.use('/api/dnd', apiLimiter, authenticateToken, doNotDisturbRoutes);
-// @ts-ignore
 app.use('/api/chat-export', apiLimiter, authenticateToken, chatExportRoutes);
 
 // Проверка здоровья
@@ -699,7 +429,7 @@ app.get('*', (_req, res) => {
 });
 
 // ICE серверы для WebRTC звонков
-app.get('/api/ice-servers', authenticateToken, (_req: AuthRequest, res) => {
+app.get('/api/ice-servers', authenticateToken, (_req: express.Request, res) => {
   const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [];
 
   if (config.stunUrls.length > 0) {
@@ -755,7 +485,7 @@ async function cleanupExpiredStories() {
     // Cascade handles StoryView deletion via schema onDelete: Cascade
     await prisma.story.deleteMany({ where: { id: { in: ids } } });
   } catch (e) {
-    // Silent cleanup
+    console.error('Failed to cleanup expired stories:', e);
   }
 }
 
@@ -783,7 +513,7 @@ async function cleanupExpiredDeviceTokens() {
       console.log(`[DEVICE AUTH] Cleaned up ${deleted.count} expired device tokens`);
     }
   } catch {
-    // Silent cleanup
+    console.error('Failed to cleanup expired device tokens');
   }
 }
 cleanupExpiredDeviceTokens();

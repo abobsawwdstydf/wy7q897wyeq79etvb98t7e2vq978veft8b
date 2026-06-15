@@ -1757,9 +1757,9 @@ export default function CallModal({ isOpen, onClose, targetUser, callType: initi
             <div className="absolute inset-0 rounded-full bg-emerald-500/50 animate-ping opacity-75" />
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 animate-pulse" />
             {displayAvatar ? (
-              <img src={displayAvatar} alt="" className="relative w-11 h-11 rounded-full object-cover border-2 border-white/40" />
+              <img src={displayAvatar} alt="" className="relative w-11 h-11 rounded-xl object-cover border-2 border-white/40" />
             ) : (
-              <div className="relative w-11 h-11 rounded-full bg-gradient-to-br from-white to-zinc-200 flex items-center justify-center text-nexo-700 font-bold text-sm shadow-lg">
+              <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-white to-zinc-200 flex items-center justify-center text-nexo-700 font-bold text-sm shadow-lg">
                 {initials}
               </div>
             )}
@@ -2043,9 +2043,9 @@ export default function CallModal({ isOpen, onClose, targetUser, callType: initi
                 )}
                 <div className="relative z-10 p-1.5 rounded-full bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl cursor-pointer">
                   {displayAvatar ? (
-                    <img src={displayAvatar} alt="" className="w-32 h-32 rounded-full object-cover shadow-inner" />
+                    <img src={displayAvatar} alt="" className="w-32 h-32 rounded-xl object-cover shadow-inner" />
                   ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
+                    <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
                       {initials}
                     </div>
                   )}

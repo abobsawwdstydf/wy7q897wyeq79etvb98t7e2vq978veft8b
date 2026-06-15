@@ -22,27 +22,29 @@ const errorBox = (error: string) => (
   <AnimatePresence>
     {error && (
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[13px] flex items-center gap-2"
+        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        className="mt-4 p-3.5 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-[13px] flex items-center gap-2.5 backdrop-blur-sm"
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-        {error}
+        <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+          <X size={12} className="text-red-400" />
+        </div>
+        <span className="font-medium">{error}</span>
       </motion.div>
     )}
   </AnimatePresence>
 );
 
 const primaryButtonClass =
-  'w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden';
+  'w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden';
 
 export default function AuthPage() {
   const [mode, setMode] = useState<'landing' | 'register' | 'login' | 'login-method' | 'login-password' | 'login-qr' | 'login-code' | 'register-success'>('landing');
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
   const { isMobile } = useResponsive();
 
   const [username, setUsername] = useState('');
@@ -66,14 +68,7 @@ export default function AuthPage() {
   const [phoneStatus, setPhoneStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const { login, register, token, user } = useAuthStore();
-
-  useEffect(() => {
-    if (token && user && mode !== 'register-success' && !redirecting) {
-      setRedirecting(true);
-      setTimeout(() => { window.location.href = '/'; }, 500);
-    }
-  }, [token, user, mode, redirecting]);
+  const { login, register, user } = useAuthStore();
 
   useEffect(() => {
     if (username.length < 3 || username.length > 17) { setUsernameStatus('idle'); return; }
@@ -217,7 +212,6 @@ export default function AuthPage() {
         avatar: avatarFile || undefined,
       });
       setMode('register-success');
-      setTimeout(() => { window.location.href = '/'; }, 2000);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Ошибка'); }
     finally { setIsSubmitting(false); }
   };
@@ -229,7 +223,6 @@ export default function AuthPage() {
     setIsSubmitting(true);
     try {
       await login(phone, loginPassword);
-      setTimeout(() => { window.location.href = '/'; }, 500);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Ошибка'); }
     finally { setIsSubmitting(false); }
   };
@@ -241,7 +234,6 @@ export default function AuthPage() {
     setIsSubmitting(true);
     try {
       await login(phone, verificationCode);
-      setTimeout(() => { window.location.href = '/'; }, 500);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Ошибка'); }
     finally { setIsSubmitting(false); }
   };
@@ -253,7 +245,6 @@ export default function AuthPage() {
     setIsSubmitting(true);
     try {
       await login(phone, cloudPassword);
-      setTimeout(() => { window.location.href = '/'; }, 500);
     } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Ошибка'); }
     finally { setIsSubmitting(false); }
   };
@@ -264,11 +255,17 @@ export default function AuthPage() {
     return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
   };
 
-  const [deviceToken] = useState(() => generateDeviceToken());
+  const [deviceToken, setDeviceToken] = useState(() => generateDeviceToken());
   const deviceLink = `${window.location.origin}/device?device=${deviceToken}`;
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrStatus, setQrStatus] = useState<'waiting' | 'scanned' | 'confirmed' | 'denied' | 'expired'>('waiting');
   const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const regenerateQR = () => {
+    const newToken = generateDeviceToken();
+    setDeviceToken(newToken);
+    setQrStatus('waiting');
+  };
 
   useEffect(() => {
     if (mode === 'landing' || mode === 'login-qr') {
@@ -319,7 +316,7 @@ export default function AuthPage() {
   // Polling for QR login confirmation
   useEffect(() => {
     if (mode !== 'landing' && mode !== 'login-qr') return;
-    if (token && user) return;
+    if (user) return;
 
     const startedAt = Date.now();
     const ttl = 5 * 60 * 1000;
@@ -333,8 +330,8 @@ export default function AuthPage() {
 
     qrPollRef.current = setInterval(async () => {
       if (Date.now() - startedAt > ttl) {
-        setQrStatus('expired');
         stopPolling();
+        regenerateQR();
         return;
       }
 
@@ -346,17 +343,14 @@ export default function AuthPage() {
           setQrStatus('scanned');
         }
 
-        if (result.confirmed && result.token && result.user) {
+        if (result.confirmed && result.user) {
           stopPolling();
           setQrStatus('confirmed');
           try {
-            useAuthStore.getState().loginWithToken(result.token, result.user);
+            useAuthStore.getState().loginWithToken('', result.user);
           } catch (e) {
             console.error('loginWithToken error:', e);
           }
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 1200);
         } else if (result.denied) {
           stopPolling();
           setQrStatus('denied');
@@ -368,7 +362,7 @@ export default function AuthPage() {
 
     return () => stopPolling();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, deviceToken, token, user]);
+  }, [mode, deviceToken, user]);
 
   if (mode === 'register-success') {
     return (
@@ -378,13 +372,13 @@ export default function AuthPage() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', bounce: 0.4 }}
-            className="relative w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4"
+            className="relative w-20 h-20 rounded-[1.5rem] bg-emerald-500/20 flex items-center justify-center mx-auto mb-4"
             style={{ boxShadow: '0 0 40px rgba(16,185,129,0.3), 0 10px 30px rgba(0,0,0,0.3)' }}
           >
             <motion.div
               animate={{ scale: [1, 1.5, 1.5], opacity: [0.5, 0, 0] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-              className="absolute inset-0 rounded-full bg-emerald-500/30"
+              className="absolute inset-0 rounded-[1.5rem] bg-emerald-500/30"
             />
             <Check size={40} className="text-emerald-400 relative z-10" />
           </motion.div>
@@ -476,7 +470,7 @@ export default function AuthPage() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', bounce: 0.5 }}
-                    className="w-20 h-20 rounded-full bg-emerald-500/30 flex items-center justify-center mb-3"
+                    className="w-20 h-20 rounded-[1.5rem] bg-emerald-500/30 flex items-center justify-center mb-3"
                     style={{ boxShadow: '0 0 40px rgba(16,185,129,0.5)' }}
                   >
                     <Check size={48} className="text-emerald-300" strokeWidth={2.5} />
@@ -492,7 +486,7 @@ export default function AuthPage() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', bounce: 0.5 }}
-                    className="w-20 h-20 rounded-full bg-red-500/30 flex items-center justify-center mb-3"
+                    className="w-20 h-20 rounded-[1.5rem] bg-red-500/30 flex items-center justify-center mb-3"
                     style={{ boxShadow: '0 0 40px rgba(239,68,68,0.5)' }}
                   >
                     <X size={48} className="text-red-300" strokeWidth={2.5} />
@@ -579,7 +573,7 @@ export default function AuthPage() {
             {(qrStatus === 'waiting' || qrStatus === 'scanned') && (
               <>
                 <p className="text-[11px] text-white/30 mb-3">Или перейдите по ссылке</p>
-                <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 backdrop-blur-xl">
+                <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-2xl p-3 backdrop-blur-xl">
                   <code className="text-[11px] text-white/60 flex-1 truncate font-mono">{deviceLink}</code>
                   <button
                     onClick={() => {
@@ -595,8 +589,8 @@ export default function AuthPage() {
 
             {(qrStatus === 'denied' || qrStatus === 'expired') && (
               <button
-                onClick={() => window.location.reload()}
-                className="mt-2 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] transition-opacity hover:opacity-90"
+                onClick={regenerateQR}
+                className="mt-2 w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] transition-opacity hover:opacity-90"
               >
                 Попробовать снова
               </button>
@@ -656,7 +650,7 @@ export default function AuthPage() {
                     lastInput?.focus();
                   }
                 }}
-                className="w-11 h-14 text-center text-xl font-bold rounded-xl bg-white/[0.04] border border-white/[0.08] text-white focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                className="w-11 h-14 text-center text-xl font-bold rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
               />
             ))}
           </div>
@@ -703,7 +697,7 @@ export default function AuthPage() {
                     value={cloudPassword}
                     onChange={(e) => setCloudPassword(e.target.value)}
                     placeholder="Облачный пароль"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   />
                 </div>
                 <motion.button
@@ -711,7 +705,7 @@ export default function AuthPage() {
                   whileTap={{ scale: 0.98 }}
                   onClick={handleLoginWithCloudPassword}
                   disabled={isSubmitting || !cloudPassword.trim()}
-                  className="w-full mt-3 py-3 px-4 rounded-xl bg-white/[0.06] border border-white/[0.1] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  className="w-full mt-3 py-3 px-4 rounded-2xl bg-white/[0.06] border border-white/[0.1] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
                 >
                   {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <><Lock size={18} /> Войти</>}
                 </motion.button>
@@ -752,7 +746,7 @@ export default function AuthPage() {
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   placeholder="+79991234567"
                   autoFocus
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   style={{ backdropFilter: 'blur(10px)' }}
                 />
               </div>
@@ -773,7 +767,7 @@ export default function AuthPage() {
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="Введите пароль"
                   onKeyDown={(e) => e.key === 'Enter' && handleLoginPassword()}
-                  className="w-full pl-10 pr-11 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                  className="w-full pl-10 pr-11 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   style={{ backdropFilter: 'blur(10px)' }}
                 />
                 <button
@@ -839,9 +833,9 @@ export default function AuthPage() {
               whileHover={{ scale: 1.01, backgroundColor: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.25)' }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setMode('login-password')}
-              className="w-full py-3.5 px-4 rounded-[1rem] bg-white/[0.03] border border-white/[0.06] text-white font-medium flex items-center gap-3.5 transition-all duration-200 group"
+              className="w-full py-3.5 px-4 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.06] text-white font-medium flex items-center gap-3.5 transition-all duration-200 group"
             >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#6366f1]/20 to-[#8b5cf6]/20 border border-[#6366f1]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6366f1]/20 to-[#8b5cf6]/20 border border-[#6366f1]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <Smartphone size={18} className="text-[#a5b4fc]" />
               </div>
               <div className="text-left flex-1">
@@ -855,9 +849,9 @@ export default function AuthPage() {
               whileHover={{ scale: 1.01, backgroundColor: 'rgba(168,85,247,0.08)', borderColor: 'rgba(168,85,247,0.25)' }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setMode('login-qr')}
-              className="w-full py-3.5 px-4 rounded-[1rem] bg-white/[0.03] border border-white/[0.06] text-white font-medium flex items-center gap-3.5 transition-all duration-200 group"
+              className="w-full py-3.5 px-4 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.06] text-white font-medium flex items-center gap-3.5 transition-all duration-200 group"
             >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <QrCode size={18} className="text-[#d8b4fe]" />
               </div>
               <div className="text-left flex-1">
@@ -946,7 +940,7 @@ export default function AuthPage() {
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
                           transition={{ type: 'spring', bounce: 0.5 }}
-                          className="w-16 h-16 rounded-full bg-emerald-500/30 flex items-center justify-center mb-2"
+                          className="w-16 h-16 rounded-[1.2rem] bg-emerald-500/30 flex items-center justify-center mb-2"
                           style={{ boxShadow: '0 0 30px rgba(16,185,129,0.5)' }}
                         >
                           <Check size={36} className="text-emerald-300" strokeWidth={2.5} />
@@ -1032,7 +1026,7 @@ export default function AuthPage() {
                 whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.08)' }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setMode('login-method')}
-                className="flex-1 py-2.5 px-3 rounded-[0.9rem] bg-white/[0.04] border border-white/[0.08] text-white/70 font-medium text-[13px] transition-all duration-200 backdrop-blur-sm"
+                className="flex-1 py-2.5 px-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white/70 font-medium text-[13px] transition-all duration-200 backdrop-blur-sm"
               >
                 Войти
               </motion.button>
@@ -1040,7 +1034,7 @@ export default function AuthPage() {
                 whileHover={{ scale: 1.02, backgroundColor: 'rgba(99,102,241,0.15)' }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => { setMode('register'); setStep(1); setError(''); }}
-                className="flex-1 py-2.5 px-3 rounded-[0.9rem] bg-[#6366f1]/[0.12] border border-[#6366f1]/25 text-[#a5b4fc] font-medium text-[13px] transition-all duration-200 backdrop-blur-sm"
+                className="flex-1 py-2.5 px-3 rounded-2xl bg-[#6366f1]/[0.12] border border-[#6366f1]/25 text-[#a5b4fc] font-medium text-[13px] transition-all duration-200 backdrop-blur-sm"
               >
                 Регистрация
               </motion.button>
@@ -1070,9 +1064,9 @@ export default function AuthPage() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-3.5 mb-5 flex items-center gap-3"
+        className="bg-white/[0.03] border border-white/[0.06] rounded-3xl p-3.5 mb-5 flex items-center gap-3"
       >
-        <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#6366f1]/50 flex-shrink-0">
+        <div className="w-11 h-11 rounded-2xl overflow-hidden border-2 border-[#6366f1]/50 flex-shrink-0">
           {avatarPreview ? (
             <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -1126,7 +1120,7 @@ export default function AuthPage() {
                     onChange={(e) => handleUsernameChange(e.target.value)}
                     placeholder="username"
                     autoFocus
-                    className={`w-full px-4 py-3 rounded-xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
+                    className={`w-full px-4 py-3 rounded-2xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
                       usernameStatus === 'taken'
                         ? 'border-red-500/50'
                         : usernameStatus === 'available'
@@ -1169,7 +1163,7 @@ export default function AuthPage() {
                     placeholder="Ваше имя"
                     autoFocus
                     maxLength={50}
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   />
                   <p className="text-[11px] text-white/30 text-right px-1">{displayName.length}/50</p>
                   <p className="text-[11px] text-white/30 px-1">Можно использовать эмодзи</p>
@@ -1186,7 +1180,7 @@ export default function AuthPage() {
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={selectAvatar}
-                      className={`relative w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center transition-all overflow-hidden ${
+                      className={`relative w-24 h-24 rounded-[1.8rem] border-2 border-dashed flex items-center justify-center transition-all overflow-hidden ${
                         avatarPreview
                           ? 'border-[#6366f1]/60'
                           : 'border-white/[0.15] hover:border-white/30'
@@ -1240,7 +1234,7 @@ export default function AuthPage() {
                     autoFocus
                     rows={3}
                     maxLength={500}
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all resize-none outline-none"
+                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all resize-none outline-none"
                   />
                   <p className="text-[11px] text-white/30 text-right px-1">{bio.length}/500</p>
                   <p className="text-[11px] text-white/30 px-1">Необязательно</p>
@@ -1260,7 +1254,7 @@ export default function AuthPage() {
                         onChange={(e) => { setPassword(e.target.value); playKeyboardSound(); }}
                         placeholder="От 6 до 50 символов"
                         autoFocus
-                        className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
+                        className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
                       />
                       <button
                         type="button"
@@ -1282,7 +1276,7 @@ export default function AuthPage() {
                         value={confirmPassword}
                         onChange={(e) => { setConfirmPassword(e.target.value); playKeyboardSound(); }}
                         placeholder="Повторите пароль"
-                        className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
+                        className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all pr-11 outline-none"
                       />
                       <button
                         type="button"
@@ -1310,7 +1304,7 @@ export default function AuthPage() {
                     onChange={(e) => { setCloudPassword(e.target.value); playKeyboardSound(); }}
                     placeholder="Редко используемый, но важный"
                     autoFocus
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
+                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none"
                   />
                   <p className="text-[11px] text-white/30 px-1">Необязательно. Для входа на новых устройствах</p>
                 </div>
@@ -1327,7 +1321,7 @@ export default function AuthPage() {
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="+79991234567"
                     autoFocus
-                    className={`w-full px-4 py-3 rounded-xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
+                    className={`w-full px-4 py-3 rounded-2xl bg-white/[0.04] border text-white placeholder-white/25 focus:ring-2 transition-all outline-none ${
                       phoneStatus === 'taken'
                         ? 'border-red-500/50'
                         : phoneStatus === 'available'
@@ -1356,7 +1350,7 @@ export default function AuthPage() {
                 whileHover={{ backgroundColor: 'rgba(255,255,255,0.06)' }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleBack}
-                className="flex-1 py-3 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white font-medium text-[14px] flex items-center justify-center gap-2 transition-all"
+                className="flex-1 py-3 px-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-white font-medium text-[14px] flex items-center justify-center gap-2 transition-all"
               >
                 <ArrowLeft size={16} /> Назад
               </motion.button>
@@ -1366,7 +1360,7 @@ export default function AuthPage() {
                 whileHover={{ boxShadow: '0 0 25px rgba(99,102,241,0.4)' }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleNext}
-                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 relative overflow-hidden"
+                className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 relative overflow-hidden"
                 style={{ boxShadow: '0 0 15px rgba(99,102,241,0.3)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
@@ -1378,7 +1372,7 @@ export default function AuthPage() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleRegister}
                 disabled={isSubmitting || !isStepValid()}
-                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden"
+                className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50 relative overflow-hidden"
                 style={{ boxShadow: '0 0 15px rgba(99,102,241,0.3)' }}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />

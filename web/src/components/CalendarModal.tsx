@@ -39,9 +39,7 @@ export default function CalendarModal({ chatId, onClose }: CalendarModalProps) {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/calendar', {
-        chatId: chatId || undefined,
-      });
+      const response = await api.get('/api/calendar' + (chatId ? '?chatId=' + encodeURIComponent(chatId) : ''));
       setEvents(response);
     } catch (error) {
       console.error('Load events error:', error);

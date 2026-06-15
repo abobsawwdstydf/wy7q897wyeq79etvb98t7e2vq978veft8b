@@ -666,7 +666,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
           >
             <div className="relative flex-shrink-0 transform transition-transform duration-300 group-hover:scale-105">
               {isFavorites ? (
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-300">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-300">
                   <Bookmark size={20} className="text-white" />
                 </div>
               ) : (
@@ -675,7 +675,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
                   name={chatName}
                   size="md"
                   online={isOnline ? true : undefined}
-                  className="ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-300 rounded-full"
+                  className="ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-300 rounded-xl"
                   isVerified={chat.isVerified}
                   verifiedBadgeUrl={chat.verifiedBadgeUrl}
                   verifiedBadgeType={chat.verifiedBadgeType}

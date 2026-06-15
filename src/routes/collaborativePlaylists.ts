@@ -161,14 +161,14 @@ router.get('/:chatId', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Получаем инфу о пользователях, добавивших треки
-    const addedByIds = [...new Set(playlist.tracks.map((t: any) => t.addedBy).filter(Boolean))];
-    const addedByUsers = addedByIds.length > 0
+    const addedByIdIds = [...new Set(playlist.tracks.map((t: any) => t.addedById).filter(Boolean))];
+    const addedByIdUsers = addedByIdIds.length > 0
       ? await prisma.user.findMany({
-          where: { id: { in: addedByIds as string[] } },
+          where: { id: { in: addedByIdIds as string[] } },
           select: { id: true, username: true, displayName: true }
         })
       : [];
-    const userMap = new Map(addedByUsers.map(u => [u.id, u]));
+    const userMap = new Map(addedByIdUsers.map(u => [u.id, u]));
 
     // Подсчитываем голоса для каждого трека
     const tracksWithVotes = await Promise.all(playlist.tracks.map(async (track: any) => {
@@ -192,7 +192,7 @@ router.get('/:chatId', authenticateToken, async (req: AuthRequest, res) => {
         artist: track.artist || '',
         url: track.url,
         duration: track.duration || 0,
-        addedBy: userMap.get(track.addedBy) || null,
+        addedById: userMap.get(track.addedById) || null,
         votes: votes._sum.vote || 0,
         userVote: (userVote?.vote ?? 0) > 0 ? 'up' : (userVote?.vote ?? 0) < 0 ? 'down' : null
       };
@@ -249,7 +249,7 @@ router.post('/:chatId/tracks', authenticateToken, async (req: AuthRequest, res) 
     const track = await prisma.playlistTrack.create({
       data: {
         playlistId: playlist.id,
-        addedBy: userId,
+        addedById: userId,
         title: title || 'Без названия',
         artist: artist || '',
         url,
@@ -259,7 +259,7 @@ router.post('/:chatId/tracks', authenticateToken, async (req: AuthRequest, res) 
     });
 
     // Получаем инфу о пользователе
-    const addedByUser = await prisma.user.findUnique({
+    const addedByIdUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, username: true, displayName: true }
     });
@@ -270,7 +270,7 @@ router.post('/:chatId/tracks', authenticateToken, async (req: AuthRequest, res) 
       artist: track.artist,
       url: track.url,
       duration: track.duration || 0,
-      addedBy: addedByUser,
+      addedById: addedByIdUser,
       votes: 0,
       userVote: null
     });
@@ -318,7 +318,7 @@ router.post('/:chatId/tracks/upload', authenticateToken, upload.single('file'), 
     const track = await prisma.playlistTrack.create({
       data: {
         playlistId: playlist.id,
-        addedBy: userId,
+        addedById: userId,
         title: fileName,
         artist: '',
         url: fileUrl,
@@ -327,7 +327,7 @@ router.post('/:chatId/tracks/upload', authenticateToken, upload.single('file'), 
       }
     });
 
-    const addedByUser = await prisma.user.findUnique({
+    const addedByIdUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, username: true, displayName: true }
     });
@@ -338,7 +338,7 @@ router.post('/:chatId/tracks/upload', authenticateToken, upload.single('file'), 
       artist: track.artist,
       url: track.url,
       duration: track.duration || 0,
-      addedBy: addedByUser,
+      addedById: addedByIdUser,
       votes: 0,
       userVote: null
     });
@@ -408,7 +408,7 @@ router.delete('/:chatId/tracks/:trackId', authenticateToken, async (req: AuthReq
     const track = await prisma.playlistTrack.findUnique({
       where: { id: trackId },
       include: {
-        playlist: true
+        collaborativePlaylist: true
       }
     });
 
@@ -417,7 +417,7 @@ router.delete('/:chatId/tracks/:trackId', authenticateToken, async (req: AuthReq
     }
 
     // Проверяем права (создатель плейлиста или добавивший трек)
-    if (track.addedBy !== userId && track.playlist.creatorId !== userId) {
+    if (track.addedById !== userId && track.collaborativePlaylist?.creatorId !== userId) {
       return res.status(403).json({ error: 'Нет прав' });
     }
 

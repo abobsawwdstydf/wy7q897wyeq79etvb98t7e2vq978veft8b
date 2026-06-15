@@ -162,10 +162,10 @@ export default function SharePostModal({ postId, postContent, onClose }: SharePo
                       <img
                         src={chat.avatar}
                         alt=""
-                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                         {(chat.name || chat.username || '?')[0].toUpperCase()}
                       </div>
                     )}

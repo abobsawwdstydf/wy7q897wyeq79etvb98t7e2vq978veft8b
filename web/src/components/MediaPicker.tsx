@@ -48,6 +48,7 @@ interface MediaPickerProps {
   onSendSticker: (sticker: Sticker) => void;
   onSendGif: (gif: GifItem) => void;
   anchorRef?: React.RefObject<HTMLElement | null>;
+  inline?: boolean;
 }
 
 type Tab = 'emoji' | 'stickers' | 'create';
@@ -59,6 +60,7 @@ export default function MediaPicker({
   onSendSticker,
   onSendGif,
   anchorRef,
+  inline,
 }: MediaPickerProps) {
   const { lang } = useLang();
   const { user } = useAuthStore();
@@ -257,41 +259,45 @@ export default function MediaPicker({
 
   const pickerContent = (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-[9989]" onClick={(e) => {
-        e.stopPropagation();
-        onClose();
-      }} />
+      {!inline && (
+        <div className="fixed inset-0 z-[9989]" onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }} />
+      )}
 
-      {/* Picker panel */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.15 }}
+        initial={inline ? { height: 0, opacity: 0 } : { opacity: 0, scale: 0.95, y: 8 }}
+        animate={inline ? { height: 'auto', opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
+        exit={inline ? { height: 0, opacity: 0 } : { opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
         onClick={e => {
           e.stopPropagation();
         }}
         style={
-          isMobile
-            ? { maxHeight: '70vh' } as React.CSSProperties
-            : pos
-              ? {
-                  position: 'fixed' as const,
-                  bottom: pos.bottom,
-                  ...(pos.left !== undefined ? { left: pos.left } : {}),
-                  ...(pos.right !== undefined ? { right: pos.right } : {}),
-                  zIndex: 9990,
-                  width: 360,
-                  maxHeight: 480,
-                  transform: pos.left !== undefined ? 'translateX(-50%)' : undefined,
-                }
-              : { position: 'fixed' as const, bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 9990, width: 360, maxHeight: 480 }
+          inline
+            ? { overflow: 'hidden' } as React.CSSProperties
+            : isMobile
+              ? { maxHeight: '70vh' } as React.CSSProperties
+              : pos
+                ? {
+                    position: 'fixed' as const,
+                    bottom: pos.bottom,
+                    ...(pos.left !== undefined ? { left: pos.left } : {}),
+                    ...(pos.right !== undefined ? { right: pos.right } : {}),
+                    zIndex: 9990,
+                    width: 360,
+                    maxHeight: 480,
+                    transform: pos.left !== undefined ? 'translateX(-50%)' : undefined,
+                  }
+                : { position: 'fixed' as const, bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 9990, width: 360, maxHeight: 480 }
         }
         className={
-          isMobile
-            ? 'fixed bottom-0 left-0 right-0 z-[9990] bg-[#111113] border-t border-white/10 rounded-t-2xl shadow-2xl flex flex-col'
-            : 'bg-[#111113] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden'
+          inline
+            ? 'bg-[#111113] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-2'
+            : isMobile
+              ? 'fixed bottom-0 left-0 right-0 z-[9990] bg-[#111113] border-t border-white/10 rounded-t-2xl shadow-2xl flex flex-col'
+              : 'bg-[#111113] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden'
         }
       >
         {/* Tabs */}
@@ -487,8 +493,8 @@ export default function MediaPicker({
     </>
   );
 
-  return isMobile
-    ? createPortal(pickerContent, document.body)
+  return inline
+    ? pickerContent
     : createPortal(pickerContent, document.body);
 }
 

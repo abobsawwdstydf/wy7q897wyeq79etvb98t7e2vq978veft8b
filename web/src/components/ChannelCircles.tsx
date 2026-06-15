@@ -117,6 +117,7 @@ export default function ChannelCircles({ onChannelClick }: ChannelCirclesProps) 
           {channels.map((channel) => {
             const hasUnread = (channel.unreadCount || 0) > 0;
             const isPremium = channel.subscriptionPrice && channel.subscriptionPrice > 0;
+            const isPrivate = false;
             
             return (
               <div

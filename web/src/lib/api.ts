@@ -2,21 +2,18 @@ import type { User, UserBasic, UserPresence, Chat, Message, MediaItem, StoryGrou
 import { getApiUrl } from '../config';
 
 // Use getApiUrl() from config (reads base-url.json)
-// For web (localhost): /frontend-api-app/api
+// For web (localhost): /api
 // For production: absolute URL + /api or relative /api
-const getApiBase = (): string => {
+export const getApiBase = (): string => {
   const url = getApiUrl();
   return url ? url + '/api' : '/api';
 };
 
 class ApiClient {
-  // Инициализируем токен сразу из localStorage, чтобы запросы работали до вызова checkAuth
-  private token: string | null = (() => {
-    try { return localStorage.getItem('nexo_token'); } catch { return null; }
-  })();
+  private csrfToken: string | null = null;
 
-  setToken(token: string | null) {
-    this.token = token;
+  setCsrfToken(token: string | null) {
+    this.csrfToken = token;
   }
 
   private async request<T>(endpoint: string, options: RequestInit & { timeout?: number } = {}): Promise<T> {
@@ -24,18 +21,14 @@ class ApiClient {
     const controller = new AbortController();
     const timer = timeout > 0 ? setTimeout(() => controller.abort(), timeout) : undefined;
 
-    // Don't set Content-Type for FormData - browser will set it automatically
     const isFormData = fetchOptions.body instanceof FormData;
-    const headers: HeadersInit = isFormData
-      ? {
-          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-          ...fetchOptions.headers,
-        }
-      : {
-          'Content-Type': 'application/json',
-          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-          ...fetchOptions.headers,
-        };
+    const isMutation = fetchOptions.method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(fetchOptions.method);
+    
+    const headers: HeadersInit = {
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...(this.csrfToken && isMutation ? { 'X-CSRF-Token': this.csrfToken } : {}),
+      ...fetchOptions.headers,
+    };
 
     let response: Response;
     try {
@@ -43,6 +36,7 @@ class ApiClient {
         ...fetchOptions,
         headers,
         signal: controller.signal,
+        credentials: 'include', // Always send cookies
       });
     } catch (err) {
       clearTimeout(timer);
@@ -56,29 +50,37 @@ class ApiClient {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
       
-      // 401 = токен недействителен
-      // Но НЕ кикаем автоматически, если это просто ошибка конкретного запроса
-      // Кикаем только если это критичные эндпоинты (auth/me, основные данные)
-      if (response.status === 401) {
-        // Критичные эндпоинты - кикаем сразу
-        const criticalEndpoints = ['/auth/me', '/auth/login', '/users/profile'];
-        const isCritical = criticalEndpoints.some(ep => endpoint.includes(ep));
-        
-        if (isCritical) {
-          console.log('[API] 401 on critical endpoint, logging out');
-          localStorage.removeItem('nexo_token');
-          this.token = null;
-          window.location.href = '/';
-        } else {
-          // Для остальных эндпоинтов просто выбрасываем ошибку
-          console.log('[API] 401 on non-critical endpoint:', endpoint);
+      // 401 с code TOKEN_EXPIRED — пробуем обновить access token
+      if (response.status === 401 && error.code === 'TOKEN_EXPIRED') {
+        try {
+          const refreshController = new AbortController();
+          const refreshTimer = setTimeout(() => refreshController.abort(), 10_000);
+          const refreshResponse = await fetch(`${getApiBase()}/auth/refresh`, {
+            method: 'POST',
+            credentials: 'include',
+            signal: refreshController.signal,
+          });
+          clearTimeout(refreshTimer);
+
+          if (refreshResponse.ok) {
+            return this.request<T>(endpoint, options);
+          }
+        } catch {
+          // Refresh failed
         }
       }
       
       throw new Error(error.error || 'Ошибка запроса');
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // Store CSRF token if returned
+    if (data.csrfToken) {
+      this.csrfToken = data.csrfToken;
+    }
+    
+    return data;
   }
 
   // Generic HTTP methods
@@ -95,7 +97,7 @@ class ApiClient {
 
   // Авторизация
   async login(phone: string, password: string) {
-    return this.request<{ token: string; user: User }>('/auth/login', {
+    return this.request<{ user: User; accessToken?: string; csrfToken?: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ phone, password }),
     });
@@ -122,6 +124,7 @@ class ApiClient {
     const response = await fetch(`${getApiBase()}/auth/register`, {
       method: 'POST',
       body: formData,
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -129,7 +132,11 @@ class ApiClient {
       throw new Error(error.error || 'Ошибка регистрации');
     }
 
-    return response.json();
+    const result = await response.json();
+    if (result.csrfToken) {
+      this.csrfToken = result.csrfToken;
+    }
+    return result;
   }
 
   async checkUsername(username: string) {
@@ -141,7 +148,11 @@ class ApiClient {
   }
 
   async getMe() {
-    return this.request<{ user: User }>('/auth/me');
+    return this.request<{ user: User; accessToken?: string; csrfToken?: string }>('/auth/me');
+  }
+
+  async logout() {
+    return this.request<{ success: boolean }>('/auth/logout', { method: 'POST' });
   }
 
   // \u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0438
@@ -172,9 +183,7 @@ class ApiClient {
     const timer = setTimeout(() => controller.abort(), 120_000);
     const response = await fetch(`${getApiBase()}/users/avatar`, {
       method: 'POST',
-      headers: {
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-      },
+      credentials: 'include',
       body: formData,
       signal: controller.signal,
     });
@@ -245,12 +254,10 @@ class ApiClient {
     formData.append('files', file);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 300_000); // 5 минут для больших файлов
+    const timer = setTimeout(() => controller.abort(), 300_000);
     const response = await fetch(`${getApiBase()}/messages/upload`, {
       method: 'POST',
-      headers: {
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-      },
+      credentials: 'include',
       body: formData,
       signal: controller.signal,
     });
@@ -290,9 +297,7 @@ class ApiClient {
     const timer = setTimeout(() => controller.abort(), 120_000);
     const response = await fetch(`${getApiBase()}/chats/${chatId}/avatar`, {
       method: 'POST',
-      headers: {
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-      },
+      credentials: 'include',
       body: formData,
       signal: controller.signal,
     });
@@ -340,7 +345,7 @@ class ApiClient {
     return this.request<StoryGroup[]>('/stories');
   }
 
-  async createStory(data: { type: string; mediaUrl?: string; content?: string; bgColor?: string }) {
+  async createStory(data: { type: string; mediaUrl?: string; content?: string; bgColor?: string; audioUrl?: string }) {
     return this.request<{ id: string }>('/stories', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -733,9 +738,7 @@ class ApiClient {
   async uploadVideoNote(formData: FormData) {
     const response = await fetch(`${getApiBase()}/video-notes`, {
       method: 'POST',
-      headers: {
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-      },
+      credentials: 'include',
       body: formData,
     });
 
@@ -755,9 +758,7 @@ class ApiClient {
 
     const response = await fetch(`${getApiBase()}/profile-music`, {
       method: 'POST',
-      headers: {
-        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-      },
+      credentials: 'include',
       body: formData,
     });
 

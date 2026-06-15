@@ -1,16 +1,17 @@
-﻿import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Eye, MoreVertical, Trash2, Play, Pause, Share2, UserPlus, UserCheck, Music, File as FileIcon } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
+import { useNavigationStore } from '../stores/navigationStore';
 import { audioManager } from '../lib/audioManager';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import WallPostComments from './WallPostComments';
 import VerifiedBadge from './VerifiedBadge';
 import PlaylistEmbedPreview from './PlaylistEmbedPreview';
+import ReactionPicker from './ReactionPicker';
 
 interface WallPostProps {
   post: {
@@ -56,28 +57,57 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
   const [commentsCount, setCommentsCount] = useState(post.commentsCount);
   const [isSubscribed, setIsSubscribed] = useState(post.isSubscribed || false);
   const [playingMedia, setPlayingMedia] = useState<string | null>(null);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionPickerPosition, setReactionPickerPosition] = useState<{ x: number; y: number } | undefined>();
+  const postRef = useRef<HTMLDivElement>(null);
+  const viewTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasViewedRef = useRef(false);
 
   const isOwner = user?.id === post.authorId;
 
-  // Отметить просмотр
+  // Отметить просмотр с IntersectionObserver
   useEffect(() => {
-    const markView = async () => {
-      try {
-        await api.post(`/wall/post/${post.id}/view`);
-      } catch (err) {
-        console.error('Error marking view:', err);
+    const element = postRef.current;
+    if (!element || hasViewedRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasViewedRef.current) {
+          viewTimerRef.current = setTimeout(async () => {
+            if (!hasViewedRef.current) {
+              hasViewedRef.current = true;
+              try {
+                await api.post(`/wall/post/${post.id}/view`, {});
+              } catch (err) {
+                console.error('Error marking view:', err);
+              }
+            }
+          }, 1000);
+        } else if (viewTimerRef.current) {
+          clearTimeout(viewTimerRef.current);
+          viewTimerRef.current = null;
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+      if (viewTimerRef.current) {
+        clearTimeout(viewTimerRef.current);
       }
     };
-    markView();
   }, [post.id]);
 
-  // Лайк/дизлайк (без окна эмодзи)
-  const handleLike = async () => {
+  // Обработка реакции
+  const handleReaction = useCallback(async (emoji: string) => {
     try {
-      const response = await api.post(`/wall/post/${post.id}/react`, { emoji: '❤️' });
+      const response = await api.post(`/wall/post/${post.id}/react`, { emoji });
       
       if (response.action === 'added') {
-        setLocalReaction('❤️');
+        setLocalReaction(emoji);
         setReactionsCount(prev => prev + 1);
       } else {
         setLocalReaction(null);
@@ -87,14 +117,48 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
       console.error('Error reacting:', err);
       showError('Ошибка добавления реакции');
     }
-  };
+    setShowReactionPicker(false);
+  }, [post.id, showError]);
+
+  // Открыть пикер реакций
+  const openReactionPicker = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const rect = postRef.current?.getBoundingClientRect();
+    if (rect) {
+      let x: number, y: number;
+      if ('touches' in e) {
+        x = e.touches[0].clientX;
+        y = e.touches[0].clientY;
+      } else {
+        x = e.clientX;
+        y = e.clientY;
+      }
+      setReactionPickerPosition({ x, y });
+    }
+    setShowReactionPicker(true);
+  }, []);
+
+  // Долгое нажатие для мобильных
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const handleTouchStart = useCallback(() => {
+    longPressTimer.current = setTimeout(() => {
+      openReactionPicker({ preventDefault: () => {} } as React.TouchEvent);
+    }, 500);
+  }, [openReactionPicker]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   // Подписка/отписка
   const handleSubscribe = async () => {
     if (isOwner) return;
     
     try {
-      const response = await api.post(`/wall/user/${post.authorId}/subscribe`);
+      const response = await api.post(`/wall/user/${post.authorId}/subscribe`, {});
       
       if (response.action === 'subscribed') {
         setIsSubscribed(true);
@@ -125,7 +189,7 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
 
   // Открыть профиль автора
   const openAuthorProfile = () => {
-    window.location.href = `/?user=${post.author.username}`;
+    useNavigationStore.getState().openProfile(post.author.id);
   };
 
   // Воспроизведение аудио/голосовых — через глобальный audioManager для непрерывного воспроизведения
@@ -197,7 +261,7 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
             href={`/wall/hashtag/${tag}`}
             onClick={(e) => {
               e.preventDefault();
-              window.location.href = `/wall/hashtag/${tag}`;
+              useNavigationStore.getState().openHashtag(tag);
             }}
             className="text-nexo-400 hover:text-nexo-300 transition-colors font-medium"
           >
@@ -215,7 +279,12 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
             href={`/?user=${username}`}
             onClick={(e) => {
               e.preventDefault();
-              window.location.href = `/?user=${username}`;
+              api.searchUsers(username).then(users => {
+                const foundUser = users.find(u => u.username === username);
+                if (foundUser) {
+                  useNavigationStore.getState().openProfile(foundUser.id);
+                }
+              });
             }}
             className="text-nexo-400 hover:text-nexo-300 transition-colors font-medium"
           >
@@ -236,6 +305,7 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
 
   return (
     <motion.div
+      ref={postRef}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
@@ -248,10 +318,10 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
             <img
               src={post.author.avatar}
               alt=""
-              className="w-10 h-10 rounded-full object-cover"
+              className="w-10 h-10 rounded-xl object-cover"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center">
               <span className="text-sm font-bold text-white">
                 {post.author.displayName[0]?.toUpperCase() || post.author.username[0]?.toUpperCase()}
               </span>
@@ -478,7 +548,10 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
       {/* Actions */}
       <div className="px-4 py-3 border-t border-border flex items-center gap-4">
         <button
-          onClick={handleLike}
+          onClick={() => handleReaction('❤️')}
+          onContextMenu={openReactionPicker}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
             localReaction
               ? 'bg-red-500/20 text-red-400'
@@ -486,6 +559,9 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
           }`}
         >
           <Heart size={18} fill={localReaction ? 'currentColor' : 'none'} />
+          {localReaction && (
+            <span className="text-sm">{localReaction}</span>
+          )}
           {reactionsCount > 0 && (
             <span className="text-sm font-medium">{reactionsCount}</span>
           )}
@@ -523,6 +599,17 @@ export default function WallPost({ post, onDelete }: WallPostProps) {
           onCommentAdded={() => setCommentsCount(prev => prev + 1)}
         />
       )}
+
+      {/* Reaction Picker */}
+      <AnimatePresence>
+        {showReactionPicker && (
+          <ReactionPicker
+            onSelect={handleReaction}
+            onClose={() => setShowReactionPicker(false)}
+            position={reactionPickerPosition}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Share Modal */}
       {/* Removed - now using direct share */}

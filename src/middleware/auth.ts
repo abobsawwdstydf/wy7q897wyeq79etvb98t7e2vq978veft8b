@@ -3,151 +3,174 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { config } from '../config';
 import { prisma } from '../db';
+import { isTokenRevoked, getAdminSession, updateAdminSessionActivity } from '../services/auth';
 
 export interface AuthRequest extends Request {
   userId?: string;
   isAdmin?: boolean;
   adminToken?: string;
   user?: { id: string };
+  fakeMode?: boolean;
 }
 
-// SECURITY FIX: Хранилище для отозванных токенов (в продакшене использовать Redis)
-const revokedTokens = new Set<string>();
+// ═══════════════════════════════════════════════════════════════════
+// JWT HELPERS
+// ═══════════════════════════════════════════════════════════════════
 
-// SECURITY FIX: Хранилище для попыток входа
-interface LoginAttempt {
-  count: number;
-  lastAttempt: Date;
-  lockedUntil?: Date;
-}
-const loginAttempts = new Map<string, LoginAttempt>();
-
-// SECURITY FIX: Хранилище админ-сессий с временем истечения
-interface AdminSession {
-  token: string;
+export interface AccessTokenPayload {
   userId: string;
-  createdAt: Date;
-  expiresAt: Date;
-  lastActivity: Date;
+  jti: string;
+  fakeMode?: boolean;
+  type: 'access';
 }
-export const adminSessions = new Map<string, AdminSession>();
 
-// Очистка истекших сессий каждые 5 минут
-setInterval(() => {
-  const now = new Date();
-  for (const [token, session] of adminSessions.entries()) {
-    if (session.expiresAt < now) {
-      adminSessions.delete(token);
-      console.log('[Auth] Expired admin session removed');
-    }
+export interface RefreshTokenPayload {
+  userId: string;
+  jti: string;
+  type: 'refresh';
+}
+
+/**
+ * Генерация access token (короткоживущий, в cookie)
+ */
+export function generateAccessToken(userId: string, fakeMode?: boolean): { token: string; jti: string } {
+  const jti = crypto.randomUUID();
+  const payload: AccessTokenPayload = {
+    userId,
+    jti,
+    fakeMode: fakeMode || undefined,
+    type: 'access',
+  };
+  const token = jwt.sign(payload, config.jwtSecret, {
+    expiresIn: `${config.accessTokenTtlMinutes}m`,
+  });
+  return { token, jti };
+}
+
+/**
+ * Генерация refresh token (долгоживущий, в cookie)
+ */
+export function generateRefreshToken(userId: string): { token: string; jti: string } {
+  const jti = crypto.randomUUID();
+  const payload: RefreshTokenPayload = {
+    userId,
+    jti,
+    type: 'refresh',
+  };
+  const token = jwt.sign(payload, config.jwtRefreshSecret, {
+    expiresIn: `${config.refreshTokenTtlDays}d`,
+  });
+  return { token, jti };
+}
+
+/**
+ * Установка auth cookies.
+ * Access token — httpOnly (недоступен из JS, защищён от XSS).
+ * Refresh token — httpOnly (только для API обновления).
+ */
+export function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
+  // Access token — httpOnly для защиты от XSS атак
+  res.cookie('nexo_access_token', accessToken, {
+    httpOnly: true,
+    secure: config.isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: config.accessTokenTtlMinutes * 60 * 1000,
+  });
+
+  // Refresh token — httpOnly (недоступен из JS)
+  res.cookie('nexo_refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: config.isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: config.refreshTokenTtlDays * 24 * 60 * 60 * 1000,
+  });
+}
+
+/**
+ * Очистка auth cookies
+ */
+export function clearAuthCookies(res: Response): void {
+  res.clearCookie('nexo_access_token', { path: '/' });
+  res.clearCookie('nexo_refresh_token', { path: '/' });
+}
+
+/**
+ * Извлечение access token из запроса (cookie или Authorization header)
+ */
+function extractToken(req: Request): string | null {
+  // 1. Cookie (приоритет)
+  const cookieToken = (req as any).cookies?.nexo_access_token;
+  if (cookieToken) return cookieToken;
+
+  // 2. Authorization header (для API-клиентов, socket, etc.)
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    return token || null;
   }
-}, 5 * 60 * 1000);
 
-/**
- * SECURITY FIX: Проверка блокировки аккаунта
- */
-export function checkAccountLockout(identifier: string): { locked: boolean; remainingTime?: number } {
-  const attempt = loginAttempts.get(identifier);
-  
-  if (!attempt || !attempt.lockedUntil) {
-    return { locked: false };
-  }
-  
-  const now = new Date();
-  if (attempt.lockedUntil > now) {
-    const remainingMs = attempt.lockedUntil.getTime() - now.getTime();
-    return { locked: true, remainingTime: Math.ceil(remainingMs / 1000 / 60) };
-  }
-  
-  // Блокировка истекла, сбрасываем счётчик
-  loginAttempts.delete(identifier);
-  return { locked: false };
+  return null;
 }
 
 /**
- * SECURITY FIX: Регистрация неудачной попытки входа
+ * Извлечение refresh token из cookie
  */
-export function recordFailedLogin(identifier: string): void {
-  const attempt = loginAttempts.get(identifier) || { count: 0, lastAttempt: new Date() };
-  
-  attempt.count++;
-  attempt.lastAttempt = new Date();
-  
-  // Блокировка после превышения лимита
-  if (attempt.count >= config.maxLoginAttempts) {
-    attempt.lockedUntil = new Date(Date.now() + config.lockoutDurationMinutes * 60 * 1000);
-    console.log(`[Auth] Account locked: ${identifier} for ${config.lockoutDurationMinutes} minutes`);
-  }
-  
-  loginAttempts.set(identifier, attempt);
+function extractRefreshToken(req: Request): string | null {
+  return (req as any).cookies?.nexo_refresh_token || null;
 }
 
-/**
- * SECURITY FIX: Сброс счётчика попыток после успешного входа
- */
-export function resetLoginAttempts(identifier: string): void {
-  loginAttempts.delete(identifier);
-}
-
-/**
- * SECURITY FIX: Отзыв токена
- */
-export function revokeToken(token: string): void {
-  revokedTokens.add(token);
-  // В продакшене сохранять в Redis с TTL = время жизни токена
-}
-
-/**
- * SECURITY FIX: Проверка отозванного токена
- */
-function isTokenRevoked(token: string): boolean {
-  return revokedTokens.has(token);
-}
+// ═══════════════════════════════════════════════════════════════════
+// MIDDLEWARE
+// ═══════════════════════════════════════════════════════════════════
 
 /**
  * Middleware для аутентификации пользователей
  */
-export function authenticateToken(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+export async function authenticateToken(req: Request, res: Response, next: NextFunction) {
+  const token = extractToken(req);
 
   if (!token) {
     res.status(401).json({ error: 'Требуется авторизация' });
     return;
   }
 
-  // SECURITY FIX: Проверка отозванного токена
-  if (isTokenRevoked(token)) {
-    res.status(401).json({ error: 'Токен отозван' });
-    return;
-  }
-
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as { userId: string; iat: number };
+    const decoded = jwt.verify(token, config.jwtSecret) as AccessTokenPayload;
     
-    // SECURITY FIX: Проверка времени жизни токена (дополнительная защита)
-    const tokenAge = Date.now() / 1000 - decoded.iat;
-    const maxAge = config.sessionTimeoutHours * 60 * 60;
-    if (tokenAge > maxAge) {
-      res.status(401).json({ error: 'Токен истёк' });
+    if (decoded.type !== 'access') {
+      res.status(401).json({ error: 'Недействительный тип токена' });
+      return;
+    }
+
+    // Проверка отозванного токена (Redis-backed)
+    if (await isTokenRevoked(decoded.jti)) {
+      res.status(401).json({ error: 'Токен отозван' });
       return;
     }
     
     (req as AuthRequest).userId = decoded.userId;
     (req as AuthRequest).user = { id: decoded.userId };
+    if (decoded.fakeMode) {
+      (req as AuthRequest).fakeMode = true;
+    }
     next();
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Токен истёк', code: 'TOKEN_EXPIRED' });
+      return;
+    }
     res.status(401).json({ error: 'Недействительный токен' });
     return;
   }
 }
 
 /**
- * SECURITY FIX: Улучшенная аутентификация для админов
+ * Middleware для аутентификации пользователей или админов
  */
-export function authenticateTokenOrAdmin(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+export async function authenticateTokenOrAdmin(req: Request, res: Response, next: NextFunction) {
+  const token = extractToken(req);
 
   if (!token) {
     res.status(401).json({ error: 'Требуется авторизация' });
@@ -156,99 +179,66 @@ export function authenticateTokenOrAdmin(req: Request, res: Response, next: Next
 
   // Проверка админ-токена
   if (token.startsWith('admin-token-')) {
-    const session = adminSessions.get(token);
+    const session = await getAdminSession(token);
     
     if (!session) {
       res.status(401).json({ error: 'Недействительный админ-токен. Пожалуйста, войдите снова.' });
       return;
     }
     
-    // Проверка истечения сессии
-    const now = new Date();
+    const now = Date.now();
     if (session.expiresAt < now) {
-      adminSessions.delete(token);
       res.status(401).json({ error: 'Сессия истекла. Пожалуйста, войдите снова.' });
       return;
     }
     
-    // SECURITY FIX: Проверка неактивности (автоматический выход через 1 час неактивности)
-    const inactiveMinutes = (now.getTime() - session.lastActivity.getTime()) / 1000 / 60;
+    const inactiveMinutes = (now - session.lastActivity) / 1000 / 60;
     if (inactiveMinutes > 60) {
-      adminSessions.delete(token);
       res.status(401).json({ error: 'Сессия истекла из-за неактивности.' });
       return;
     }
     
-    // Обновление времени последней активности
-    session.lastActivity = now;
+    await updateAdminSessionActivity(token);
     
     (req as AuthRequest).adminToken = token;
     (req as AuthRequest).isAdmin = true;
-    (req as AuthRequest).userId = session.userId;
-    (req as AuthRequest).user = { id: session.userId };
+    (req as AuthRequest).userId = session.ip; // Admin doesn't have userId
     next();
     return;
   }
 
   // Проверка JWT токена
-  if (isTokenRevoked(token)) {
-    res.status(401).json({ error: 'Токен отозван' });
-    return;
-  }
-
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as { userId: string; iat: number };
+    const decoded = jwt.verify(token, config.jwtSecret) as AccessTokenPayload;
     
-    // Проверка времени жизни токена
-    const tokenAge = Date.now() / 1000 - decoded.iat;
-    const maxAge = config.sessionTimeoutHours * 60 * 60;
-    if (tokenAge > maxAge) {
-      res.status(401).json({ error: 'Токен истёк' });
+    if (decoded.type !== 'access') {
+      res.status(401).json({ error: 'Недействительный тип токена' });
+      return;
+    }
+
+    if (await isTokenRevoked(decoded.jti)) {
+      res.status(401).json({ error: 'Токен отозван' });
       return;
     }
     
     (req as AuthRequest).userId = decoded.userId;
     (req as AuthRequest).user = { id: decoded.userId };
+    if (decoded.fakeMode) {
+      (req as AuthRequest).fakeMode = true;
+    }
     next();
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: 'Токен истёк', code: 'TOKEN_EXPIRED' });
+      return;
+    }
     res.status(401).json({ error: 'Недействительный токен' });
     return;
   }
 }
 
 /**
- * SECURITY FIX: Создание админ-сессии
- */
-export function createAdminSession(userId: string): string {
-  const token = `admin-token-${Date.now()}-${crypto.randomBytes(32).toString('hex')}`;
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 часа
-  
-  const session: AdminSession = {
-    token,
-    userId,
-    createdAt: now,
-    expiresAt,
-    lastActivity: now,
-  };
-  
-  adminSessions.set(token, session);
-  
-  console.log(`[Auth] Admin session created for user ${userId}, expires at ${expiresAt.toISOString()}`);
-  
-  return token;
-}
-
-/**
- * SECURITY FIX: Удаление админ-сессии (выход)
- */
-export function deleteAdminSession(token: string): void {
-  adminSessions.delete(token);
-  console.log('[Auth] Admin session deleted');
-}
-
-/**
- * SECURITY FIX: Проверка прав администратора
+ * Проверка прав администратора
  */
 export async function isUserAdmin(userId: string): Promise<boolean> {
   try {
@@ -256,8 +246,6 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
       where: { id: userId },
       select: { email: true, id: true },
     });
-    
-    // SECURITY FIX: Проверка по email (в будущем заменить на role-based access control)
     return user?.email === 'admin@нексо.com';
   } catch (error) {
     console.error('[Auth] Error checking admin status:', error);

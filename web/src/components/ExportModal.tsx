@@ -16,8 +16,8 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const handleExport = async (type: 'all' | 'messages' | 'media') => {
     setExporting(type);
     try {
-      const endpoint = type === 'all' ? '/api/data-export' : `/api/data-export/${type}`;
-      const response = await api.request(endpoint);
+      const endpoint = type === 'all' ? '/data-export' : `/data-export/${type}`;
+      const response = await api.get(endpoint);
       const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

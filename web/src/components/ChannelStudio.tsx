@@ -6,6 +6,7 @@ import { useChatStore } from '../stores/chatStore';
 import { api } from '../lib/api';
 import { useLang } from '../lib/i18n';
 import Avatar from './Avatar';
+import BeaverIcon from './BeaverIcon';
 
 interface ChannelStudioProps {
   channelId: string;
@@ -462,9 +463,9 @@ export default function ChannelStudio({ channelId, onClose }: ChannelStudioProps
                     >
                       <div className="relative flex-shrink-0">
                         {member.user.avatar ? (
-                          <img src={member.user.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                          <img src={member.user.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
                             {(member.user.displayName || member.user.username || '?')[0].toUpperCase()}
                           </div>
                         )}
@@ -504,9 +505,9 @@ export default function ChannelStudio({ channelId, onClose }: ChannelStudioProps
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-nexo-500/20 rounded-full blur-[30px] pointer-events-none" />
                       <div className="relative z-10 p-1.5 rounded-full bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl">
                         {channel.avatar ? (
-                          <img src={channel.avatar} alt="" className="w-24 h-24 rounded-full object-cover shadow-inner" />
+                          <img src={channel.avatar} alt="" className="w-24 h-24 rounded-xl object-cover shadow-inner" />
                         ) : (
-                          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-inner">
+                          <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-inner">
                             {(channel.name || 'C')[0].toUpperCase()}
                           </div>
                         )}

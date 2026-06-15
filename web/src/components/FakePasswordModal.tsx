@@ -236,7 +236,7 @@ export default function FakePasswordModal({ onClose, embedded }: FakePasswordMod
                   >
                     <div className="w-8 h-8 rounded-full bg-indigo-500/30 flex items-center justify-center flex-shrink-0 text-sm">
                       {chat.avatar ? (
-                        <img src={chat.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                        <img src={chat.avatar} alt="" className="w-full h-full rounded-xl object-cover" />
                       ) : (
                         (chat.name || 'C')[0].toUpperCase()
                       )}

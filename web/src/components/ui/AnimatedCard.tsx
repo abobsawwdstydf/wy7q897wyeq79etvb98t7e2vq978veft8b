@@ -314,7 +314,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           <img
             src={avatar}
             alt={name}
-            className="w-24 h-24 rounded-full object-cover ring-4 ring-nexo-500/30"
+            className="w-24 h-24 rounded-xl object-cover ring-4 ring-nexo-500/30"
           />
           <div
             className="

@@ -139,7 +139,7 @@ router.post('/add-sticker', upload.single('photo') as any, async (req: AuthReque
       return res.status(400).json({ error: 'URL стикера обязателен' });
     }
 
-    let image = sharp(file.buffer);
+    const image = sharp(file.buffer);
 
     // Download sticker (if URL provided)
     // For now, we'll skip actual sticker overlay and just return the original

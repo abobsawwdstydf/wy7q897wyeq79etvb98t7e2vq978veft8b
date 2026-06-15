@@ -57,44 +57,45 @@ export const REDIS_INSTANCES = redisUrlsEnv
 
 export const config = {
   port: (() => {
-    // Ищем порт в аргументах командной строки (пропускаем -- и другие флаги)
     const portArg = process.argv.find((arg, i) => i > 1 && /^\d+$/.test(arg));
     return portArg ? Number(portArg) : Number(process.env.PORT) || 3001;
   })(),
-  // SECURITY: No fallback for JWT secret in production
-  jwtSecret: process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'нексо-dev-fallback-not-for-production'),
+  jwtSecret: process.env.JWT_SECRET || '',
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || '',
   corsOrigins: process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
     : ['http://localhost:6023', 'http://localhost:3000', 'http://localhost:3001', 'http://192.168.0.136:6023', 'http://192.168.0.136:3001', 'https://nexo.cloudpub.ru'],
   uploadsDir: 'uploads',
-  // Минимальная длина пароля
   minPasswordLength: 8,
   maxRegistrationsPerIp: Number(process.env.MAX_REGISTRATIONS_PER_IP) || 10,
-  // SECURITY: JWT token lifetime
   sessionTimeoutHours: Number(process.env.SESSION_TIMEOUT_HOURS) || (process.env.NODE_ENV === 'production' ? 72 : 999999),
+  accessTokenTtlMinutes: Number(process.env.ACCESS_TOKEN_TTL_MINUTES) || 15,
+  refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS) || 30,
   turnUrl: process.env.TURN_URL || '',
   turnSecret: process.env.TURN_SECRET || '',
   stunUrls: (process.env.STUN_URLS || 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302')
     .split(',').map(s => s.trim()).filter(Boolean),
-  // Storage mode: only 'local' now
   storageMode: 'local' as const,
-  // Database URL - Neon PostgreSQL
   databaseUrl: process.env.DATABASE_URL || '',
   databaseUrlBackup: process.env.DATABASE_URL_BACKUP || '',
-  // Redis - primary instance
   redisUrl: process.env.REDIS_URL || '',
-  // Redis - secondary instance (for sessions/cache)
   redisSessionUrl: process.env.REDIS_SESSION_URL || '',
-  // SECURITY: Session and security settings
   maxLoginAttempts: Number(process.env.MAX_LOGIN_ATTEMPTS) || 5,
   lockoutDurationMinutes: Number(process.env.LOCKOUT_DURATION_MINUTES) || 30,
-  // SECURITY: YooKassa webhook secret (required for payment verification)
   yukassaWebhookSecret: process.env.YUKASSA_WEBHOOK_SECRET || process.env.YUKASSA_SECRET_KEY || '',
+  cookieDomain: process.env.COOKIE_DOMAIN || '',
+  isProduction: process.env.NODE_ENV === 'production',
 };
 
 // SECURITY: Validate configuration
-if (!config.jwtSecret && process.env.NODE_ENV === 'production') {
-  throw new Error('SECURITY ERROR: JWT_SECRET is required in production');
+if (!config.jwtSecret) {
+  throw new Error('SECURITY ERROR: JWT_SECRET is required. Set it in .env file.');
+}
+if (config.jwtSecret.length < 32) {
+  throw new Error('SECURITY ERROR: JWT_SECRET must be at least 32 characters long');
+}
+if (config.jwtSecret === 'change-me-to-a-random-secret') {
+  throw new Error('SECURITY ERROR: You must change JWT_SECRET from the default value. Generate a strong random secret.');
 }
 
 // SECURITY: Log security configuration status (without exposing secrets)

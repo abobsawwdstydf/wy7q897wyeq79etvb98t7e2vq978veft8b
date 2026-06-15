@@ -67,13 +67,11 @@ export default function MarketplaceModal({ isOpen, onClose }: MarketplaceModalPr
   const loadServices = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/marketplace/services', {
-        params: {
-          category: selectedCategory !== 'all' ? selectedCategory : undefined,
-          sortBy,
-          search: searchQuery || undefined,
-        },
-      });
+      const qp = new URLSearchParams();
+      if (selectedCategory !== 'all') qp.set('category', selectedCategory);
+      qp.set('sortBy', sortBy);
+      if (searchQuery) qp.set('search', searchQuery);
+      const response = await api.get('/marketplace/services?' + qp.toString());
       setServices(response.data);
     } catch (error) {
       console.error('Error loading services:', error);
@@ -108,7 +106,7 @@ export default function MarketplaceModal({ isOpen, onClose }: MarketplaceModalPr
 
   const handlePurchase = async (serviceId: string) => {
     try {
-      await api.post(`/marketplace/services/${serviceId}/purchase`);
+      await api.post(`/marketplace/services/${serviceId}/purchase`, {});
       alert('Заказ создан! Средства заморожены в эскроу до завершения работы.');
       setTab('orders');
     } catch (error: any) {
@@ -386,7 +384,7 @@ export default function MarketplaceModal({ isOpen, onClose }: MarketplaceModalPr
                           <button
                             onClick={async () => {
                               try {
-                                await api.post(`/marketplace/orders/${order.id}/complete`);
+                                await api.post(`/marketplace/orders/${order.id}/complete`, {});
                                 loadOrders();
                               } catch (error: any) {
                                 alert(error.response?.data?.error || 'Ошибка');

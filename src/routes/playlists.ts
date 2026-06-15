@@ -199,7 +199,7 @@ router.post('/:id/tracks', authenticateToken, async (req: AuthRequest, res) => {
     const track = await prisma.playlistTrack.create({
       data: {
         playlistId: id,
-        addedBy: userId,
+        addedById: userId,
         title: title.trim().slice(0, 200),
         artist: artist?.trim().slice(0, 100),
         url: url.trim(),
@@ -236,7 +236,7 @@ router.delete('/:id/tracks/:trackId', authenticateToken, async (req: AuthRequest
     });
 
     // Can remove if: owner, or added the track, or has edit rights
-    const canRemove = playlist?.ownerId === userId || track.addedBy === userId || (member?.canEdit ?? false);
+    const canRemove = playlist?.ownerId === userId || track.addedById === userId || (member?.canEdit ?? false);
     if (!canRemove) {
       res.status(403).json({ error: 'Нет прав' });
       return;

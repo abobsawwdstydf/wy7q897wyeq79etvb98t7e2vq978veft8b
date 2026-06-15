@@ -5,6 +5,11 @@ import { AuthRequest } from '../middleware/auth';
 import { SENDER_SELECT, MESSAGE_INCLUDE, uploadFile, deleteUploadedFile } from '../shared';
 import { localStorage } from '../lib/localStorage';
 import { validateFileType, validateFileSize, validateTotalUploadSize, sanitizeFilename } from '../lib/fileValidator';
+import {
+  sanitizeText,
+  validateContentLength,
+  CONTENT_LIMITS,
+} from '../lib/sanitize';
 
 const router = Router();
 
@@ -233,10 +238,20 @@ router.put('/:id', async (req: AuthRequest, res) => {
     const { content } = req.body;
     const id = String(req.params.id);
 
-    if (!content || typeof content !== 'string' || content.length > 10000) {
-      res.status(400).json({ error: 'Содержимое обязательно и не должно превышать 10000 символов' });
+    if (!content || typeof content !== 'string') {
+      res.status(400).json({ error: 'Содержимое обязательно' });
       return;
     }
+
+    // SECURITY: Content length validation
+    const contentLengthCheck = validateContentLength(content, CONTENT_LIMITS.MESSAGE);
+    if (!contentLengthCheck.valid) {
+      res.status(400).json({ error: contentLengthCheck.error });
+      return;
+    }
+
+    // SECURITY: Sanitize content
+    const sanitizedContent = sanitizeText(content);
 
     const message = await prisma.message.findUnique({ 
       where: { id },
@@ -276,7 +291,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 
     const updated = await prisma.message.update({
       where: { id },
-      data: { content, isEdited: true },
+      data: { content: sanitizedContent, isEdited: true },
       include: MESSAGE_INCLUDE,
     });
 

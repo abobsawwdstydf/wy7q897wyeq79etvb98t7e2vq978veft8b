@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 import { AuthRequest } from '../middleware/auth';
 import { USER_SELECT, SENDER_SELECT, uploadGroupAvatar, deleteUploadedFile, encryptUploadedFile } from '../shared';
+import { sanitizeText, validateContentLength, CONTENT_LIMITS } from '../lib/sanitize';
 
 const router = Router();
 
@@ -237,8 +238,9 @@ router.post('/group', async (req: AuthRequest, res) => {
       return;
     }
 
-    // Validate group name length
-    if (typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
+    // SECURITY: Sanitize and validate group name
+    const sanitizedName = sanitizeText(name);
+    if (sanitizedName.length === 0 || sanitizedName.length > CONTENT_LIMITS.CHAT_GROUP_NAME) {
       res.status(400).json({ error: 'Название группы должно быть от 1 до 100 символов' });
       return;
     }
@@ -254,7 +256,7 @@ router.post('/group', async (req: AuthRequest, res) => {
     const chat = await prisma.chat.create({
       data: {
         type: 'group',
-        name,
+        name: sanitizedName,
         members: {
           create: allMemberIds.map((uid) => ({
             userId: uid,
@@ -284,11 +286,15 @@ router.post('/channel', async (req: AuthRequest, res) => {
       return;
     }
 
-    // Validate channel name length
-    if (name.trim().length === 0 || name.length > 100) {
+    // SECURITY: Sanitize and validate channel name
+    const sanitizedName = sanitizeText(name);
+    if (sanitizedName.length === 0 || sanitizedName.length > CONTENT_LIMITS.CHAT_GROUP_NAME) {
       res.status(400).json({ error: 'Название канала должно быть от 1 до 100 символов' });
       return;
     }
+
+    // SECURITY: Sanitize description
+    const sanitizedDescription = description ? sanitizeText(description) : null;
 
     // Username is required
     if (!username || typeof username !== 'string') {
@@ -312,9 +318,9 @@ router.post('/channel', async (req: AuthRequest, res) => {
     const chat = await prisma.chat.create({
       data: {
         type: 'channel',
-        name,
+        name: sanitizedName,
         username,
-        description: description || null,
+        description: sanitizedDescription,
         avatar: avatar || null,
         members: {
           create: {
@@ -478,11 +484,11 @@ router.put('/:id', async (req: AuthRequest, res) => {
     }
 
     const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
+    if (name !== undefined) updateData.name = sanitizeText(name);
+    if (description !== undefined) updateData.description = description ? sanitizeText(description) : null;
     if (slowModeInterval !== undefined) updateData.slowModeInterval = slowModeInterval;
-    if (welcomeMessage !== undefined) updateData.welcomeMessage = welcomeMessage;
-    if (rules !== undefined) updateData.rules = rules;
+    if (welcomeMessage !== undefined) updateData.welcomeMessage = welcomeMessage ? sanitizeText(welcomeMessage) : null;
+    if (rules !== undefined) updateData.rules = rules ? sanitizeText(rules) : null;
     if (canMembersPost !== undefined) updateData.canMembersPost = canMembersPost;
     if (canMembersInvite !== undefined) updateData.canMembersInvite = canMembersInvite;
     

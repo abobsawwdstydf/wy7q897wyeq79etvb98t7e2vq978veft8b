@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, Smartphone, Loader2 } from 'lucide-react';
+import { Check, X, Smartphone, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
 import WelcomeAnimation from '../components/WelcomeAnimation';
@@ -13,7 +13,7 @@ const ShimmerButton = motion.button;
 const SecondaryButton = motion.button;
 
 export default function DeviceAuthPage() {
-  const { token, user, loginWithToken } = useAuthStore();
+  const { user, login, loginWithToken } = useAuthStore();
   const [showWelcome, setShowWelcome] = useState(false);
   const [showWelcomeDone, setShowWelcomeDone] = useState(false);
   const [action, setAction] = useState<'idle' | 'confirming' | 'confirmed' | 'denied' | 'expired' | 'polling'>('idle');
@@ -21,6 +21,11 @@ export default function DeviceAuthPage() {
   const [tokenExpired, setTokenExpired] = useState(false);
   const [createdAt, setCreatedAt] = useState<number>(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -39,7 +44,7 @@ export default function DeviceAuthPage() {
           setTokenExpired(true);
           setAction('expired');
         }
-      } else if (!token || !user) {
+      } else if (!user) {
         setAction('polling');
         startPolling(dt);
       }
@@ -59,7 +64,7 @@ export default function DeviceAuthPage() {
     pollRef.current = setInterval(async () => {
       try {
         const result = await api.get(`/auth/device/check?device=${dt}`);
-        if (result && result.confirmed && result.token && result.user) {
+        if (result && result.confirmed && result.user) {
           if (pollRef.current) clearInterval(pollRef.current);
           localStorage.setItem(`nexo_device_${dt}`, JSON.stringify({ ts: Date.now() }));
           loginWithToken(result.token, result.user);
@@ -217,7 +222,33 @@ export default function DeviceAuthPage() {
     );
   }
 
-  if (!token || !user) {
+  if (!user) {
+    const formatPhone = (value: string) => {
+      const cleaned = value.replace(/[^\d+]/g, '');
+      if (cleaned.startsWith('8') && cleaned.length === 1) return '+7';
+      if (cleaned.startsWith('8') && cleaned.length > 1) return '+7' + cleaned.slice(1);
+      if (!cleaned.startsWith('+') && cleaned.length > 0) return '+' + cleaned;
+      return cleaned;
+    };
+
+    const handleLogin = async () => {
+      const formattedPhone = formatPhone(loginPhone);
+      if (!formattedPhone || !loginPassword) return;
+      setLoginLoading(true);
+      setLoginError('');
+      try {
+        await login(formattedPhone, loginPassword);
+        setAction('idle');
+        if (deviceToken) {
+          startPolling(deviceToken);
+        }
+        setLoginLoading(false);
+      } catch (err: any) {
+        setLoginError(err.message || 'Ошибка входа');
+        setLoginLoading(false);
+      }
+    };
+
     return (
       <AuthShell>
         <AuthCard className="max-w-sm w-full mx-4">
@@ -226,7 +257,7 @@ export default function DeviceAuthPage() {
               <AuthLogo size="lg" />
             </div>
             <h1
-              className="text-4xl font-black mb-2 tracking-tight"
+              className="text-3xl font-black mb-2 tracking-tight"
               style={{
                 background: 'linear-gradient(135deg, #ffffff 0%, #c7d2fe 50%, #818cf8 100%)',
                 WebkitBackgroundClip: 'text',
@@ -238,37 +269,57 @@ export default function DeviceAuthPage() {
             >
               Нексо
             </h1>
-            <p className="text-white/40 text-[14px] mt-2 mb-1">
+            <p className="text-white/40 text-[13px] mt-2 mb-5">
               Войдите, чтобы подтвердить вход на другом устройстве
             </p>
-            <p className="text-[11px] text-white/30 mb-7">Ссылка действительна 5 минут</p>
 
-            <div className="flex flex-col gap-2.5">
+            <div className="space-y-3 text-left">
+              <div className="relative">
+                <span className="text-[12px] text-white/40 ml-1 mb-1 block">Телефон</span>
+                <input
+                  type="tel"
+                  value={loginPhone}
+                  onChange={(e) => setLoginPhone(e.target.value)}
+                  placeholder="+79991234567"
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none text-sm"
+                />
+              </div>
+              <div className="relative">
+                <span className="text-[12px] text-white/40 ml-1 mb-1 block">Пароль</span>
+                <input
+                  type={showLoginPassword ? 'text' : 'password'}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                  placeholder="Введите пароль"
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:border-[#6366f1]/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-[#6366f1]/20 transition-all outline-none text-sm pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute right-3 bottom-3 text-white/30 hover:text-white/70"
+                >
+                  {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              {loginError && (
+                <p className="text-red-400 text-xs text-center">{loginError}</p>
+              )}
+
               <ShimmerButton
                 whileHover={{
                   scale: 1.01,
                   boxShadow: '0 0 30px rgba(99,102,241,0.4), 0 8px 24px rgba(0,0,0,0.3)',
                 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => (window.location.href = '/')}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 relative overflow-hidden"
+                onClick={handleLogin}
+                disabled={loginLoading || !loginPhone || !loginPassword}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white font-semibold text-[14px] flex items-center justify-center gap-2 relative overflow-hidden disabled:opacity-50"
                 style={authPrimaryButtonStyle}
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
-                Войти
+                {loginLoading ? <Loader2 size={18} className="animate-spin" /> : <><Lock size={18} /> Войти</>}
               </ShimmerButton>
-              <SecondaryButton
-                whileHover={{
-                  scale: 1.01,
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  borderColor: 'rgba(255,255,255,0.16)',
-                }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => (window.location.href = '/')}
-                className="w-full py-3 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white font-semibold text-[14px] flex items-center justify-center gap-2 transition-all"
-              >
-                Регистрация
-              </SecondaryButton>
             </div>
           </div>
         </AuthCard>

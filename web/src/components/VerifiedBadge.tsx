@@ -1,5 +1,5 @@
 interface VerifiedBadgeProps {
-  size?: 'xs' | 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   verifiedBadgeUrl?: string | null;
   verifiedBadgeType?: string | null;
 }
@@ -9,6 +9,7 @@ const sizeMap = {
   sm: 'w-3.5 h-3.5',
   md: 'w-7 h-7',
   lg: 'w-12 h-12',
+  xl: 'w-16 h-16',
 };
 
 export default function VerifiedBadge({ size = 'sm', verifiedBadgeUrl, verifiedBadgeType }: VerifiedBadgeProps) {

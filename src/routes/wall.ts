@@ -4,6 +4,14 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
+import {
+  sanitizeText,
+  validateContentLength,
+  CONTENT_LIMITS,
+  wallPostLimiter,
+  wallReactionLimiter,
+  wallCommentLimiter,
+} from '../lib/sanitize';
 
 const router = Router();
 
@@ -20,128 +28,192 @@ const storage = multer.diskStorage({
   }
 });
 
+const ALLOWED_WALL_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp',
+  'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo',
+  'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/wav', 'audio/webm',
+  'audio/aac', 'audio/mp4', 'audio/x-m4a', 'application/ogg',
+  'application/pdf',
+  'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed',
+  'text/plain', 'text/csv',
+];
+
+const WALL_MAX_FILE_SIZE = 3 * 1024 * 1024 * 1024; // 3 GB
+const WALL_MAX_TOTAL_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB total per request
+
+function sanitizeUploadFilename(filename: string): string {
+  let sanitized = path.basename(filename);
+  sanitized = sanitized.replace(/[<>:"|?*]/g, '_');
+  for (let i = 0; i < sanitized.length; i++) {
+    const code = sanitized.charCodeAt(i);
+    if (code >= 0x00 && code <= 0x1f) {
+      sanitized = sanitized.substring(0, i) + '_' + sanitized.substring(i + 1);
+    }
+  }
+  if (sanitized.length > 255) {
+    const ext = path.extname(sanitized);
+    sanitized = sanitized.substring(0, 255 - ext.length) + ext;
+  }
+  return sanitized;
+}
+
 const upload = multer({
   storage,
   limits: {
-    fileSize: 3 * 1024 * 1024 * 1024, // 3 GB для видео
+    fileSize: WALL_MAX_FILE_SIZE,
+    files: 10,
   },
   fileFilter: (req, file, cb) => {
-    // Разрешаем все типы файлов для стены
-    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|webm|ogg|avi|mov|mp3|wav|m4a|aac|flac|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|zip|rar|7z/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    
-    // Проверяем MIME type более гибко
-    const allowedMimeTypes = [
-      'image/', 'video/', 'audio/', 
-      'application/pdf', 'application/msword', 'application/vnd.', 
-      'text/', 'application/zip', 'application/x-rar', 'application/x-7z-compressed'
-    ];
-    const mimetypeAllowed = allowedMimeTypes.some(type => file.mimetype.startsWith(type));
-    
-    if (mimetypeAllowed || extname) {
+    const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
+    const allowedExts = ['jpg','jpeg','png','gif','webp','svg','bmp','mp4','webm','mov','avi','mkv',
+      'mp3','ogg','opus','wav','m4a','aac','flac','pdf','doc','docx','xls','xlsx','ppt','pptx',
+      'txt','csv','zip','rar','7z'];
+    const extAllowed = allowedExts.includes(ext);
+    const mimeAllowed = ALLOWED_WALL_MIME_TYPES.includes(file.mimetype.split(';')[0].trim().toLowerCase());
+
+    if (mimeAllowed || extAllowed) {
       return cb(null, true);
     }
     cb(new Error('Неподдерживаемый тип файла'));
   }
 });
 
-// GET /api/wall/feed - получить ленту постов (умная сортировка)
+function validateWallUploadTotalSize(files: Express.Multer.File[]): { valid: boolean; error?: string } {
+  const total = files.reduce((sum, f) => sum + f.size, 0);
+  if (total > WALL_MAX_TOTAL_SIZE) {
+    return { valid: false, error: `Общий размер файлов слишком большой. Максимум: ${Math.round(WALL_MAX_TOTAL_SIZE / 1024 / 1024 / 1024)} GB` };
+  }
+  return { valid: true };
+}
+
+// GET /api/wall/feed - получить ленту постов (умная сортировка, cursor-based pagination)
 router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    const { offset = '0', limit = '20' } = req.query;
-    const skip = parseInt(offset as string);
-    const take = parseInt(limit as string);
+    const { cursor, limit = '20' } = req.query;
+    const take = Math.min(parseInt(limit as string), 50);
+    const fetchSize = take * 3; // Запрашиваем 3x для чередования 1 популярный + 2 новых
 
-    // Получаем все посты с медиа, реакциями и комментариями
-    const allPosts = await prisma.wallPost.findMany({
-      include: {
-        media: {
-          orderBy: { order: 'asc' }
-        },
-        reactions: {
-          include: {
-            post: false
-          }
-        },
-        comments: {
-          include: {
-            replies: true
-          }
-        }
-      },
-      orderBy: [
-        { viewsCount: 'desc' },
-        { createdAt: 'desc' }
-      ]
-    });
-
-    // Умная сортировка: 1 популярный, 2 новых, 1 популярный, 2 новых...
-    const popularPosts = allPosts.filter((_, i) => i % 3 === 0);
-    const newPosts = allPosts.filter((_, i) => i % 3 !== 0);
-    
-    const smartFeed: any[] = [];
-    let popIndex = 0;
-    let newIndex = 0;
-    
-    while (popIndex < popularPosts.length || newIndex < newPosts.length) {
-      // Добавляем 1 популярный
-      if (popIndex < popularPosts.length) {
-        smartFeed.push(popularPosts[popIndex++]);
-      }
-      // Добавляем 2 новых
-      for (let i = 0; i < 2 && newIndex < newPosts.length; i++) {
-        smartFeed.push(newPosts[newIndex++]);
+    // Проход 1: популярные посты (по просмотрам)
+    const popularWhere: any = {};
+    if (cursor) {
+      // Находим позицию курсора по viewsCount и createdAt
+      const cursorPost = await prisma.wallPost.findUnique({ where: { id: cursor as string }, select: { viewsCount: true, createdAt: true } });
+      if (cursorPost) {
+        popularWhere.OR = [
+          { viewsCount: { lt: cursorPost.viewsCount } },
+          { viewsCount: cursorPost.viewsCount, createdAt: { lt: cursorPost.createdAt } }
+        ];
       }
     }
 
-    // Пагинация
-    const paginatedFeed = smartFeed.slice(skip, skip + take);
+    const popularPosts = await prisma.wallPost.findMany({
+      where: popularWhere,
+      select: {
+        id: true, authorId: true, content: true, fontStyle: true,
+        viewsCount: true, createdAt: true, updatedAt: true, originalPostId: true,
+        media: { select: { id: true, type: true, url: true, thumbnail: true, duration: true, size: true, order: true }, orderBy: { order: 'asc' as const } },
+        _count: { select: { reactions: true, comments: true } }
+      },
+      orderBy: [{ viewsCount: 'desc' as const }, { createdAt: 'desc' as const }],
+      take: fetchSize
+    });
+
+    // Проход 2: новые посты (по дате)
+    const recentWhere: any = {};
+    if (cursor) {
+      const cursorPost = await prisma.wallPost.findUnique({ where: { id: cursor as string }, select: { createdAt: true } });
+      if (cursorPost) {
+        recentWhere.createdAt = { lt: cursorPost.createdAt };
+      }
+    }
+
+    const recentPosts = await prisma.wallPost.findMany({
+      where: recentWhere,
+      select: {
+        id: true, authorId: true, content: true, fontStyle: true,
+        viewsCount: true, createdAt: true, updatedAt: true, originalPostId: true,
+        media: { select: { id: true, type: true, url: true, thumbnail: true, duration: true, size: true, order: true }, orderBy: { order: 'asc' as const } },
+        _count: { select: { reactions: true, comments: true } }
+      },
+      orderBy: { createdAt: 'desc' as const },
+      take: fetchSize
+    });
+
+    // Дедупликация и умное чередование: 1 популярный + 2 новых
+    const seenIds = new Set<string>();
+    const uniquePopular: any[] = [];
+    const uniqueRecent: any[] = [];
+
+    for (const p of popularPosts) {
+      if (!seenIds.has(p.id)) { seenIds.add(p.id); uniquePopular.push(p); }
+    }
+    for (const p of recentPosts) {
+      if (!seenIds.has(p.id)) { seenIds.add(p.id); uniqueRecent.push(p); }
+    }
+
+    const smartFeed: any[] = [];
+    let popIdx = 0;
+    let recIdx = 0;
+    while (popIdx < uniquePopular.length || recIdx < uniqueRecent.length) {
+      if (popIdx < uniquePopular.length) smartFeed.push(uniquePopular[popIdx++]);
+      for (let i = 0; i < 2 && recIdx < uniqueRecent.length; i++) {
+        smartFeed.push(uniqueRecent[recIdx++]);
+      }
+    }
+
+    // Пагинация по результату
+    const page = smartFeed.slice(0, take);
+    const nextCursor = page.length === take ? page[page.length - 1].id : null;
+
+    if (page.length === 0) {
+      return res.json({ posts: [], nextCursor: null });
+    }
+
+    // Получаем реакции текущего пользователя для страницы
+    const postIds = page.map((p: any) => p.id);
+    const userReactions = await prisma.wallPostReaction.findMany({
+      where: { postId: { in: postIds }, userId },
+      select: { postId: true, emoji: true }
+    });
+    const userReactionMap = new Map(userReactions.map(r => [r.postId, r.emoji]));
 
     // Получаем информацию об авторах
-    const authorIds = [...new Set(paginatedFeed.map(p => p.authorId))];
+    const authorIds = [...new Set(page.map((p: any) => p.authorId))];
     const authors = await prisma.user.findMany({
       where: { id: { in: authorIds } },
       select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatar: true,
-        isVerified: true,
-        verifiedBadgeUrl: true,
-        subscribersCount: true
+        id: true, username: true, displayName: true, avatar: true,
+        isVerified: true, verifiedBadgeUrl: true, subscribersCount: true
       }
     });
-
     const authorsMap = new Map(authors.map(a => [a.id, a]));
 
-    // Форматируем посты
-    const formattedPosts = paginatedFeed.map(post => ({
-      ...post,
-      author: authorsMap.get(post.authorId),
-      reactionsCount: post.reactions.length,
-      commentsCount: post.comments.length,
-      userReaction: post.reactions.find((r: any) => r.userId === userId)?.emoji || null
-    }));
-
-    // Проверяем подписки на авторов
+    // Проверяем подписки
     const subscriptions = await prisma.wallSubscription.findMany({
-      where: {
-        subscriberId: userId,
-        targetId: { in: authorIds }
-      }
+      where: { subscriberId: userId, targetId: { in: authorIds } },
+      select: { targetId: true }
     });
     const subscribedIds = new Set(subscriptions.map(s => s.targetId));
 
-    const postsWithSubscription = formattedPosts.map(post => ({
-      ...post,
+    // Форматируем посты
+    const formattedPosts = page.map((post: any) => ({
+      id: post.id, authorId: post.authorId, content: post.content,
+      fontStyle: post.fontStyle, viewsCount: post.viewsCount,
+      originalPostId: post.originalPostId,
+      createdAt: post.createdAt, updatedAt: post.updatedAt,
+      media: post.media,
+      author: authorsMap.get(post.authorId),
+      reactionsCount: post._count.reactions,
+      commentsCount: post._count.comments,
+      userReaction: userReactionMap.get(post.id) || null,
       isSubscribed: subscribedIds.has(post.authorId)
     }));
 
-    res.json({
-      posts: postsWithSubscription,
-      hasMore: skip + take < smartFeed.length
-    });
+    res.json({ posts: formattedPosts, nextCursor });
   } catch (error) {
     console.error('Error fetching wall feed:', error);
     res.status(500).json({ error: 'Ошибка загрузки ленты' });
@@ -345,7 +417,7 @@ router.get('/user/:userId', authenticateToken, async (req: AuthRequest, res) => 
 });
 
 // POST /api/wall/post - создать новый пост
-router.post('/post', authenticateToken, upload.fields([
+router.post('/post', authenticateToken, wallPostLimiter, upload.fields([
   { name: 'photos', maxCount: 2 },
   { name: 'videos', maxCount: 1 },
   { name: 'audios', maxCount: 1 },
@@ -357,11 +429,32 @@ router.post('/post', authenticateToken, upload.fields([
     const { content, fontStyle } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
+    // SECURITY: Content length validation
+    const contentLengthCheck = validateContentLength(content, CONTENT_LIMITS.WALL_POST);
+    if (!contentLengthCheck.valid) {
+      return res.status(400).json({ error: contentLengthCheck.error });
+    }
+
+    // SECURITY: Validate total upload size across all fields
+    const allFiles: Express.Multer.File[] = [];
+    for (const field of Object.values(files || {})) {
+      allFiles.push(...field);
+    }
+    if (allFiles.length > 0) {
+      const totalSizeCheck = validateWallUploadTotalSize(allFiles);
+      if (!totalSizeCheck.valid) {
+        return res.status(413).json({ error: totalSizeCheck.error });
+      }
+    }
+
+    // SECURITY: Sanitize content
+    const sanitizedContent = content ? sanitizeText(content) : null;
+
     // Создаем пост
     const post = await prisma.wallPost.create({
       data: {
         authorId: userId,
-        content: content || null,
+        content: sanitizedContent,
         fontStyle: fontStyle || null
       }
     });
@@ -455,9 +548,9 @@ router.post('/post', authenticateToken, upload.fields([
     await Promise.all(mediaPromises);
 
     // Обработка хэштегов
-    if (content) {
+    if (sanitizedContent) {
       const hashtagRegex = /#(\w+)/g;
-      const hashtags = [...content.matchAll(hashtagRegex)].map(m => m[1]);
+      const hashtags = [...sanitizedContent.matchAll(hashtagRegex)].map(m => m[1]);
       
       for (const tag of hashtags) {
         // Проверяем, существует ли хэштег
@@ -498,9 +591,9 @@ router.post('/post', authenticateToken, upload.fields([
     }
 
     // Обработка упоминаний
-    if (content) {
+    if (sanitizedContent) {
       const mentionRegex = /@(\w+)/g;
-      const mentions = [...content.matchAll(mentionRegex)].map(m => m[1]);
+      const mentions = [...sanitizedContent.matchAll(mentionRegex)].map(m => m[1]);
       
       for (const username of mentions) {
         // Находим пользователя
@@ -609,7 +702,7 @@ router.post('/post/:postId/view', authenticateToken, async (req: AuthRequest, re
 });
 
 // POST /api/wall/post/:postId/react - добавить/удалить реакцию
-router.post('/post/:postId/react', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/post/:postId/react', authenticateToken, wallReactionLimiter, async (req: AuthRequest, res) => {
   try {
     const { postId } = req.params;
     const userId = req.userId!;
@@ -684,7 +777,7 @@ router.get('/post/:postId/reactions', authenticateToken, async (req: AuthRequest
 });
 
 // POST /api/wall/post/:postId/comment - добавить комментарий
-router.post('/post/:postId/comment', authenticateToken, upload.fields([
+router.post('/post/:postId/comment', authenticateToken, wallCommentLimiter, upload.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'voice', maxCount: 1 }
 ]), async (req: AuthRequest, res) => {
@@ -694,9 +787,18 @@ router.post('/post/:postId/comment', authenticateToken, upload.fields([
     const { content, parentId } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
+    // SECURITY: Content length validation
+    const contentLengthCheck = validateContentLength(content, CONTENT_LIMITS.WALL_COMMENT);
+    if (!contentLengthCheck.valid) {
+      return res.status(400).json({ error: contentLengthCheck.error });
+    }
+
+    // SECURITY: Sanitize content
+    const sanitizedContent = content ? sanitizeText(content) : null;
+
     let photoUrl = null;
     let voiceUrl = null;
-    let voiceDuration = null;
+    const voiceDuration = null;
 
     if (files.photo && files.photo[0]) {
       photoUrl = `/uploads/wall/${files.photo[0].filename}`;
@@ -712,7 +814,7 @@ router.post('/post/:postId/comment', authenticateToken, upload.fields([
         postId,
         authorId: userId,
         parentId: parentId || null,
-        content: content || null,
+        content: sanitizedContent,
         photoUrl,
         voiceUrl,
         voiceDuration
@@ -744,23 +846,40 @@ router.post('/post/:postId/comment', authenticateToken, upload.fields([
   }
 });
 
-// GET /api/wall/post/:postId/comments - получить комментарии поста
+// GET /api/wall/post/:postId/comments - получить комментарии поста (с пагинацией)
 router.get('/post/:postId/comments', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { postId } = req.params;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const sort = (req.query.sort as string) === 'popular' ? 'popular' : 'newest';
 
-    const comments = await prisma.wallPostComment.findMany({
-      where: {
-        postId,
-        parentId: null // Только корневые комментарии
-      },
-      include: {
-        replies: {
-          orderBy: { createdAt: 'asc' }
+    const orderBy = sort === 'popular'
+      ? { replies: { _count: 'desc' as const } }
+      : { createdAt: 'desc' as const };
+
+    const [comments, total] = await Promise.all([
+      prisma.wallPostComment.findMany({
+        where: {
+          postId,
+          parentId: null
+        },
+        include: {
+          replies: {
+            orderBy: { createdAt: 'asc' }
+          }
+        },
+        orderBy,
+        skip: offset,
+        take: limit
+      }),
+      prisma.wallPostComment.count({
+        where: {
+          postId,
+          parentId: null
         }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+      })
+    ]);
 
     // Получаем информацию об авторах
     const authorIds = [
@@ -794,83 +913,86 @@ router.get('/post/:postId/comments', authenticateToken, async (req: AuthRequest,
       }))
     }));
 
-    res.json(formattedComments);
+    res.json({ comments: formattedComments, total });
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json({ error: 'Ошибка загрузки комментариев' });
   }
 });
 
-// GET /api/wall/search - поиск по постам
+// GET /api/wall/search - поиск по постам (cursor-based pagination)
 router.get('/search', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { q, offset = '0', limit = '20' } = req.query;
-    const skip = parseInt(offset as string);
-    const take = parseInt(limit as string);
+    const { q, cursor, limit = '20' } = req.query;
+    const take = Math.min(parseInt(limit as string), 50);
 
     if (!q || typeof q !== 'string') {
       return res.status(400).json({ error: 'Поисковый запрос обязателен' });
     }
 
+    const where: any = { content: { contains: q } };
+    if (cursor) {
+      const cursorPost = await prisma.wallPost.findUnique({
+        where: { id: cursor as string },
+        select: { createdAt: true }
+      });
+      if (cursorPost) {
+        where.createdAt = { lt: cursorPost.createdAt };
+      }
+    }
+
     const posts = await prisma.wallPost.findMany({
-      where: {
-        content: {
-          contains: q
-        }
+      where,
+      select: {
+        id: true, authorId: true, content: true, fontStyle: true,
+        viewsCount: true, createdAt: true, updatedAt: true, originalPostId: true,
+        media: { select: { id: true, type: true, url: true, thumbnail: true, duration: true, size: true, order: true }, orderBy: { order: 'asc' as const } },
+        _count: { select: { reactions: true, comments: true } }
       },
-      include: {
-        media: {
-          orderBy: { order: 'asc' }
-        },
-        reactions: true,
-        comments: {
-          include: {
-            replies: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take
+      orderBy: { createdAt: 'desc' as const },
+      take: take + 1 // +1 чтобы определить hasMore
     });
 
-    // Получаем информацию об авторах
-    const authorIds = [...new Set(posts.map(p => p.authorId))];
+    const hasMore = posts.length > take;
+    const page = hasMore ? posts.slice(0, take) : posts;
+    const nextCursor = hasMore ? page[page.length - 1].id : null;
+
+    if (page.length === 0) {
+      return res.json({ posts: [], nextCursor: null });
+    }
+
+    // Реакции текущего пользователя
+    const postIds = page.map(p => p.id);
+    const userReactions = await prisma.wallPostReaction.findMany({
+      where: { postId: { in: postIds }, userId: req.userId! },
+      select: { postId: true, emoji: true }
+    });
+    const userReactionMap = new Map(userReactions.map(r => [r.postId, r.emoji]));
+
+    // Авторы
+    const authorIds = [...new Set(page.map(p => p.authorId))];
     const authors = await prisma.user.findMany({
       where: { id: { in: authorIds } },
       select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatar: true,
-        isVerified: true,
-        verifiedBadgeUrl: true,
-        subscribersCount: true
+        id: true, username: true, displayName: true, avatar: true,
+        isVerified: true, verifiedBadgeUrl: true, subscribersCount: true
       }
     });
-
     const authorsMap = new Map(authors.map(a => [a.id, a]));
 
-    const formattedPosts = posts.map(post => ({
-      ...post,
+    const formattedPosts = page.map(post => ({
+      id: post.id, authorId: post.authorId, content: post.content,
+      fontStyle: post.fontStyle, viewsCount: post.viewsCount,
+      originalPostId: post.originalPostId,
+      createdAt: post.createdAt, updatedAt: post.updatedAt,
+      media: post.media,
       author: authorsMap.get(post.authorId),
-      reactionsCount: post.reactions.length,
-      commentsCount: post.comments.length,
-      userReaction: post.reactions.find(r => r.userId === req.userId!)?.emoji || null
+      reactionsCount: post._count.reactions,
+      commentsCount: post._count.comments,
+      userReaction: userReactionMap.get(post.id) || null
     }));
 
-    const total = await prisma.wallPost.count({
-      where: {
-        content: {
-          contains: q
-        }
-      }
-    });
-
-    res.json({
-      posts: formattedPosts,
-      hasMore: skip + take < total
-    });
+    res.json({ posts: formattedPosts, nextCursor });
   } catch (error) {
     console.error('Error searching posts:', error);
     res.status(500).json({ error: 'Ошибка поиска постов' });
@@ -1108,12 +1230,11 @@ router.post('/post/:postId/share', authenticateToken, async (req: AuthRequest, r
 
     const post = await prisma.wallPost.findUnique({
       where: { id: postId },
-      include: {
-        media: true,
-        reactions: true,
-        comments: true,
-        hashtags: true,
-        mentions: true
+      select: {
+        id: true, authorId: true, content: true, fontStyle: true,
+        viewsCount: true, createdAt: true, originalPostId: true,
+        media: { select: { id: true, type: true, url: true, thumbnail: true, duration: true, size: true, order: true } },
+        _count: { select: { reactions: true, comments: true } }
       }
     });
 
@@ -1121,16 +1242,18 @@ router.post('/post/:postId/share', authenticateToken, async (req: AuthRequest, r
       return res.status(404).json({ error: 'Пост не найден' });
     }
 
-    // Создаем репост (новый пост со ссылкой на оригинал)
+    // Создаем репост со ссылкой на оригинал
     const sharePost = await prisma.wallPost.create({
       data: {
         authorId: userId,
         content: `Поделился постом`,
+        originalPostId: postId
       },
-      include: {
-        media: true,
-        reactions: true,
-        comments: true
+      select: {
+        id: true, authorId: true, content: true, fontStyle: true,
+        viewsCount: true, createdAt: true, updatedAt: true, originalPostId: true,
+        media: { select: { id: true, type: true, url: true, thumbnail: true, duration: true, size: true, order: true } },
+        _count: { select: { reactions: true, comments: true } }
       }
     });
 
@@ -1138,12 +1261,8 @@ router.post('/post/:postId/share', authenticateToken, async (req: AuthRequest, r
     const author = await prisma.user.findUnique({
       where: { id: userId },
       select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatar: true,
-        isVerified: true,
-        verifiedBadgeUrl: true
+        id: true, username: true, displayName: true, avatar: true,
+        isVerified: true, verifiedBadgeUrl: true
       }
     });
 

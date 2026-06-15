@@ -1,6 +1,6 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Image, Mic, Loader2, Play, Pause, X } from 'lucide-react';
+import { Send, Image, Mic, Loader2, Play, Pause, X, ArrowUpDown, Clock, TrendingUp, ChevronDown } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
@@ -35,11 +35,16 @@ interface WallPostCommentsProps {
   onCommentAdded: () => void;
 }
 
+const PAGE_SIZE = 10;
+
 export default function WallPostComments({ postId, onCommentAdded }: WallPostCommentsProps) {
   const { user } = useAuthStore();
   const { error: showError } = useToastStore();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [sortBy, setSortBy] = useState<'newest' | 'popular'>('newest');
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -49,26 +54,42 @@ export default function WallPostComments({ postId, onCommentAdded }: WallPostCom
   const [submitting, setSubmitting] = useState(false);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [audioElements] = useState(new Map<string, HTMLAudioElement>());
-  
+  const [showSortMenu, setShowSortMenu] = useState(false);
+
   const photoInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Загрузить комментарии
-  useEffect(() => {
-    loadComments();
-  }, [postId]);
-
-  const loadComments = async () => {
+  const loadComments = useCallback(async (reset = true) => {
     try {
-      const data = await api.get(`/wall/post/${postId}/comments`);
-      setComments(data);
+      if (reset) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      const offset = reset ? 0 : comments.length;
+      const data = await api.get(
+        `/wall/post/${postId}/comments?offset=${offset}&limit=${PAGE_SIZE}&sort=${sortBy}`
+      );
+      if (reset) {
+        setComments(data.comments);
+      } else {
+        setComments(prev => [...prev, ...data.comments]);
+      }
+      setTotal(data.total);
     } catch (err) {
       console.error('Error loading comments:', err);
       showError('Ошибка загрузки комментариев');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [postId, sortBy, comments.length, showError]);
+
+  useEffect(() => {
+    loadComments(true);
+  }, [postId, sortBy]);
+
+  const hasMore = comments.length < total;
 
   // Запись голосового
   const startRecording = async () => {
@@ -129,7 +150,6 @@ export default function WallPostComments({ postId, onCommentAdded }: WallPostCom
       const newCommentData = await api.post(`/wall/post/${postId}/comment`, formData);
       
       if (replyTo) {
-        // Добавляем ответ к существующему комментарию
         setComments(prev => prev.map(c => {
           if (c.id === replyTo) {
             return {
@@ -140,8 +160,8 @@ export default function WallPostComments({ postId, onCommentAdded }: WallPostCom
           return c;
         }));
       } else {
-        // Добавляем новый корневой комментарий
         setComments(prev => [newCommentData, ...prev]);
+        setTotal(prev => prev + 1);
       }
 
       setNewComment('');
@@ -197,10 +217,10 @@ export default function WallPostComments({ postId, onCommentAdded }: WallPostCom
             <img
               src={comment.author.avatar}
               alt=""
-              className="w-8 h-8 rounded-full object-cover"
+              className="w-8 h-8 rounded-xl object-cover"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center">
               <span className="text-xs font-bold text-white">
                 {comment.author.displayName[0]?.toUpperCase() || comment.author.username[0]?.toUpperCase()}
               </span>
@@ -287,6 +307,49 @@ export default function WallPostComments({ postId, onCommentAdded }: WallPostCom
   return (
     <div className="border-t border-border bg-surface/50">
       <div className="p-4 space-y-4">
+        {/* Sort controls */}
+        {comments.length > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-zinc-500">
+              {total} {total === 1 ? 'комментарий' : total < 5 ? 'комментария' : 'комментариев'}
+            </span>
+            <div className="relative">
+              <button
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-surface-tertiary transition-colors"
+              >
+                <ArrowUpDown size={12} />
+                {sortBy === 'newest' ? 'Новые' : 'Популярные'}
+              </button>
+              {showSortMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-20 bg-surface-secondary border border-border rounded-xl shadow-lg overflow-hidden">
+                    <button
+                      onClick={() => { setSortBy('newest'); setShowSortMenu(false); }}
+                      className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors ${
+                        sortBy === 'newest' ? 'text-nexo-400 bg-nexo-500/10' : 'text-zinc-400 hover:text-white hover:bg-surface-tertiary'
+                      }`}
+                    >
+                      <Clock size={12} />
+                      Новые
+                    </button>
+                    <button
+                      onClick={() => { setSortBy('popular'); setShowSortMenu(false); }}
+                      className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors ${
+                        sortBy === 'popular' ? 'text-nexo-400 bg-nexo-500/10' : 'text-zinc-400 hover:text-white hover:bg-surface-tertiary'
+                      }`}
+                    >
+                      <TrendingUp size={12} />
+                      Популярные
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Comments list */}
         {loading ? (
           <div className="flex items-center justify-center py-4">
@@ -299,6 +362,21 @@ export default function WallPostComments({ postId, onCommentAdded }: WallPostCom
             <AnimatePresence>
               {comments.map(comment => renderComment(comment))}
             </AnimatePresence>
+
+            {hasMore && (
+              <button
+                onClick={() => loadComments(false)}
+                disabled={loadingMore}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-zinc-400 hover:text-white hover:bg-surface-tertiary transition-colors"
+              >
+                {loadingMore ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+                {loadingMore ? 'Загрузка...' : 'Загрузить ещё'}
+              </button>
+            )}
           </div>
         )}
 

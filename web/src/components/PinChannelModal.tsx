@@ -117,10 +117,10 @@ export default function PinChannelModal({ userId, currentPinnedChannelId, onPin,
                       <img
                         src={channel.avatar}
                         alt=""
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-12 h-12 rounded-xl object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold">
                         <Hash size={20} />
                       </div>
                     )}

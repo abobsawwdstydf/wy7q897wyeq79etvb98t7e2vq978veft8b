@@ -165,7 +165,7 @@ async function renderCompositeQR(
 
   ctx.fillStyle = scheme.fg;
   ctx.font = '500 18px Inter, system-ui, sans-serif';
-  ctx.fillText('NEXO', centerX, usernameY + 28);
+  ctx.fillText('Нексо', centerX, usernameY + 28);
 
   return canvas.toDataURL('image/png');
 }

@@ -71,9 +71,7 @@ export default function CustomEmojiPicker({ onSelect, onClose }: CustomEmojiPick
 
       const response = await fetch('/api/custom-emojis', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('nexo_token')}`,
-        },
+        credentials: 'include',
         body: formData,
       });
 
@@ -106,9 +104,7 @@ export default function CustomEmojiPicker({ onSelect, onClose }: CustomEmojiPick
 
       const response = await fetch('/api/custom-emojis', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('nexo_token')}`,
-        },
+        credentials: 'include',
         body: formData,
       });
 

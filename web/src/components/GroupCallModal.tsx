@@ -892,9 +892,9 @@ export default function GroupCallModal({ isOpen, onClose, chatId, chatName, call
                       ) : (
                         <div className="flex flex-col items-center">
                           {p.avatar ? (
-                            <img src={p.avatar} alt="" className="w-16 h-16 rounded-full object-cover mb-2" />
+                            <img src={p.avatar} alt="" className="w-16 h-16 rounded-xl object-cover mb-2" />
                           ) : (
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl mb-2">
+                            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl mb-2">
                               {initials}
                             </div>
                           )}

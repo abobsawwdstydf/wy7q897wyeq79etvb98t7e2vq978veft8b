@@ -188,9 +188,9 @@ export default function ChannelProfile({ channelId, onClose }: ChannelProfilePro
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-nexo-500/20 rounded-full blur-[40px] pointer-events-none" />
               <div className="relative z-10 p-1.5 rounded-full bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl group">
                 {channel.avatar ? (
-                  <img src={channel.avatar} alt="" className="w-32 h-32 rounded-full object-cover shadow-inner" />
+                  <img src={channel.avatar} alt="" className="w-32 h-32 rounded-xl object-cover shadow-inner" />
                 ) : (
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
+                  <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
                     {initials}
                   </div>
                 )}

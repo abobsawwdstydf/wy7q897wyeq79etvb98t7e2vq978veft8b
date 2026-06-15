@@ -9,9 +9,9 @@ export interface GlassPanelProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const variantClasses: Record<GlassVariant, string> = {
-  default: 'glass',
-  subtle: 'glass-subtle',
-  strong: 'glass-strong',
+  default: 'liquid-glass',
+  subtle: 'liquid-glass-subtle',
+  strong: 'liquid-glass-strong',
   sidebar: 'glass-sidebar',
   toast: 'glass-toast',
 };

@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Eye, Trash2, Plus, ChevronUp } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Eye, Trash2, Plus, ChevronUp, Check } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
 import { useLang } from '../lib/i18n';
@@ -262,7 +262,7 @@ export default function StoryViewer({ stories, initialUserIndex, onClose, onRefr
               src={avatarUrl}
               name={currentUser.user.displayName || currentUser.user.username}
               size="sm"
-              className="ring-2 ring-white/20 rounded-full flex-shrink-0"
+              className="ring-2 ring-white/20 rounded-xl flex-shrink-0"
             />
             <div className="flex-1 min-w-0 text-left">
               <p className="text-white text-sm font-semibold truncate drop-shadow">
@@ -378,7 +378,7 @@ export default function StoryViewer({ stories, initialUserIndex, onClose, onRefr
                           src={normalizeMediaUrl(v.avatar)}
                           name={v.displayName || v.username}
                           size="sm"
-                          className="rounded-full"
+                          className="rounded-xl"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-white text-sm truncate">{v.displayName || v.username}</p>
@@ -560,14 +560,21 @@ export function CreateStoryModal({ onClose, onCreated }: CreateStoryModalProps) 
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-zinc-200 resize-none h-16 focus:outline-none focus:border-nexo-500/50"
               />
               {/* Color picker */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 {STORY_BG_COLORS.map(c => (
                   <button
                     key={c}
                     onClick={() => setBgColor(c)}
-                    className={`w-7 h-7 rounded-full transition-transform ${bgColor === c ? 'scale-125 ring-2 ring-white/50' : 'hover:scale-110'}`}
+                    className={`relative w-9 h-9 rounded-full transition-all duration-150 ${bgColor === c ? 'scale-110 ring-2 ring-white shadow-lg shadow-black/40' : 'hover:scale-105 ring-1 ring-white/10'}`}
                     style={{ background: c }}
-                  />
+                    aria-label="Цвет фона"
+                  >
+                    {bgColor === c && (
+                      <span className="absolute inset-0 flex items-center justify-center text-white drop-shadow">
+                        <Check size={14} strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
                 ))}
               </div>
             </>

@@ -137,7 +137,7 @@ async function cleanupExpiredLocations() {
       where: { isActive: true, expiresAt: { lte: new Date() } },
       data: { isActive: false },
     });
-  } catch {}
+  } catch { /* empty */ }
 }
 cleanupExpiredLocations();
 setInterval(cleanupExpiredLocations, 60 * 1000);

@@ -112,7 +112,7 @@ export default function NFTMarketModal({ onClose, embedded }: NFTMarketModalProp
     if (!selectedListing) return;
     setPurchasing(true);
     try {
-      const result = await api.post(`/nft/market/${selectedListing.id}/buy`);
+      const result = await api.post(`/nft/market/${selectedListing.id}/buy`, {});
       if (result.newBalance !== undefined) useAuthStore.getState().updateUser({ beavers: result.newBalance });
       success('NFT куплена! ✨');
       setShowPaymentModal(false);
@@ -131,7 +131,7 @@ export default function NFTMarketModal({ onClose, embedded }: NFTMarketModalProp
     if (!selectedTagListing) return;
     setPurchasingTag(true);
     try {
-      const result = await api.post(`/nft/tag-market/${selectedTagListing.id}/buy`);
+      const result = await api.post(`/nft/tag-market/${selectedTagListing.id}/buy`, {});
       if (result.newBalance !== undefined) useAuthStore.getState().updateUser({ beavers: result.newBalance });
       success('Тег куплен! ✨');
       setShowTagPaymentModal(false);

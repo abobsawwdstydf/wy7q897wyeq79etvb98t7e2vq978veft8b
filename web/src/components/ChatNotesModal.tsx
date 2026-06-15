@@ -33,9 +33,7 @@ export default function ChatNotesModal({ isOpen, onClose, chatId }: ChatNotesMod
   const loadNotes = async () => {
     try {
       setLoading(true);
-      const params: any = {};
-      if (chatId) params.chatId = chatId;
-      const response = await api.get('/chat-notes', { params });
+      const response = await api.get('/chat-notes' + (chatId ? '?chatId=' + encodeURIComponent(chatId) : ''));
       setNotes(response.data);
     } catch (error) {
       console.error('Error loading notes:', error);

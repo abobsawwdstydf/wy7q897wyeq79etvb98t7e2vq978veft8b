@@ -30,11 +30,7 @@ export default function ReportModal({ isOpen, onClose, targetType, targetId }: R
     if (!reason) return;
     setSubmitting(true);
     try {
-      await api.request('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetType, targetId, reason, description }),
-      });
+      await api.post('/reports', { targetType, targetId, reason, description });
       success('Жалоба отправлена. Спасибо!');
       onClose();
     } catch (e: any) {

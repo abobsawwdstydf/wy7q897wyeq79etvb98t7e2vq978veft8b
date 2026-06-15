@@ -252,7 +252,7 @@ export const useSyncDebounce = (
   delay: number = 1000
 ) => {
   const [status, setStatus] = useState<SyncStatus>('idle');
-  const timeoutRef = React.useRef<NodeJS.Timeout>();
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const sync = React.useCallback(() => {
     if (timeoutRef.current) {

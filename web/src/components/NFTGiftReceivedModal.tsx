@@ -78,7 +78,7 @@ export default function NFTGiftReceivedModal({ data, onClose }: NFTGiftReceivedM
 
   const handleEquip = async () => {
     try {
-      await api.post(`/nft/instances/${data.instanceId}/equip`);
+      await api.post(`/nft/instances/${data.instanceId}/equip`, {});
       success('Карточка надета! ✨');
       onClose();
     } catch {
@@ -170,7 +170,7 @@ export default function NFTGiftReceivedModal({ data, onClose }: NFTGiftReceivedM
                     <img
                       src={senderInfo.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${senderInfo.username}`}
                       alt={senderInfo.username}
-                      className="w-8 h-8 rounded-full object-cover border border-purple-400"
+                      className="w-8 h-8 rounded-xl object-cover border border-purple-400"
                     />
                     <div className="text-xs text-white/70">
                       <div className="font-semibold text-white">{senderInfo.name || senderInfo.username}</div>

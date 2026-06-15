@@ -244,7 +244,7 @@ async function consumeSSEStream(fetchResponse: globalThis.Response, res: Express
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value);
+      const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n');
 
       for (const line of lines) {
@@ -255,6 +255,7 @@ async function consumeSSEStream(fetchResponse: globalThis.Response, res: Express
             if (content) {
               fullText += content;
               res.write(`data: ${JSON.stringify({ token: content })}\n\n`);
+              if (typeof (res as any).flush === 'function') (res as any).flush();
             }
           } catch { /* игнорируем ошибки парсинга SSE */ }
         }
@@ -262,6 +263,7 @@ async function consumeSSEStream(fetchResponse: globalThis.Response, res: Express
     }
 
     res.write(`data: ${JSON.stringify({ done: true, text: fullText })}\n\n`);
+    if (typeof (res as any).flush === 'function') (res as any).flush();
     return true;
   } catch {
     return false;

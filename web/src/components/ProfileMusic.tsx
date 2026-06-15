@@ -33,8 +33,10 @@ export default function ProfileMusic({ userId, isOwner }: ProfileMusicProps) {
     try {
       setLoading(true);
       const data = await api.get(`/profile-music/${userId}`);
-      setTracks(Array.isArray(data) ? data : []);
-    } catch {
+      const tracksList = Array.isArray(data) ? data : (data as any)?.tracks || [];
+      setTracks(tracksList);
+    } catch (e) {
+      console.error('Failed to load profile music:', e);
       setTracks([]);
     } finally {
       setLoading(false);

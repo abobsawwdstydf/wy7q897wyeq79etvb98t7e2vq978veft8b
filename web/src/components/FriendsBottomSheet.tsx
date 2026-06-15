@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useMotionValue, AnimatePresence, type PanInfo } from 'framer-motion';
-import { Users, X } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../lib/api';
 import Avatar from './Avatar';
@@ -104,13 +104,13 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
     const velocity = info.velocity.y;
     const offset = info.offset.y;
     if (isExpanded) {
-      if (offset > 120 || velocity > 500) {
+      if (offset > 100 || velocity > 400) {
         setIsExpanded(false);
       }
     } else {
-      if (offset < -120 || velocity < -500) {
+      if (offset < -80 || velocity < -400) {
         setIsExpanded(true);
-      } else if (offset > 200 || velocity > 800) {
+      } else if (offset > 150 || velocity > 600) {
         onClose();
       }
     }
@@ -136,10 +136,8 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[75] w-full max-w-md max-h-[80vh] hidden sm:flex flex-col overflow-hidden rounded-3xl"
           >
-            {/* Gradient border glow */}
             <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-nexo-500/30 via-purple-500/15 to-pink-500/20 pointer-events-none opacity-50 blur-sm" />
             <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-nexo-500/15 via-transparent to-purple-500/10 pointer-events-none" />
-            {/* Glass body */}
             <div className="relative glass-strong rounded-3xl overflow-hidden flex flex-col min-h-0 h-full">
               <div className="absolute -top-24 -right-24 w-48 h-48 bg-nexo-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/8 rounded-full blur-3xl pointer-events-none" />
@@ -194,17 +192,10 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
             style={{ y: dragY }}
             className="fixed inset-x-0 bottom-0 z-[75] sm:hidden flex flex-col overflow-hidden rounded-t-[32px] shadow-[0_-20px_40px_rgba(0,0,0,0.4)]"
           >
-            {/* Glass panel background */}
             <div className="absolute inset-0 bg-[rgba(11,19,38,0.6)] backdrop-blur-[40px] border border-white/[0.1] border-b-0 rounded-t-[32px]" />
 
             <div className="relative flex flex-col h-full min-h-0">
-              <div className="flex-shrink-0 flex justify-center pt-3 pb-4 cursor-pointer group active:scale-95 transition-transform" onClick={() => {
-                if (isExpanded) {
-                  setIsExpanded(false);
-                } else {
-                  setIsExpanded(true);
-                }
-              }}>
+              <div className="flex-shrink-0 flex justify-center pt-3 pb-4 cursor-pointer group active:scale-95 transition-transform" onClick={() => setIsExpanded(!isExpanded)}>
                 <div className="w-12 h-1.5 bg-white/20 rounded-full group-hover:bg-white/40 transition-colors" />
               </div>
 
@@ -220,14 +211,6 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
                   </span>
                 )}
               </div>
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={onClose}
-                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all"
-                aria-label="Закрыть"
-              >
-                <X size={16} />
-              </motion.button>
             </div>
 
             <div className="flex-shrink-0 px-4 pb-2">
@@ -303,7 +286,7 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
                           className="w-7 h-7 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center text-zinc-500 hover:text-red-400 transition-all"
                           title="Удалить"
                         >
-                          <X size={12} />
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                         </motion.button>
                       </div>
                     ))
@@ -345,7 +328,7 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
                               onClick={() => declineRequest(req.id)}
                               className="w-7 h-7 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-all"
                             >
-                              <X size={12} />
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                             </motion.button>
                           </div>
                         ))}
@@ -360,7 +343,7 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
                       <div className="space-y-1">
                         {outgoingRequests.map(req => (
                           <div key={req.id} className="flex items-center gap-2.5 p-2 rounded-2xl glass-subtle">
-                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 text-[10px]">⏱</div>
+                            <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 text-[10px]">...</div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-white truncate">Запрос отправлен</p>
                               <p className="text-[10px] text-zinc-500">Ожидание...</p>
@@ -370,7 +353,7 @@ export default function FriendsBottomSheet({ isOpen, onClose, isMobile }: Friend
                               onClick={() => cancelOutgoing(req.id)}
                               className="w-7 h-7 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center text-zinc-500 hover:text-red-400 transition-all"
                             >
-                              <X size={12} />
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                             </motion.button>
                           </div>
                         ))}
@@ -464,7 +447,6 @@ function DesktopFriendsContent({
 
   return (
     <>
-      {/* Header */}
       <div className="relative flex items-center justify-between px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
         <div className="absolute inset-0 bg-gradient-to-r from-nexo-500/5 via-transparent to-purple-500/5 pointer-events-none" />
         <div className="flex items-center gap-2.5 relative z-10">
@@ -478,16 +460,8 @@ function DesktopFriendsContent({
             </span>
           )}
         </div>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={onClose}
-          className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 border border-white/[0.06] flex items-center justify-center text-zinc-400 hover:text-white transition-all relative z-10"
-        >
-          <X size={16} />
-        </motion.button>
       </div>
 
-      {/* Tabs */}
       <div className="relative px-4 pt-3 pb-2 flex-shrink-0">
         <div className="flex gap-1 p-1 rounded-2xl glass-subtle">
           {tabs.map((tab) => (
@@ -514,7 +488,6 @@ function DesktopFriendsContent({
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pb-4 min-h-0">
         {activeTab === 'list' && (
           <div className="space-y-1 pt-1">
@@ -558,7 +531,7 @@ function DesktopFriendsContent({
                     className="w-7 h-7 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center text-zinc-500 hover:text-red-400 transition-all"
                     title="Удалить"
                   >
-                    <X size={12} />
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                   </motion.button>
                 </div>
               ))
@@ -600,7 +573,7 @@ function DesktopFriendsContent({
                         onClick={() => declineRequest(req.id)}
                         className="w-7 h-7 rounded-lg bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-400 transition-all"
                       >
-                        <X size={12} />
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                       </motion.button>
                     </div>
                   ))}
@@ -615,7 +588,7 @@ function DesktopFriendsContent({
                 <div className="space-y-1">
                   {outgoingRequests.map(req => (
                     <div key={req.id} className="flex items-center gap-2.5 p-2 rounded-2xl glass-subtle">
-                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 text-[10px]">⏱</div>
+                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 text-[10px]">...</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-white truncate">Запрос отправлен</p>
                         <p className="text-[10px] text-zinc-500">Ожидание...</p>
@@ -625,7 +598,7 @@ function DesktopFriendsContent({
                         onClick={() => cancelOutgoing(req.id)}
                         className="w-7 h-7 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center text-zinc-500 hover:text-red-400 transition-all"
                       >
-                        <X size={12} />
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                       </motion.button>
                     </div>
                   ))}

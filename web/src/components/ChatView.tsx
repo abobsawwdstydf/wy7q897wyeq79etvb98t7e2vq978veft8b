@@ -95,6 +95,8 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
   const [showMediaSearch, setShowMediaSearch] = useState(false);
   const [showChannelPaywall, setShowChannelPaywall] = useState(false);
   const [channelPaywallChecked, setChannelPaywallChecked] = useState<string | null>(null);
+  const [inputCollapsed, setInputCollapsed] = useState(false);
+  const inputDragStartY = useRef(0);
 
   // Listen for channel profile open events from MessageBubble
   useEffect(() => {
@@ -1295,8 +1297,38 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
 
       {/* Ввод сообщения - только для тех кто может писать */}
       {(!chat || chat.type !== 'channel' || chat.members.some(m => m.user.id === user?.id && m.role === 'admin')) && (
-        <div className="flex-shrink-0">
-          <MessageInput chatId={activeChat} />
+        <div
+          className="flex-shrink-0 relative"
+          onTouchStart={(e) => { inputDragStartY.current = e.touches[0].clientY; }}
+          onTouchEnd={(e) => {
+            const delta = e.changedTouches[0].clientY - inputDragStartY.current;
+            if (delta > 60) setInputCollapsed(true);
+            else if (delta < -60) setInputCollapsed(false);
+          }}
+        >
+          <AnimatePresence>
+            {inputCollapsed && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                onClick={() => setInputCollapsed(false)}
+                className="px-6 py-2 flex items-center justify-center cursor-pointer"
+              >
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-zinc-400 text-xs hover:bg-white/10 transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                  Написать сообщение
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <motion.div
+            animate={{ height: inputCollapsed ? 0 : 'auto', opacity: inputCollapsed ? 0 : 1 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            style={{ overflow: inputCollapsed ? 'hidden' : 'visible' }}
+          >
+            <MessageInput chatId={activeChat} />
+          </motion.div>
         </div>
       )}
 

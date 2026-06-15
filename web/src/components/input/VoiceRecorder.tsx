@@ -149,12 +149,11 @@ export default function VoiceRecorder({ chatId, replyToId, onSent, onCancel }: V
   };
 
   const stopRecording = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
-    if (timerRef.current) clearInterval(timerRef.current);
     cleanupAnalyser();
-    setRecordingTime(0);
   };
 
   const cancelRecording = () => {

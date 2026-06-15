@@ -207,12 +207,22 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
 
       const decoder = new TextDecoder();
       let fullText = '';
+      let lastChunkTime = Date.now();
+      const CHUNK_TIMEOUT = 30000;
 
       while (true) {
-        const { done, value } = await reader.read();
+        const result = await Promise.race([
+          reader.read(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Stream timeout')), CHUNK_TIMEOUT)
+          ),
+        ]);
+
+        const { done, value } = result as { done: boolean; value: Uint8Array | undefined };
         if (done) break;
 
-        const chunk = decoder.decode(value);
+        lastChunkTime = Date.now();
+        const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
 
         for (const line of lines) {
@@ -221,7 +231,6 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
               const json = JSON.parse(line.slice(6));
               if (json.token) {
                 fullText += json.token;
-                // Обновляем сообщение AI в реальном времени
                 setMessages(prev => prev.map(m =>
                   m.id === assistantId ? { ...m, content: fullText } : m
                 ));
@@ -243,8 +252,31 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
           }
         }
       }
+
+      // Ensure streaming state is cleared
+      setMessages(prev => prev.map(m =>
+        m.id === assistantId && m.isStreaming ? { ...m, content: fullText || '⚠️ Пустой ответ от AI', isStreaming: false } : m
+      ));
     } catch (error: any) {
       if (error.name !== 'AbortError') {
+        // Fallback: try non-streaming endpoint
+        try {
+          const fallbackResp = await fetch(`${getApiBase()}/ai/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: userInput }] }),
+          });
+          if (fallbackResp.ok) {
+            const data = await fallbackResp.json();
+            if (data.text) {
+              setMessages(prev => prev.map(m =>
+                m.id === assistantId ? { ...m, content: data.text, isStreaming: false } : m
+              ));
+              return;
+            }
+          }
+        } catch {}
         setMessages(prev => prev.map(m =>
           m.id === assistantId
             ? { ...m, content: '❌ Не удалось получить ответ. Попробуй позже.', isStreaming: false }

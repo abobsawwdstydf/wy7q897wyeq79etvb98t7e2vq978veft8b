@@ -136,7 +136,7 @@ ensureDir(avatarsDir);
 ensureDir(uploadsRoot);
 
 /** Allowed image extensions for avatars. */
-const ALLOWED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.apng', '.svg', '.bmp', '.tiff', '.tif', '.ico', '.jfif']);
 
 function createAvatarStorage(prefix = '') {
   return multer.diskStorage({
@@ -148,25 +148,25 @@ function createAvatarStorage(prefix = '') {
   });
 }
 
-/** Multer middleware for user avatar uploads (max 5MB, images only). */
+/** Multer middleware for user avatar uploads (max 15MB, images only). */
 export const uploadUserAvatar = multer({
   storage: createAvatarStorage(''),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (file.mimetype.startsWith('image/') && ALLOWED_IMAGE_EXTENSIONS.has(ext)) cb(null, true);
-    else cb(new Error('Только изображения (jpg, png, gif, webp, avif)'));
+    else cb(new Error('Только изображения (jpg, png, gif, webp, avif, svg, bmp, tiff, ico)'));
   },
 });
 
-/** Multer middleware for group avatar uploads (max 5MB, images only). */
+/** Multer middleware for group avatar uploads (max 15MB, images only). */
 export const uploadGroupAvatar = multer({
   storage: createAvatarStorage('group-'),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (file.mimetype.startsWith('image/') && ALLOWED_IMAGE_EXTENSIONS.has(ext)) cb(null, true);
-    else cb(new Error('Только изображения (jpg, png, gif, webp, avif)'));
+    else cb(new Error('Только изображения (jpg, png, gif, webp, avif, svg, bmp, tiff, ico)'));
   },
 });
 

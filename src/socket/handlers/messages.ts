@@ -26,6 +26,7 @@ export function setupMessageHandlers(io: Server, socket: AuthSocket) {
     duration?: number;
     scheduledAt?: string;
     albumCount?: number;
+    _tempId?: string;
     media?: Array<{
       type: string;
       url: string;
@@ -193,6 +194,7 @@ export function setupMessageHandlers(io: Server, socket: AuthSocket) {
         socket.emit('new_message', {
           ...message,
           readBy: [{ userId }],
+          ...(data._tempId ? { _tempId: data._tempId } : {}),
         });
 
         const delay = Math.min(scheduledAt.getTime() - Date.now(), MAX_TIMEOUT);
@@ -302,6 +304,7 @@ export function setupMessageHandlers(io: Server, socket: AuthSocket) {
         ...message,
         media: transformMedia((message as any).media),
         readBy: [{ userId }],
+        ...(data._tempId ? { _tempId: data._tempId } : {}),
       });
 
       // Send Web Push to OFFLINE users only

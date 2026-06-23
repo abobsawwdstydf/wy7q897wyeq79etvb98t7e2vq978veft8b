@@ -404,7 +404,7 @@ export default function EmojiPaintEditor({ onSave, onClose, initialImage, size =
             </button>
             <label className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer" title="Загрузить изображение">
               <Upload size={16} />
-              <input type="file" accept="image/*,.svg,.gif" className="hidden" onChange={handleUpload} />
+              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
             </label>
             <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
               <X size={16} />

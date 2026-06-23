@@ -351,19 +351,19 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
     <motion.div key="main" className="relative z-[1] flex flex-col h-full min-h-0" initial={false} animate="center" exit="exit" variants={viewVariants} custom={-1} transition={{ duration: 0.2 }}>
       {/* Header — жидкое стекло */}
       <div className="relative overflow-hidden flex-shrink-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/15 via-purple-600/8 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-white/[0.03] pointer-events-none" />
         <div className="absolute inset-0 backdrop-blur-xl bg-white/[0.04] pointer-events-none" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
         <div className="relative p-5 pb-4">
           <div className="flex items-start justify-between mb-4">
             <div className="relative group cursor-pointer" onClick={() => changeView('profile')}>
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-nexo-500/50 via-purple-500/30 to-nexo-500/50 rounded-full opacity-60 blur-sm group-hover:opacity-90 transition duration-500" />
+              <div className="absolute -inset-0.5 bg-white/10 rounded-full opacity-40 blur-sm group-hover:opacity-60 transition duration-500" />
               <div className="relative">
                 {user?.avatar ? (
                   <img src={user.avatar} alt="" className="w-[64px] h-[64px] rounded-xl object-cover ring-2 ring-white/10" />
                 ) : (
-                  <div className="w-[64px] h-[64px] rounded-xl bg-gradient-to-br from-nexo-500/20 to-purple-600/20 flex items-center justify-center ring-2 ring-white/10 relative overflow-hidden backdrop-blur-sm">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-nexo-500/10 to-purple-500/10" />
+                    <div className="w-[64px] h-[64px] rounded-xl bg-white/10 flex items-center justify-center ring-2 ring-white/10 relative overflow-hidden backdrop-blur-sm">
+                    
                     <span className="relative z-10 text-xl font-bold text-white/90">{initials}</span>
                   </div>
                 )}
@@ -700,7 +700,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                           {u.avatar ? (
                             <img src={u.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                           ) : (
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white font-bold text-sm">
                               {(u.displayName || u.username || '?')[0].toUpperCase()}
                             </div>
                           )}
@@ -734,7 +734,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                       {req.sender?.avatar ? (
                         <img src={req.sender.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white font-bold text-sm">
                           {(req.sender?.displayName || req.sender?.username || '?')[0].toUpperCase()}
                         </div>
                       )}
@@ -778,7 +778,7 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
                         {friend.avatar ? (
                            <img src={friend.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                          ) : (
-                           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white font-bold text-sm">
                              {(friend.displayName || friend.username || '?')[0].toUpperCase()}
                           </div>
                         )}
@@ -940,16 +940,16 @@ export default function SideMenu({ isOpen, onClose }: SideMenuProps) {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 sm:inset-auto sm:left-3 sm:top-3 sm:bottom-3 sm:w-[340px] sm:max-w-[calc(100vw-24px)] z-50 flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-3xl max-h-[85vh] sm:max-h-[calc(100vh-24px)]"
+            className="fixed inset-x-0 bottom-[68px] sm:inset-auto sm:left-3 sm:top-3 sm:bottom-3 sm:w-[340px] sm:max-w-[calc(100vw-24px)] z-50 flex flex-col overflow-hidden rounded-t-[32px] sm:rounded-3xl max-h-[calc(85vh-68px)] sm:max-h-[calc(100vh-24px)]"
           >
             {/* Glass panel background */}
-            <div className="absolute inset-0 sm:hidden bg-[rgba(11,19,38,0.6)] backdrop-blur-[40px] border border-white/[0.1] border-b-0 rounded-t-[32px]" />
+            <div className="absolute inset-0 sm:hidden bg-[rgba(11,19,38,0.6)] backdrop-blur-[40px] border border-white/[0.1] rounded-t-[32px]" />
             {/* Gradient border glow */}
-            <div className="absolute -inset-px rounded-t-[32px] sm:rounded-3xl bg-gradient-to-br from-nexo-500/30 via-purple-500/15 to-pink-500/20 pointer-events-none opacity-50 blur-sm" />
-            <div className="absolute -inset-px rounded-t-[32px] sm:rounded-3xl bg-gradient-to-br from-nexo-500/15 via-transparent to-purple-500/10 pointer-events-none" />
+            <div className="absolute -inset-px rounded-t-[32px] sm:rounded-3xl bg-white/[0.06] pointer-events-none opacity-50 blur-sm" />
+            <div className="absolute -inset-px rounded-t-[32px] sm:rounded-3xl bg-white/[0.04] pointer-events-none" />
             {/* Liquid glass background layers */}
             <div className="absolute inset-0 liquid-glass-strong rounded-t-[32px] sm:rounded-3xl" />
-            <div className="absolute inset-0 bg-gradient-to-br from-nexo-500/8 via-transparent to-purple-500/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-white/[0.02] pointer-events-none" />
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent pointer-events-none" />
             <div className="absolute top-0 left-0 bottom-0 w-px bg-gradient-to-b from-white/10 via-white/5 to-transparent pointer-events-none" />

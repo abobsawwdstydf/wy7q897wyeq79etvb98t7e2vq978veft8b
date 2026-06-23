@@ -178,15 +178,15 @@ export default function GroupSettings({ chat, onClose }: GroupSettingsProps) {
           <div className="flex flex-col items-center py-8 px-6">
             <div className="relative group">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-nexo-500/20 rounded-full blur-[40px] pointer-events-none" />
-              <div className="relative z-10 p-1.5 rounded-full bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl">
+              <div className="relative z-10 p-1.5 rounded-[28px] bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl">
                 {chat.avatar ? (
                   <img
                     src={chat.avatar}
                     alt=""
-                    className="w-32 h-32 rounded-xl object-cover shadow-inner"
+                    className="w-32 h-32 rounded-[24px] object-cover shadow-inner"
                   />
                 ) : (
-                  <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
+                   <div className="w-32 h-32 rounded-[24px] bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
                     {initials}
                   </div>
                 )}
@@ -197,7 +197,7 @@ export default function GroupSettings({ chat, onClose }: GroupSettingsProps) {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={avatarUploading}
-                    className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                    className="absolute inset-0 rounded-[24px] bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                   >
                     {avatarUploading ? (
                       <Loader2 size={24} className="text-white animate-spin" />
@@ -334,9 +334,9 @@ export default function GroupSettings({ chat, onClose }: GroupSettingsProps) {
                       className="flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-surface-hover transition-colors"
                     >
                       {u.avatar ? (
-                        <img src={u.avatar} alt="" className="w-8 h-8 rounded-xl object-cover" />
+                        <img src={u.avatar} alt="" className="w-8 h-8 rounded-[8px] object-cover" />
                       ) : (
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-8 h-8 rounded-[8px] bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                           {(u.displayName || u.username || '?')[0].toUpperCase()}
                         </div>
                       )}
@@ -369,9 +369,9 @@ export default function GroupSettings({ chat, onClose }: GroupSettingsProps) {
                   >
                     <div className="relative flex-shrink-0">
                       {member.user.avatar ? (
-                        <img src={member.user.avatar} alt="" className="w-9 h-9 rounded-xl object-cover" />
+                        <img src={member.user.avatar} alt="" className="w-9 h-9 rounded-[10px] object-cover" />
                       ) : (
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
                           {(member.user.displayName || member.user.username || '?')[0].toUpperCase()}
                         </div>
                       )}

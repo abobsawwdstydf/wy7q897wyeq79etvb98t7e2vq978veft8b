@@ -24,10 +24,10 @@ export default function VerifiedBadge({ size = 'sm', verifiedBadgeUrl, verifiedB
     );
   }
 
-  // Дефолтный бейдж — galochcka.png
+  // Дефолтный бейдж — galocha_veri.png
   return (
     <img
-      src="/galochcka.png"
+      src="/galocha_veri.png"
       alt="verified"
       className={`${sizeMap[size]} object-contain`}
       title="Верифицирован"

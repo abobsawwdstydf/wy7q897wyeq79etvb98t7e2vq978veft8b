@@ -503,11 +503,11 @@ export default function ChannelStudio({ channelId, onClose }: ChannelStudioProps
                   <div className="flex flex-col items-center py-4">
                     <div className="relative group">
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-nexo-500/20 rounded-full blur-[30px] pointer-events-none" />
-                      <div className="relative z-10 p-1.5 rounded-full bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl">
+                      <div className="relative z-10 p-1.5 rounded-[24px] bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl">
                         {channel.avatar ? (
-                          <img src={channel.avatar} alt="" className="w-24 h-24 rounded-xl object-cover shadow-inner" />
+                          <img src={channel.avatar} alt="" className="w-24 h-24 rounded-[20px] object-cover shadow-inner" />
                         ) : (
-                          <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-inner">
+                          <div className="w-24 h-24 rounded-[20px] bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-inner">
                             {(channel.name || 'C')[0].toUpperCase()}
                           </div>
                         )}
@@ -516,7 +516,7 @@ export default function ChannelStudio({ channelId, onClose }: ChannelStudioProps
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={avatarUploading}
-                        className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                        className="absolute inset-0 rounded-[24px] bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                       >
                         {avatarUploading ? (
                           <Loader2 size={20} className="text-white animate-spin" />

@@ -11,9 +11,15 @@ export const getApiBase = (): string => {
 
 class ApiClient {
   private csrfToken: string | null = null;
+  private refreshPromise: Promise<boolean> | null = null;
+  private onAuthFailed?: () => void;
 
   setCsrfToken(token: string | null) {
     this.csrfToken = token;
+  }
+
+  setOnAuthFailed(callback: () => void) {
+    this.onAuthFailed = callback;
   }
 
   private getStoredAccessToken(): string | null {
@@ -21,6 +27,22 @@ class ApiClient {
       return localStorage.getItem('nexo_access_token');
     } catch {
       return null;
+    }
+  }
+
+  private async doRefresh(): Promise<boolean> {
+    try {
+      const refreshController = new AbortController();
+      const refreshTimer = setTimeout(() => refreshController.abort(), 10_000);
+      const refreshResponse = await fetch(`${getApiBase()}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        signal: refreshController.signal,
+      });
+      clearTimeout(refreshTimer);
+      return refreshResponse.ok;
+    } catch {
+      return false;
     }
   }
 
@@ -47,7 +69,7 @@ class ApiClient {
         ...fetchOptions,
         headers,
         signal: controller.signal,
-        credentials: 'include', // Always send cookies
+        credentials: 'include',
       });
     } catch (err) {
       clearTimeout(timer);
@@ -61,23 +83,29 @@ class ApiClient {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
       
-      // 401 — пробуем обновить access token (не только TOKEN_EXPIRED, но и любой 401)
       if (response.status === 401) {
-        try {
-          const refreshController = new AbortController();
-          const refreshTimer = setTimeout(() => refreshController.abort(), 10_000);
-          const refreshResponse = await fetch(`${getApiBase()}/auth/refresh`, {
-            method: 'POST',
-            credentials: 'include',
-            signal: refreshController.signal,
-          });
-          clearTimeout(refreshTimer);
+        const isAuthEndpoint = endpoint.startsWith('/auth/');
 
-          if (refreshResponse.ok) {
+        if (!isAuthEndpoint) {
+          if (!this.refreshPromise) {
+            this.refreshPromise = this.doRefresh().finally(() => {
+              this.refreshPromise = null;
+            });
+          }
+
+          const refreshOk = await this.refreshPromise;
+
+          if (refreshOk) {
             return this.request<T>(endpoint, options);
           }
-        } catch {
-          // Refresh failed
+        }
+
+        try {
+          localStorage.removeItem('nexo_access_token');
+          localStorage.removeItem('nexo_user');
+        } catch {}
+        if (!isAuthEndpoint) {
+          this.onAuthFailed?.();
         }
       }
       
@@ -86,7 +114,6 @@ class ApiClient {
 
     const data = await response.json();
     
-    // Store CSRF token if returned
     if (data.csrfToken) {
       this.csrfToken = data.csrfToken;
     }
@@ -158,6 +185,20 @@ class ApiClient {
     return this.request<{ available: boolean }>(`/auth/check-phone?phone=${encodeURIComponent(phone)}`);
   }
 
+  async sendCode(phone: string) {
+    return this.request<{ success: boolean; message: string }>('/auth/send-code', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    });
+  }
+
+  async verifyCode(phone: string, code: string) {
+    return this.request<{ user: User; accessToken?: string; csrfToken?: string }>('/auth/verify-code', {
+      method: 'POST',
+      body: JSON.stringify({ phone, code }),
+    });
+  }
+
   async getMe() {
     return this.request<{ user: User; accessToken?: string; csrfToken?: string }>('/auth/me');
   }
@@ -192,9 +233,13 @@ class ApiClient {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 120_000);
+    const storedToken = this.getStoredAccessToken();
     const response = await fetch(`${getApiBase()}/users/avatar`, {
       method: 'POST',
       credentials: 'include',
+      headers: {
+        ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}),
+      },
       body: formData,
       signal: controller.signal,
     });
@@ -266,9 +311,13 @@ class ApiClient {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 300_000);
+    const storedToken = this.getStoredAccessToken();
     const response = await fetch(`${getApiBase()}/messages/upload`, {
       method: 'POST',
       credentials: 'include',
+      headers: {
+        ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}),
+      },
       body: formData,
       signal: controller.signal,
     });
@@ -306,9 +355,13 @@ class ApiClient {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 120_000);
+    const storedToken = this.getStoredAccessToken();
     const response = await fetch(`${getApiBase()}/chats/${chatId}/avatar`, {
       method: 'POST',
       credentials: 'include',
+      headers: {
+        ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}),
+      },
       body: formData,
       signal: controller.signal,
     });
@@ -747,9 +800,13 @@ class ApiClient {
 
   // Video Notes
   async uploadVideoNote(formData: FormData) {
+    const storedToken = this.getStoredAccessToken();
     const response = await fetch(`${getApiBase()}/video-notes`, {
       method: 'POST',
       credentials: 'include',
+      headers: {
+        ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}),
+      },
       body: formData,
     });
 
@@ -767,9 +824,13 @@ class ApiClient {
     formData.append('audio', file);
     formData.append('duration', duration.toString());
 
+    const storedToken = this.getStoredAccessToken();
     const response = await fetch(`${getApiBase()}/profile-music`, {
       method: 'POST',
       credentials: 'include',
+      headers: {
+        ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}),
+      },
       body: formData,
     });
 

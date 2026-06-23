@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Loader2, RotateCcw } from 'lucide-react';
 import { api } from '../lib/api';
-import { getSocket } from '../lib/socket';
 
 interface VideoNoteRecorderProps {
   chatId: string;
@@ -181,30 +180,14 @@ export default function VideoNoteRecorder({ chatId, onClose, onSent }: VideoNote
         return;
       }
 
-      // Создаём File из Blob
-      const file = new File([blob], 'video-note.webm', { type: mimeType });
+      const file = new File([blob], `video-note-${Date.now()}.webm`, { type: mimeType });
 
-      // Загружаем через api.uploadFile
-      const result = await api.uploadFile(file);
+      const formData = new FormData();
+      formData.append('video', file);
+      formData.append('chatId', chatId);
+      formData.append('duration', String(Math.min(duration, 90)));
 
-      if (!result || !result.url) {
-        throw new Error('Не получен URL файла от сервера');
-      }
-
-      // Отправляем через socket
-      const socket = getSocket();
-      if (socket) {
-        socket.emit('send_message', {
-          chatId,
-          content: null,
-          type: 'video_note',
-          mediaUrl: result.url,
-          mediaType: 'video_note',
-          fileName: result.filename || file.name,
-          fileSize: result.size || file.size,
-          duration: Math.min(duration, 90),
-        });
-      }
+      const result = await api.uploadVideoNote(formData);
 
       chunksRef.current = [];
       onSent();

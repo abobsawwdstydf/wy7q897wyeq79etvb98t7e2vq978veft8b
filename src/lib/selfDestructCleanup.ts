@@ -1,7 +1,11 @@
 import { prisma } from '../db';
 
+let consecutiveFailures = 0;
+const MAX_BACKOFF_MS = 5 * 60 * 1000; // 5 minutes max
+const BASE_INTERVAL_MS = 60 * 1000;
+
 // Background job to delete self-destructing messages
-export async function cleanupSelfDestructMessages() {
+export async function cleanupSelfDestructMessages(): Promise<void> {
   try {
     const now = new Date();
 
@@ -17,6 +21,7 @@ export async function cleanupSelfDestructMessages() {
     });
 
     if (messagesToDelete.length === 0) {
+      consecutiveFailures = 0;
       return;
     }
 
@@ -41,9 +46,17 @@ export async function cleanupSelfDestructMessages() {
       }
     });
 
+    consecutiveFailures = 0;
     console.log(`Deleted ${messagesToDelete.length} self-destructing messages`);
   } catch (error) {
-    console.error('Error cleaning up self-destruct messages:', error);
+    consecutiveFailures++;
+    const backoffMs = Math.min(BASE_INTERVAL_MS * Math.pow(2, consecutiveFailures), MAX_BACKOFF_MS);
+    console.error(
+      `Error cleaning up self-destruct messages (attempt ${consecutiveFailures}, next retry in ${Math.round(backoffMs / 1000)}s):`,
+      error instanceof Error ? error.message : error
+    );
+    // Schedule next retry with backoff instead of waiting for normal interval
+    setTimeout(cleanupSelfDestructMessages, backoffMs);
   }
 }
 
@@ -51,7 +64,7 @@ export async function cleanupSelfDestructMessages() {
 export function startSelfDestructCleanup() {
   setInterval(() => {
     cleanupSelfDestructMessages();
-  }, 60 * 1000); // Every 60 seconds
+  }, BASE_INTERVAL_MS);
 
   // Run immediately on startup
   cleanupSelfDestructMessages();

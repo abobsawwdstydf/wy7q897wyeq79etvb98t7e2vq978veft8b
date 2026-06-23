@@ -66,7 +66,7 @@ export default function MediaPicker({
   const { user } = useAuthStore();
   const [tab, setTab] = useState<Tab>('emoji');
   const [isMobile, setIsMobile] = useState(false);
-  const [pos, setPos] = useState<{ bottom: number; left?: number; right?: number } | null>(null);
+  const [pos, setPos] = useState<{ bottom: number; left?: number; right?: number; width?: number } | null>(null);
 
   // Stickers state
   const [packs, setPacks] = useState<StickerPack[]>([]);
@@ -103,23 +103,29 @@ export default function MediaPicker({
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // Compute position for desktop - centered above message input
+  // Compute position for desktop - fill the chat module width
   useEffect(() => {
     if (isMobile) return;
     const update = () => {
       const el = anchorRef?.current ?? document.querySelector('[data-mediapicker-anchor]') as HTMLElement | null;
       if (!el) {
-        // fallback: bottom-center of viewport
         setPos({ bottom: 80, right: undefined as any });
         return;
       }
       const rect = el.getBoundingClientRect();
-      const pickerW = 360;
       const bottom = window.innerHeight - rect.top + 8;
-      // Center horizontally relative to the input area
-      const centerX = rect.left + rect.width / 2;
-      const right = window.innerWidth - centerX - pickerW / 2;
-      setPos({ bottom, right });
+      // Find the chat container (max-w-3xl or nearest centered parent)
+      let container = el.closest('.max-w-3xl') as HTMLElement | null;
+      if (!container) container = el.closest('[class*="max-w-"]') as HTMLElement | null;
+      if (container) {
+        const cr = container.getBoundingClientRect();
+        const left = cr.left;
+        setPos({ bottom, left, width: cr.width });
+      } else {
+        const centerX = rect.left + rect.width / 2;
+        const right = window.innerWidth - centerX - 768 / 2;
+        setPos({ bottom, right, width: 768 });
+      }
     };
     update();
     window.addEventListener('resize', update);
@@ -266,17 +272,13 @@ export default function MediaPicker({
         }} />
       )}
 
-      <motion.div
-        initial={inline ? { height: 0, opacity: 0 } : { opacity: 0, scale: 0.95, y: 8 }}
-        animate={inline ? { height: 'auto', opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-        exit={inline ? { height: 0, opacity: 0 } : { opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
+      <div
         onClick={e => {
           e.stopPropagation();
         }}
         style={
           inline
-            ? { overflow: 'hidden' } as React.CSSProperties
+            ? { width: '100%' } as React.CSSProperties
             : isMobile
               ? { maxHeight: '70vh' } as React.CSSProperties
               : pos
@@ -286,11 +288,11 @@ export default function MediaPicker({
                     ...(pos.left !== undefined ? { left: pos.left } : {}),
                     ...(pos.right !== undefined ? { right: pos.right } : {}),
                     zIndex: 9990,
-                    width: 360,
+                    width: pos.width || 360,
                     maxHeight: 480,
-                    transform: pos.left !== undefined ? 'translateX(-50%)' : undefined,
+                    transform: pos.left !== undefined ? undefined : undefined,
                   }
-                : { position: 'fixed' as const, bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 9990, width: 360, maxHeight: 480 }
+                : { position: 'fixed' as const, bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 9990, width: 768, maxHeight: 480 }
         }
         className={
           inline
@@ -321,11 +323,11 @@ export default function MediaPicker({
         </div>
 
         {/* Content */}
-        <div className={`flex-1 overflow-hidden flex flex-col min-h-0 ${isMobile ? 'max-h-[60vh]' : 'max-h-[420px]'}`}>
+        <div className={`flex-1 overflow-hidden flex flex-col min-h-0 ${inline ? '' : isMobile ? 'max-h-[60vh]' : 'max-h-[420px]'}`}>
 
           {/* EMOJI TAB */}
           {tab === 'emoji' && (
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden w-full" style={{ contain: 'layout' }}>
               <Picker
                 data={data}
                 onEmojiSelect={(e: { native: string }) => { onSelectEmoji(e.native); onClose(); }}
@@ -334,12 +336,12 @@ export default function MediaPicker({
                 set="native"
                 previewPosition="none"
                 skinTonePosition="search"
-                perLine={9}
+                perLine={isMobile ? 8 : 12}
                 emojiSize={28}
                 emojiButtonSize={36}
                 maxFrequentRows={2}
                 navPosition="bottom"
-                dynamicWidth={false}
+                dynamicWidth
               />
             </div>
           )}
@@ -386,9 +388,20 @@ export default function MediaPicker({
                   {loadingPacks ? (
                     <Spinner />
                   ) : allPacks.length === 0 ? (
-                    <Empty icon={<Package size={28} />} text="Нет стикер-паков">
-                      <button onClick={() => setTab('create')} className="mt-2 text-xs text-nexo-400 hover:underline">Создать первый пак</button>
-                    </Empty>
+                    <div className="flex flex-col items-center justify-center py-8 px-4">
+                      <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+                        <Package size={32} className="text-zinc-500" />
+                      </div>
+                      <p className="text-sm font-medium text-zinc-300 mb-1">Пока нет стикер-паков</p>
+                      <p className="text-xs text-zinc-500 text-center mb-4 max-w-[200px]">Создай свой пак стикеров и поделись с друзьями</p>
+                      <button
+                        onClick={() => setTab('create')}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/15 transition-colors"
+                      >
+                        <Plus size={16} />
+                        Создать пак
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-1">
                       {myPacks.length > 0 && <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide mb-1">Мои паки</p>}
@@ -463,7 +476,7 @@ export default function MediaPicker({
                   )}
                   <div className="bg-white/5 rounded-xl p-3 space-y-2">
                     <p className="text-xs font-medium text-zinc-300">Добавить стикер</p>
-                    <input ref={fileInputRef} type="file" accept="image/png,image/gif,image/webp" onChange={handleStickerFileChange} className="hidden" />
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} className="hidden" />
                     {stickerPreview ? (
                       <div className="relative w-16 h-16 mx-auto">
                         <img src={stickerPreview} alt="preview" className="w-full h-full object-contain rounded-xl" />
@@ -489,7 +502,7 @@ export default function MediaPicker({
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </>
   );
 

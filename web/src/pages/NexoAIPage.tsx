@@ -349,12 +349,13 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
       />
 
       {/* ====== HEADER ====== */}
-      <div className="liquid-glass-strong px-4 py-3 flex items-center gap-3 flex-shrink-0 relative z-10">
+      <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0 relative z-10" style={{ background: '#1a1a1a', borderBottom: '1px solid #222' }}>
         {/* Закрыть (мобилки) */}
         {isMobile && onClose && (
           <button
             onClick={onClose}
-            className="liquid-glass w-9 h-9 rounded-xl text-zinc-400"
+            className="w-9 h-9 rounded-xl text-zinc-400 flex items-center justify-center"
+            style={{ background: '#252525' }}
           >
             <ArrowLeft size={18} />
           </button>
@@ -373,7 +374,8 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
         {messages.length > 0 && (
           <button
             onClick={clearHistory}
-            className="liquid-glass w-9 h-9 rounded-xl text-zinc-400 hover:text-red-400 transition-colors"
+            className="w-9 h-9 rounded-xl text-zinc-400 hover:text-red-400 transition-colors flex items-center justify-center"
+            style={{ background: '#252525' }}
             title="Очистить историю"
           >
             <Trash2 size={16} />
@@ -384,7 +386,8 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
         {!isMobile && onClose && (
           <button
             onClick={onClose}
-            className="liquid-glass w-9 h-9 rounded-xl text-zinc-400"
+            className="w-9 h-9 rounded-xl text-zinc-400 flex items-center justify-center"
+            style={{ background: '#252525' }}
           >
             <X size={16} />
           </button>
@@ -422,8 +425,9 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
                     className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm rounded-br-md ${
                       msg.role === 'user'
                         ? 'bg-gradient-to-br from-nexo-500 to-purple-600 text-white'
-                        : 'liquid-glass-subtle text-zinc-200 rounded-bl-md'
+                        : 'text-zinc-200 rounded-bl-md'
                     }`}
+                    style={msg.role !== 'user' ? { background: '#252525', border: '1px solid #2a2a2a' } : undefined}
                   >
                     {msg.role === 'assistant' ? renderAIMessage(msg.content) : (
                       <span className="whitespace-pre-wrap">{msg.content}</span>
@@ -442,7 +446,7 @@ export default function NexoAIPage({ onClose }: { onClose?: () => void }) {
 
       {/* ====== ПОЛЕ ВВОДА ====== */}
       <div className="px-3 py-3 flex-shrink-0 relative z-10">
-        <div className="bg-[#1a1a25] border border-white/5 rounded-2xl px-3 py-2 flex items-end gap-2 focus-within:border-nexo-500/30 transition-colors">
+        <div className="rounded-2xl px-3 py-2 flex items-end gap-2 transition-colors" style={{ background: '#1a1a1a', border: '1px solid #222' }}>
           {/* Голос */}
           <button
             onClick={toggleRecording}

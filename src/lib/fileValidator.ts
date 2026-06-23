@@ -14,30 +14,53 @@ export async function validateFileType(buffer: Buffer, declaredMimeType: string)
     const fileType = await fileTypeFromBuffer(buffer);
     
     if (!fileType) {
-      // Файл не распознан - разрешаем только текстовые файлы
-      const textMimeTypes = [
-        'text/plain',
-        'text/html',
-        'text/css',
-        'text/javascript',
-        'application/json',
-        'application/xml',
-        'text/csv',
-      ];
-      
-      if (textMimeTypes.includes(declaredMimeType)) {
-        return { valid: true };
-      }
-      
-      return { 
-        valid: false, 
-        error: 'Не удалось определить тип файла. Возможно, файл повреждён.' 
-      };
+      // Файл не распознан по magic bytes — разрешаем (некоторые форматы не имеют magic bytes)
+      return { valid: true };
     }
     
     // Нормализуем MIME типы (убираем параметры)
     const normalizedDeclared = declaredMimeType.split(';')[0].trim().toLowerCase();
     const normalizedActual = fileType.mime.toLowerCase();
+    
+    // Проверяем, что тип файла разрешён
+    const allowedMimeTypes = [
+      // Изображения
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp',
+      'image/avif', 'image/apng', 'image/tiff', 'image/x-icon', 'image/jfif',
+      // Видео
+      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska',
+      'video/avi', 'video/x-flv', 'video/mpeg', 'video/3gpp', 'video/x-ms-wmv',
+      // Аудио
+      'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/wav', 'audio/webm', 'audio/aac', 'audio/mp4', 'audio/x-m4a', 'application/ogg',
+      'audio/flac', 'audio/x-flac', 'audio/x-wav', 'audio/x-mpeg', 'audio/x-aac',
+      // Документы
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.oasis.opendocument.text',
+      'application/vnd.oasis.opendocument.spreadsheet',
+      'application/vnd.oasis.opendocument.presentation',
+      'application/rtf',
+      'application/x-rtf',
+      'text/rtf',
+      // Архивы
+      'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed',
+      'application/x-tar', 'application/gzip', 'application/x-bzip2',
+      // Текст и код
+      'text/plain', 'text/html', 'text/css', 'text/javascript', 'application/json',
+      'application/xml', 'text/xml', 'text/csv', 'text/markdown',
+      'application/x-yaml', 'text/yaml',
+      // Шрифты
+      'font/ttf', 'font/otf', 'font/woff', 'font/woff2', 'application/font-woff', 'application/font-sfnt',
+      // 3D и CAD
+      'model/gltf-binary', 'model/gltf+json',
+      // Прочее
+      'application/octet-stream',
+    ];
     
     // Проверяем соответствие
     if (normalizedDeclared !== normalizedActual) {
@@ -61,7 +84,8 @@ export async function validateFileType(buffer: Buffer, declaredMimeType: string)
       const compatible = compatibleTypes[normalizedActual]?.includes(normalizedDeclared) ||
                         compatibleTypes[normalizedDeclared]?.includes(normalizedActual);
       
-      if (!compatible) {
+      // Если заявленный тип разрешён — принимаем (magic bytes могут неточно определять формат)
+      if (!compatible && !allowedMimeTypes.includes(normalizedDeclared)) {
         return {
           valid: false,
           actualMimeType: normalizedActual,
@@ -70,29 +94,7 @@ export async function validateFileType(buffer: Buffer, declaredMimeType: string)
       }
     }
     
-    // Проверяем, что тип файла разрешён
-    const allowedMimeTypes = [
-      // Изображения
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp',
-      // Видео
-      'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska',
-      // Аудио
-      'audio/mpeg', 'audio/ogg', 'audio/opus', 'audio/wav', 'audio/webm', 'audio/aac', 'audio/mp4', 'audio/x-m4a', 'application/ogg',
-      // Документы
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      // Архивы
-      'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed',
-      // Текст
-      'text/plain', 'text/html', 'text/css', 'text/javascript', 'application/json',
-    ];
-    
-    if (!allowedMimeTypes.includes(normalizedActual)) {
+    if (!allowedMimeTypes.includes(normalizedActual) && !allowedMimeTypes.includes(normalizedDeclared)) {
       return {
         valid: false,
         actualMimeType: normalizedActual,

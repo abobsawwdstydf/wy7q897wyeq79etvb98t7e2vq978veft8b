@@ -82,7 +82,7 @@ export function Avatar({
           alt={name || ''}
           loading="lazy"
           className={cn(
-            'rounded-full object-cover bg-surface-tertiary',
+            'rounded-[22%] object-cover bg-surface-tertiary',
             sizeClasses[size],
             ringClass
           )}
@@ -93,7 +93,7 @@ export function Avatar({
       ) : (
         <div
           className={cn(
-            'rounded-full flex items-center justify-center font-semibold text-white bg-gradient-to-br',
+            'rounded-[22%] flex items-center justify-center font-semibold text-white bg-gradient-to-br',
             getColorByName(name),
             sizeClasses[size],
             ringClass
@@ -106,8 +106,8 @@ export function Avatar({
       {showOnlineIndicator && (
         <span
           className={cn(
-            'absolute bottom-0 right-0 rounded-full border-surface',
-            isOnline ? 'bg-green-500' : 'bg-zinc-500',
+            'absolute bottom-0 right-0 rounded-full border-[#0e1621]',
+            isOnline ? 'bg-[#4dcd5e]' : 'bg-[#6d7f8e]',
             dotSizeClasses[size]
           )}
         />
@@ -115,7 +115,7 @@ export function Avatar({
 
       {isVerified && (
         <span
-          className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-nexo-500 border-2 border-surface flex items-center justify-center text-[8px] text-white"
+          className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#6ab2f2] border-2 border-[#0e1621] flex items-center justify-center text-[8px] text-white"
           aria-label="Verified"
         >
           ✓

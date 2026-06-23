@@ -1,4 +1,5 @@
-﻿import { motion } from 'framer-motion';
+﻿import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Loader2, Sparkles } from 'lucide-react';
 
 /**
@@ -6,43 +7,119 @@ import { Loader2, Sparkles } from 'lucide-react';
  * Beautiful loading indicators and spinners
  */
 
-// Нексо Loader (используется в App.tsx)
-export function НексоLoader({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const sizes = {
-    sm: { outer: 32, middle: 28, inner: 24 },
-    md: { outer: 48, middle: 44, inner: 40 },
-    lg: { outer: 64, middle: 60, inner: 56 },
-  };
+const LETTERS = ['Н', 'Е', 'К', 'С', 'О'];
 
-  const { outer, middle, inner } = sizes[size];
+function getLoadedCount(pct: number) {
+  if (pct >= 80) return 5;
+  if (pct >= 60) return 4;
+  if (pct >= 40) return 3;
+  if (pct >= 20) return 2;
+  if (pct >= 5) return 1;
+  return 0;
+}
+
+// Нексо Loader (используется в App.tsx)
+export function НексоLoader({ size = 'md', theme = 'dark' }: { size?: 'sm' | 'md' | 'lg'; theme?: 'light' | 'dark' }) {
+  const [progress, setProgress] = useState(0);
+  const [loadedCount, setLoadedCount] = useState(0);
+  const finishedRef = useRef(false);
+
+  const isDark = theme === 'dark';
+
+  const sizes = {
+    sm: { fontSize: 28, gap: 5, barWidth: 120, pctSize: 10 },
+    md: { fontSize: 42, gap: 6, barWidth: 180, pctSize: 12 },
+    lg: { fontSize: 56, gap: 8, barWidth: 240, pctSize: 13 },
+  };
+  const s = sizes[size];
+
+  useEffect(() => {
+    finishedRef.current = false;
+    let p = 0;
+
+    const step = () => {
+      if (finishedRef.current) return;
+      const inc = p < 60 ? Math.random() * 4 + 2 : p < 85 ? Math.random() * 2 + 0.8 : Math.random() * 0.8 + 0.2;
+      p = Math.min(p + inc, 100);
+      setProgress(p);
+      setLoadedCount(getLoadedCount(p));
+
+      if (p >= 100) {
+        finishedRef.current = true;
+        setLoadedCount(5);
+        return;
+      }
+
+      const delay = p < 70 ? Math.random() * 120 + 80 : Math.random() * 200 + 150;
+      setTimeout(step, delay);
+    };
+
+    const t = setTimeout(step, 300);
+    return () => { finishedRef.current = true; clearTimeout(t); };
+  }, []);
+
+  const letterColor = isDark ? '#ffffff' : '#1a1a1a';
+  const strokeEmpty = isDark ? 'rgba(255,255,255,0.15)' : '#d0d0d0';
+  const dotColor = isDark ? 'rgba(255,255,255,0.2)' : '#d0d0d0';
+  const trackBg = isDark ? 'rgba(255,255,255,0.08)' : '#eaeaea';
+  const barGradient = isDark
+    ? 'linear-gradient(90deg, #6366f1, #a855f7)'
+    : 'linear-gradient(90deg, #4f46e5, #7c3aed)';
+  const pctSub = isDark ? 'rgba(255,255,255,0.35)' : '#bbb';
+  const pctMain = isDark ? '#ffffff' : '#1a1a1a';
 
   return (
-    <div className="relative" style={{ width: outer, height: outer }}>
-      <div
-        className="absolute inset-0 rounded-full border-2 border-transparent border-t-nexo-500 animate-spin"
-        style={{ width: outer, height: outer }}
-      />
-      <div
-        className="absolute rounded-full border-2 border-transparent border-t-nexo-400 animate-spin"
-        style={{
-          width: middle,
-          height: middle,
-          top: (outer - middle) / 2,
-          left: (outer - middle) / 2,
-          animationDuration: '0.8s',
-          animationDirection: 'reverse',
-        }}
-      />
-      <div
-        className="absolute rounded-full border-2 border-transparent border-t-nexo-300 animate-spin"
-        style={{
-          width: inner,
-          height: inner,
-          top: (outer - inner) / 2,
-          left: (outer - inner) / 2,
-          animationDuration: '0.6s',
-        }}
-      />
+    <div className="flex flex-col items-center" style={{ gap: s.gap * 3 }}>
+      <div className="flex items-center" style={{ gap: s.gap }}>
+        {LETTERS.map((letter, i) => (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0.3, y: 8 }}
+            animate={{
+              opacity: i < loadedCount ? 1 : 0.3,
+              y: 0,
+            }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="font-bold select-none"
+            style={{
+              fontSize: s.fontSize,
+              letterSpacing: '0.08em',
+              WebkitTextStroke: i < loadedCount ? '0px transparent' : `2px ${strokeEmpty}`,
+              color: i < loadedCount ? letterColor : 'transparent',
+              transition: 'color 0.3s ease, -webkit-text-stroke 0.3s ease',
+            }}
+          >
+            {letter}
+          </motion.span>
+        ))}
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="font-light"
+          style={{ fontSize: s.fontSize, color: dotColor }}
+        >
+          .
+        </motion.span>
+      </div>
+
+      <div className="flex flex-col items-center" style={{ gap: 10, width: s.barWidth }}>
+        <div
+          className="w-full rounded-full overflow-hidden"
+          style={{ height: 2, background: trackBg }}
+        >
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: barGradient }}
+            initial={{ width: '0%' }}
+            animate={{ width: `${Math.min(progress, 100)}%` }}
+            transition={{ duration: 0.15 }}
+          />
+        </div>
+        <span style={{ fontSize: s.pctSize, letterSpacing: '0.15em', color: pctSub }}>
+          <span style={{ color: pctMain, fontWeight: 500 }}>{Math.round(Math.min(progress, 100))}</span>%
+        </span>
+      </div>
     </div>
   );
 }
@@ -176,15 +253,30 @@ export function LoadingOverlay({ message = 'Загрузка...' }: { message?: 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]"
+      className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[9999]"
     >
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
+        initial={{ scale: 0.92, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="glass-strong rounded-2xl p-8 flex flex-col items-center gap-4"
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="rounded-3xl p-10 flex flex-col items-center"
+        style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          boxShadow: '0 0 80px rgba(99,102,241,0.08)',
+        }}
       >
         <НексоLoader size="lg" />
-        <p className="text-white text-sm font-medium">{message}</p>
+        {message && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-white/40 text-xs mt-6 tracking-widest uppercase"
+          >
+            {message}
+          </motion.p>
+        )}
       </motion.div>
     </motion.div>
   );

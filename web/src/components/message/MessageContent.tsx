@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Check, CheckCheck, Clock, Eye, MapPin, BarChart3 } from 'lucide-react';
+import { Check, CheckCheck, Clock, Eye, MapPin, BarChart3, Loader2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chatStore';
 import { getSocket } from '../../lib/socket';
@@ -348,7 +348,15 @@ export default function MessageContent({
           {message.scheduledAt && <Clock size={11} className="text-amber-400 mr-0.5" />}
           {timeStr}
           {!message.scheduledAt && (
-            isChannel ? (
+            (message as any)._isFailed ? (
+              <span className="flex items-center gap-0.5 ml-0.5">
+                <AlertCircle size={12} className="text-red-400" />
+              </span>
+            ) : (message as any)._isSending ? (
+              <span className="flex items-center gap-0.5 ml-0.5">
+                <Loader2 size={12} className="text-white/40 animate-spin" />
+              </span>
+            ) : isChannel ? (
               <span className="flex items-center gap-1 ml-0.5 text-xs">
                 <Eye size={11} className="text-zinc-400" />
                 {message.viewCount || 0}

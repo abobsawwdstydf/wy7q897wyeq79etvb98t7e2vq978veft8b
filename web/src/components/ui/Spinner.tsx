@@ -1,5 +1,6 @@
 import { HTMLAttributes } from 'react';
 import { cn } from '../../lib/utils';
+import { НексоLoader } from '../LoadingStates';
 
 export type SpinnerSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -44,8 +45,10 @@ export function Spinner({ size = 'md', variant = 'border', className, ...props }
 export function FullPageSpinner({ label = 'Загрузка...' }: { label?: string }) {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-3 bg-surface">
-      <Spinner size="xl" />
-      <p className="text-sm text-zinc-500">{label}</p>
+      <НексоLoader size="lg" />
+      {label && (
+        <p className="text-xs text-white/30 tracking-widest uppercase mt-4">{label}</p>
+      )}
     </div>
   );
 }

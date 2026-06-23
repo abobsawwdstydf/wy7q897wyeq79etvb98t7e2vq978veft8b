@@ -1,9 +1,10 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Plus, Package, Smile, Image, ChevronLeft, Upload, Trash2, Globe, Lock, Check, Scissors } from 'lucide-react';
+import { Search, X, Plus, Package, Smile, Image as ImageIcon, ChevronLeft, Upload, Trash2, Globe, Lock, Check, Scissors, Pencil } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import StickerCropper from './StickerCropper';
+import BottomSheet from './BottomSheet';
 
 interface Sticker {
   id: string;
@@ -45,7 +46,7 @@ interface StickerPickerProps {
   onClose: () => void;
 }
 
-type Tab = 'stickers' | 'gifs' | 'create';
+type Tab = 'emojis' | 'stickers' | 'gifs' | 'create';
 type CreateStep = 'pack' | 'stickers';
 
 export default function StickerPicker({ onSendSticker, onInsertSticker, onSendGif, onClose }: StickerPickerProps) {
@@ -253,54 +254,43 @@ export default function StickerPicker({ onSendSticker, onInsertSticker, onSendGi
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 8 }}
-      transition={{ duration: 0.15 }}
-      className={`absolute bottom-full mb-2 w-[360px] max-h-[480px] liquid-glass-strong rounded-2xl shadow-2xl overflow-hidden flex flex-col z-[9999] ${
-        isMobile ? 'right-0' : 'left-1/2 -translate-x-1/2'
-      }`}
-      onClick={e => e.stopPropagation()}
-    >
-      {/* Header tabs */}
-      <div className="flex items-center border-b border-white/10 px-2 pt-2 gap-1">
-        <button
-          onClick={() => { setTab('stickers'); setSelectedPack(null); }}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-xs font-medium transition-colors ${
-            tab === 'stickers' ? 'text-nexo-400 border-b-2 border-nexo-500' : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <Package size={14} />
-          Стикеры
-        </button>
-        <button
-          onClick={() => setTab('gifs')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-xs font-medium transition-colors ${
-            tab === 'gifs' ? 'text-nexo-400 border-b-2 border-nexo-500' : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <Image size={14} />
-          GIF
-        </button>
-        <button
-          onClick={() => setTab('create')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-xs font-medium transition-colors ${
-            tab === 'create' ? 'text-nexo-400 border-b-2 border-nexo-500' : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <Plus size={14} />
-          Создать
-        </button>
-        <div className="flex-1" />
-        <button onClick={onClose} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors">
-          <X size={14} />
-        </button>
+  const pickerContent = (
+    <>
+      {/* Header with search */}
+      <div className="flex items-center border-b border-white/10 px-3 py-2 gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <input
+            type="text"
+            placeholder="Поиск..."
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-white/5 text-sm text-white placeholder-zinc-500 border border-white/10 focus:border-nexo-500/50 outline-none"
+          />
+        </div>
+        {!isMobile && (
+          <button onClick={onClose} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors">
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+        {/* EMOJI TAB */}
+        {tab === 'emojis' && (
+          <div className="flex-1 overflow-y-auto p-3">
+            <CustomEmojiSection onSelect={(emojiUrl) => {
+              if (onInsertSticker) {
+                onInsertSticker({ id: 'custom-emoji', packId: 'custom', emoji: '', fileUrl: emojiUrl, fileSize: 0, width: 32, height: 32, isAnimated: false, order: 0 });
+              }
+            }} />
+            <EmojiGrid onSelect={(emoji) => {
+              if (onInsertSticker) {
+                onInsertSticker({ id: 'emoji', packId: 'emojis', emoji, fileUrl: '', fileSize: 0, width: null, height: null, isAnimated: false, order: 0 });
+              }
+            }} />
+          </div>
+        )}
+
         {/* STICKERS TAB */}
         {tab === 'stickers' && (
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -438,7 +428,7 @@ export default function StickerPicker({ onSendSticker, onInsertSticker, onSendGi
                 </div>
               ) : gifs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 text-zinc-500">
-                  <Image size={32} className="mb-2 opacity-40" />
+                  <ImageIcon size={32} className="mb-2 opacity-40" />
                   <p className="text-sm">{gifQuery ? 'GIF не найдены' : 'Нет трендовых GIF'}</p>
                 </div>
               ) : (
@@ -589,7 +579,7 @@ export default function StickerPicker({ onSendSticker, onInsertSticker, onSendGi
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/png,image/gif,image/webp,image/jpeg"
+                      accept="image/*"
                       onChange={handleStickerFileChange}
                       className="hidden"
                     />
@@ -664,7 +654,143 @@ export default function StickerPicker({ onSendSticker, onInsertSticker, onSendGi
           </div>
         )}
       </div>
+
+      {/* Bottom tabs - Telegram style */}
+      <div className="flex items-center justify-around border-t border-white/10 px-1 py-1.5">
+        <button
+          onClick={() => { setTab('emojis'); setSelectedPack(null); }}
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-150 ${
+            tab === 'emojis' ? 'text-[#6ab2f2] bg-[#6ab2f2]/10' : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <Smile size={20} />
+          <span className="text-[10px] font-medium">Эмодзи</span>
+        </button>
+        <button
+          onClick={() => setTab('gifs')}
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-150 ${
+            tab === 'gifs' ? 'text-[#6ab2f2] bg-[#6ab2f2]/10' : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <ImageIcon size={20} />
+          <span className="text-[10px] font-medium">GIF</span>
+        </button>
+        <button
+          onClick={() => { setTab('stickers'); setSelectedPack(null); }}
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all duration-150 ${
+            tab === 'stickers' ? 'text-[#6ab2f2] bg-[#6ab2f2]/10' : 'text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <Package size={20} />
+          <span className="text-[10px] font-medium">Стикеры</span>
+        </button>
+      </div>
+    </>
+  );
+
+  // Мобильная версия — шторка
+  if (isMobile) {
+    return (
+      <BottomSheet isOpen={true} onClose={onClose} title="Стикеры и эмодзи" maxHeight="75vh">
+        {pickerContent}
+      </BottomSheet>
+    );
+  }
+
+  // Десктоп — popup
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 8 }}
+      transition={{ duration: 0.15 }}
+      className="absolute bottom-full mb-2 w-[360px] max-h-[480px] liquid-glass-strong rounded-2xl shadow-2xl overflow-hidden flex flex-col z-[9999] left-1/2 -translate-x-1/2"
+      onClick={e => e.stopPropagation()}
+    >
+      {pickerContent}
     </motion.div>
+  );
+}
+
+// Custom emoji section
+function CustomEmojiSection({ onSelect }: { onSelect: (url: string) => void }) {
+  const [emojis, setEmojis] = useState<Array<{ id: string; name: string; url: string; shortcode: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [showPaint, setShowPaint] = useState(false);
+
+  useEffect(() => {
+    api.get('/custom-emojis').then((data: any) => {
+      setEmojis(data || []);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  if (loading || emojis.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Кастомные эмодзи</p>
+        <button
+          onClick={() => setShowPaint(!showPaint)}
+          className="p-1 rounded-lg text-zinc-500 hover:text-[#6ab2f2] hover:bg-white/5 transition-colors"
+          title="Создать эмодзи"
+        >
+          <Pencil size={14} />
+        </button>
+      </div>
+      {showPaint && (
+        <div className="mb-2 p-2 rounded-xl bg-white/5 border border-white/10">
+          <p className="text-xs text-zinc-400 mb-2">Создайте кастомный эмодзи</p>
+          <a href="/emoji-editor" target="_blank" className="text-xs text-[#6ab2f2] hover:underline">
+            Открыть редактор →
+          </a>
+        </div>
+      )}
+      <div className="grid grid-cols-8 gap-0.5">
+        {emojis.map((emoji) => (
+          <button
+            key={emoji.id}
+            onClick={() => onSelect(emoji.url)}
+            className="w-9 h-9 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors p-0.5"
+            title={`:${emoji.shortcode}:`}
+          >
+            <img src={emoji.url} alt={emoji.shortcode} className="w-7 h-7 object-contain" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Emoji grid component
+function EmojiGrid({ onSelect }: { onSelect: (emoji: string) => void }) {
+  const emojiCategories = [
+    { name: 'Часто используемые', emojis: ['😀', '😂', '😍', '🥰', '😊', '😎', '🤔', '😅', '😭', '🥺', '😡', '👍', '👎', '❤️', '🔥', '✨', '🎉', '💯', '🙏', '👏'] },
+    { name: 'Смайлики', emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🫡', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥'] },
+    { name: 'Жесты', emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '🫶', '👐', '🤲', '🤝', '🙏'] },
+    { name: 'Животные', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞'] },
+    { name: 'Еда', emojis: ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥔', '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🧄', '🧅', '🍄'] },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {emojiCategories.map((category) => (
+        <div key={category.name}>
+          <p className="text-xs text-zinc-500 font-medium mb-2 uppercase tracking-wide">{category.name}</p>
+          <div className="grid grid-cols-8 gap-0.5">
+            {category.emojis.map((emoji, i) => (
+              <button
+                key={`${category.name}-${i}`}
+                onClick={() => onSelect(emoji)}
+                className="w-9 h-9 flex items-center justify-center text-xl hover:bg-white/10 rounded-lg transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

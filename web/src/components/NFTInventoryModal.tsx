@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useToastStore } from '../stores/toastStore';
 import NFTCardPreview from './NFTCardPreview';
 import NFTGiftModal from './NFTGiftModal';
+import BottomSheet from './BottomSheet';
 import BeaverIcon from './BeaverIcon';
 
 interface NFTCard {
@@ -119,9 +120,16 @@ export default function NFTInventoryModal({ onClose, embedded }: NFTInventoryMod
   const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<NFTInstance | null>(null);
   const [showGiftModal, setShowGiftModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
   const { success: showSuccess, error: showError } = useToastStore();
 
   useEffect(() => { loadInventory(); }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const loadInventory = async () => {
     try {
@@ -202,7 +210,7 @@ export default function NFTInventoryModal({ onClose, embedded }: NFTInventoryMod
               key={instance.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white/5 rounded-xl overflow-hidden border border-white/5 flex gap-3 p-3"
+              className="bg-white/[0.04] rounded-xl overflow-hidden border border-white/[0.06] flex gap-3 p-3"
             >
               {/* Preview */}
               <div className="relative w-16 h-20 flex-shrink-0 rounded-lg overflow-hidden">
@@ -271,7 +279,7 @@ export default function NFTInventoryModal({ onClose, embedded }: NFTInventoryMod
             key={instance.id}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/5 rounded-xl p-3 border border-white/5"
+            className="bg-white/[0.04] rounded-xl p-3 border border-white/[0.06]"
           >
             <div className="relative w-12 h-12 mx-auto mb-2">
               <div
@@ -379,28 +387,45 @@ export default function NFTInventoryModal({ onClose, embedded }: NFTInventoryMod
     );
   }
 
+  const modalContent = (
+    <>
+      {header}
+      {tabBar}
+      <div className="flex-1 overflow-y-auto p-4">
+        {renderContent()}
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <BottomSheet isOpen onClose={onClose} showCloseButton={false}>
+          {modalContent}
+        </BottomSheet>
+        {giftModalEl}
+      </>
+    );
+  }
+
   return (
     <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center"
         onClick={onClose}
       >
         <motion.div
-          initial={{ x: -400, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -400, opacity: 0 }}
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="bg-[#0a0a0f]/95 backdrop-blur-3xl border-r border-white/[0.12] w-full sm:w-[420px] h-full overflow-hidden shadow-2xl flex flex-col"
+          className="bg-white/[0.04] backdrop-blur-xl rounded-2xl border border-white/[0.08] w-full max-w-[420px] h-[80vh] overflow-hidden shadow-2xl flex flex-col"
           onClick={e => e.stopPropagation()}
         >
-          {header}
-          {tabBar}
-          <div className="flex-1 overflow-y-auto p-4">
-            {renderContent()}
-          </div>
+          {modalContent}
         </motion.div>
       </motion.div>
       {giftModalEl}

@@ -116,12 +116,25 @@ router.post('/upload', uploadFile.array('files', 20) as any, async (req: AuthReq
         const mimeMap: Record<string, string> = {
           'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
           'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
+          'avif': 'image/avif', 'apng': 'image/apng', 'bmp': 'image/bmp',
+          'tiff': 'image/tiff', 'tif': 'image/tiff', 'ico': 'image/x-icon', 'jfif': 'image/jpeg',
           'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
+          'avi': 'video/avi', 'mkv': 'video/x-matroska', 'flv': 'video/x-flv',
           'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'opus': 'audio/opus',
           'wav': 'audio/wav', 'm4a': 'audio/mp4', 'aac': 'audio/aac',
+          'flac': 'audio/flac', 'wma': 'audio/x-ms-wma',
           'pdf': 'application/pdf', 'doc': 'application/msword',
           'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'xls': 'application/vnd.ms-excel',
+          'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'ppt': 'application/vnd.ms-powerpoint',
+          'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
           'zip': 'application/zip', 'rar': 'application/x-rar-compressed',
+          '7z': 'application/x-7z-compressed', 'tar': 'application/x-tar', 'gz': 'application/gzip',
+          'txt': 'text/plain', 'csv': 'text/csv', 'json': 'application/json',
+          'xml': 'application/xml', 'html': 'text/html', 'css': 'text/css',
+          'md': 'text/markdown', 'rtf': 'application/rtf',
+          'ttf': 'font/ttf', 'otf': 'font/otf', 'woff': 'font/woff', 'woff2': 'font/woff2',
         };
         if (ext && mimeMap[ext]) {
           mimeType = mimeMap[ext];

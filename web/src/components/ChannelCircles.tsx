@@ -131,14 +131,14 @@ export default function ChannelCircles({ onChannelClick }: ChannelCirclesProps) 
                     onTouchStart={() => handleLongPressStart(channel.id)}
                     onTouchEnd={handleLongPressEnd}
                     onTouchCancel={handleLongPressEnd}
-                    className="w-14 h-14 rounded-full p-[2px] transition-transform group-hover:scale-105 relative"
+                    className="w-14 h-14 rounded-[16px] p-[2px] transition-transform group-hover:scale-105 relative"
                     style={{
                       background: hasUnread
                         ? 'linear-gradient(135deg, rgb(139, 92, 246), rgb(168, 85, 247), rgb(236, 72, 153))'
                         : '#3f3f46'
                     }}
                   >
-                    <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#0a0a0f] relative">
+                    <div className="w-full h-full rounded-[14px] overflow-hidden border-2 border-[#0a0a0f] relative">
                       <Avatar
                         src={channel.avatar}
                         name={channel.name || channel.username || 'C'}

@@ -1,10 +1,21 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Link2, QrCode, Send, Search, Loader2, Check, Copy, ArrowLeft } from 'lucide-react';
+import { X, Link2, QrCode, Send, Search, Loader2, Check, Copy, ArrowLeft, Share2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useToastStore } from '../stores/toastStore';
 import QRCodeModal from './QRCodeModal';
+import BottomSheet from './BottomSheet';
 import type { Chat } from '../lib/types';
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return isMobile;
+}
 
 interface ShareProfileModalProps {
   user: {
@@ -19,6 +30,7 @@ interface ShareProfileModalProps {
 type Step = 'menu' | 'chats';
 
 export default function ShareProfileModal({ user, onClose }: ShareProfileModalProps) {
+  const isMobile = useIsMobile();
   const { success, error: showError } = useToastStore();
   const [step, setStep] = useState<Step>('menu');
   const [copied, setCopied] = useState(false);
@@ -49,6 +61,46 @@ export default function ShareProfileModal({ user, onClose }: ShareProfileModalPr
     }
   };
 
+  const menuContent = (
+    <MenuStep
+      user={user}
+      profileUrl={profileUrl}
+      copied={copied}
+      onCopy={copyLink}
+      onShowQR={() => setShowQR(true)}
+      onOpenChats={() => setStep('chats')}
+      onClose={onClose}
+    />
+  );
+
+  const chatsContent = (
+    <ChatsStep
+      user={user}
+      profileUrl={profileUrl}
+      onBack={() => setStep('menu')}
+      onClose={onClose}
+    />
+  );
+
+  const currentStep = step === 'menu' ? menuContent : chatsContent;
+
+  if (isMobile) {
+    return (
+      <>
+        <BottomSheet isOpen onClose={onClose} title="Поделиться профилем">
+          {currentStep}
+        </BottomSheet>
+
+        {showQR && (
+          <QRCodeModal
+            user={user}
+            onClose={() => setShowQR(false)}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <AnimatePresence>
@@ -56,7 +108,7 @@ export default function ShareProfileModal({ user, onClose }: ShareProfileModalPr
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4"
           onClick={onClose}
         >
           <motion.div
@@ -65,26 +117,9 @@ export default function ShareProfileModal({ user, onClose }: ShareProfileModalPr
             exit={{ y: 30, opacity: 0, scale: 0.97 }}
             transition={{ type: 'spring', damping: 26, stiffness: 300 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full sm:max-w-md bg-surface-secondary sm:rounded-2xl rounded-t-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="relative w-full max-w-md bg-[#1a1a1a] rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           >
-            {step === 'menu' ? (
-              <MenuStep
-                user={user}
-                profileUrl={profileUrl}
-                copied={copied}
-                onCopy={copyLink}
-                onShowQR={() => setShowQR(true)}
-                onOpenChats={() => setStep('chats')}
-                onClose={onClose}
-              />
-            ) : (
-              <ChatsStep
-                user={user}
-                profileUrl={profileUrl}
-                onBack={() => setStep('menu')}
-                onClose={onClose}
-              />
-            )}
+            {currentStep}
           </motion.div>
         </motion.div>
       </AnimatePresence>
@@ -118,33 +153,26 @@ function MenuStep({
 }) {
   return (
     <>
-      <div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          {user.avatar ? (
-            <img src={user.avatar} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
-          ) : (
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#a855f7] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {(user.displayName || user.username || '?')[0]?.toUpperCase()}
-            </div>
-          )}
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-white truncate">Поделиться профилем</h2>
-            <p className="text-xs text-zinc-500 truncate">@{user.username}</p>
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+            <Share2 size={16} className="text-white" />
           </div>
+          <h3 className="text-sm font-semibold text-white truncate">Поделиться профилем</h3>
         </div>
         <button
           onClick={onClose}
-          className="p-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-colors flex-shrink-0"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
           aria-label="Закрыть"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
       </div>
 
       <div className="p-4 space-y-2">
         <button
           onClick={onCopy}
-          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.12] transition-all active:scale-[0.98] text-left"
+          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 hover:border-white/[0.12] transition-all active:scale-[0.98] text-left"
         >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500/20 to-purple-500/20 flex items-center justify-center text-nexo-300 flex-shrink-0">
             {copied ? <Check size={18} className="text-emerald-400" /> : <Link2 size={18} />}
@@ -157,7 +185,7 @@ function MenuStep({
 
         <button
           onClick={onShowQR}
-          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.12] transition-all active:scale-[0.98] text-left"
+          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 hover:border-white/[0.12] transition-all active:scale-[0.98] text-left"
         >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-purple-300 flex-shrink-0">
             <QrCode size={18} />
@@ -170,7 +198,7 @@ function MenuStep({
 
         <button
           onClick={onOpenChats}
-          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.12] transition-all active:scale-[0.98] text-left"
+          className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 hover:border-white/[0.12] transition-all active:scale-[0.98] text-left"
         >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center text-emerald-300 flex-shrink-0">
             <Send size={18} />
@@ -275,27 +303,27 @@ function ChatsStep({
 
   return (
     <>
-      <div className="flex items-center justify-between p-4 border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-colors flex-shrink-0"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
             aria-label="Назад"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
-          <h2 className="text-base font-semibold text-white truncate">Выберите чат</h2>
+          <h3 className="text-sm font-semibold text-white truncate">Выберите чат</h3>
         </div>
         <button
           onClick={onClose}
-          className="p-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-colors flex-shrink-0"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
           aria-label="Закрыть"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
       </div>
 
-      <div className="p-3 border-b border-white/[0.06] flex-shrink-0">
+      <div className="p-3 border-b border-white/5 flex-shrink-0">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
@@ -303,7 +331,7 @@ function ChatsStep({
             placeholder="Поиск чатов..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-surface-tertiary text-sm text-white placeholder-zinc-500 border border-white/[0.06] focus:border-nexo-500/50 transition-colors outline-none"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-surface-tertiary text-sm text-white placeholder-zinc-500 border border-white/5 focus:border-nexo-500/50 transition-colors outline-none"
           />
         </div>
       </div>
@@ -352,7 +380,7 @@ function ChatsStep({
         )}
       </div>
 
-      <div className="p-4 border-t border-white/[0.06] space-y-2 flex-shrink-0">
+      <div className="p-4 border-t border-white/5 space-y-2 flex-shrink-0">
         <p className="text-xs text-zinc-500">
           Выбрано: {selectedChats.size} {selectedChats.size === 1 ? 'чат' : 'чатов'}
         </p>

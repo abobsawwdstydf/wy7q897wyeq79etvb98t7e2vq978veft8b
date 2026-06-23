@@ -74,17 +74,17 @@ function NavButton({
         whileTap={{ scale: 0.95 }}
         aria-label={label}
         className={cn(
-          'relative flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-200',
+          'relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200',
           active
-            ? 'liquid-glass-subtle border border-nexo-500/30 shadow-lg shadow-nexo-500/20'
-            : 'hover:bg-white/[0.06] border border-transparent'
+            ? 'text-white border border-white/10'
+            : 'hover:text-white text-zinc-500 border border-transparent'
         )}
       >
         <Icon
           size={20}
           className={cn(
             'transition-colors duration-200',
-            active ? 'text-nexo-400' : 'text-zinc-400 group-hover:text-white'
+            active ? 'text-white' : 'text-zinc-500 group-hover:text-white'
           )}
         />
 
@@ -123,7 +123,6 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
   const { chats, activeChat, searchQuery, setSearchQuery, addChat, setActiveChat, archivedChatIds, showArchive, setShowArchive } = useChatStore();
   const { t } = useLang();
   const [showNewChat, setShowNewChat] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [showSideMenu, setShowSideMenu] = useState(false);
   const [storyGroups, setStoryGroups] = useState<StoryGroup[]>([]);
   const [storyViewerIndex, setStoryViewerIndex] = useState<number | null>(null);
@@ -370,61 +369,60 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
     setActiveTab(tab);
     if (tab === 'chats') {
       setSearchQuery('');
-      // На мобиле при клике "Чаты" — закрываем открытый чат
       if (activeChat) setActiveChat(null);
+      // Если на стене — переключаемся на чаты
+      if (currentView === 'wall') {
+        useNavigationStore.getState().navigateTo('chat');
+      }
     }
-    if (tab === 'profile') setShowProfile(true);
     if (tab === 'settings') setShowSideMenu(true);
     if (tab === 'friends') onOpenFriends();
   };
 
   return (
     <>
-      <div className={`w-full ${currentView !== 'wall' ? 'sm:w-[380px]' : ''} h-full flex liquid-glass sm:rounded-3xl overflow-hidden border border-white/[0.06] relative z-10`}>
+      <div className={`w-full ${currentView !== 'wall' ? 'sm:w-[380px]' : ''} h-full flex sm:rounded-[28px] overflow-hidden relative z-10 glass-strong border border-white/[0.06]`}>
 
         {/* ====== БОКОВАЯ НАВИГАЦИЯ (ПК) ====== */}
         {!isMobile && (
-          <div className="w-[56px] liquid-glass-strong flex flex-col items-center py-3 gap-1.5 flex-shrink-0 z-20">
+          <div className="w-[56px] flex flex-col items-center py-3 gap-2.5 flex-shrink-0 z-20">
             {/* Логотип */}
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2">
-              <img src="/logo.png" alt="Нексо" className="w-9 h-9 rounded-xl object-cover" />
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center glass-strong border border-white/[0.06]">
+              <img src="/logo.png" alt="Нексо" className="w-7 h-7 rounded-xl object-cover" />
             </div>
 
-            <div className="w-8 h-px bg-white/10 my-1" />
-
-            {/* Кнопки навигации */}
-            <div className="flex flex-col items-center gap-1.5">
-              {/* Чаты */}
+            {/* Кнопки навигации — отдельная панель */}
+            <div className="w-[44px] rounded-2xl flex flex-col items-center py-2 gap-1.5 glass-strong border border-white/[0.06]">
+              <NavButton
+                icon={Menu}
+                label="Меню"
+                active={false}
+                onClick={() => setShowSideMenu(true)}
+              />
               <NavButton
                 icon={MessageSquare}
                 label="Чаты"
-                active={activeTab === 'chats'}
+                active={currentView === 'chat'}
                 onClick={() => handleTabChange('chats')}
                 badge={unreadCount}
               />
-
-              {/* Новый чат */}
               <NavButton
                 icon={Plus}
                 label="Новый чат"
                 active={false}
                 onClick={() => setShowNewChat(true)}
               />
-
-              {/* Нексо AI */}
               <NavButton
                 icon={Sparkles}
                 label="Нексо AI"
                 active={false}
                 onClick={onOpenAI}
               />
-
-              {/* Стена */}
               {onOpenWall && (
                 <NavButton
                   icon={Newspaper}
                   label="Стена"
-                  active={false}
+                  active={currentView === 'wall'}
                   onClick={onOpenWall}
                 />
               )}
@@ -432,17 +430,15 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
 
             <div className="flex-1" />
 
-            <div className="w-8 h-px bg-white/10 my-1" />
-
-            {/* Профиль */}
+            {/* Профиль — внизу колонки */}
             <button
               onClick={() => handleTabChange('profile')}
-              className="w-10 h-10 rounded-xl overflow-hidden hover:ring-2 hover:ring-nexo-500/50 transition-all"
+              className="w-10 h-10 rounded-[10px] overflow-hidden border-2 border-white/[0.1] hover:border-[var(--color-accent)]/40 transition-all duration-200"
             >
               {user?.avatar ? (
                 <img src={normalizeMediaUrl(user.avatar)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-zinc-700 text-white text-sm font-bold">
+                <div className="w-full h-full flex items-center justify-center bg-white/10 text-white text-sm font-bold">
                   {(user?.displayName || user?.username || '?')[0].toUpperCase()}
                 </div>
               )}
@@ -452,141 +448,142 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
 
         {/* ====== ОСНОВНОЙ КОНТЕНТ ====== */}
         {currentView !== 'wall' && (
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 gap-2 p-2">
 
-          {/* Header */}
-          <div className="relative h-[60px] px-4 flex items-center gap-3 flex-shrink-0 liquid-glass border-b border-white/[0.06]">
-            <button
-              onClick={() => setShowSideMenu(true)}
-              className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.1] transition-all duration-150 flex-shrink-0"
-              title="Меню"
-              aria-label="Открыть меню"
-            >
-              <Menu size={17} />
-            </button>
+          {/* Верхняя панель: Header + Поиск + Сторисы */}
+          <div className="rounded-2xl overflow-hidden flex-shrink-0 glass-strong border border-white/[0.06]">
+            {/* Header */}
+            <div className="relative h-[52px] px-4 flex items-center gap-3">
+              <button
+                onClick={() => setShowSideMenu(true)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.06] transition-all duration-150 flex-shrink-0"
+                title="Меню"
+                aria-label="Открыть меню"
+              >
+                <Menu size={16} />
+              </button>
 
-            <div className="flex items-center gap-2.5 flex-1 min-w-0">
-              <img src="/logo.png" alt="Нексо" className="w-7 h-7 rounded-xl object-cover" />
-              <h1 className="text-[17px] font-bold text-white/90 truncate tracking-tight">
-                {activeTab === 'chats' && 'Нексо'}
-                {activeTab === 'friends' && 'Друзья'}
-                {activeTab === 'settings' && 'Настройки'}
-              </h1>
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <img src="/logo.png" alt="Нексо" className="w-6 h-6 rounded-lg object-cover" />
+                <h1 className="text-[15px] font-bold text-white/90 truncate tracking-tight">
+                  {activeTab === 'chats' && 'Нексо'}
+                  {activeTab === 'friends' && 'Друзья'}
+                  {activeTab === 'settings' && 'Настройки'}
+                </h1>
+              </div>
             </div>
-          </div>
 
-          {/* Поиск */}
-          <div className="relative px-3 py-2.5 flex-shrink-0">
-            <div className="relative group">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-nexo-400 transition-colors duration-200 pointer-events-none z-10" />
-              <input
-                type="text"
-                placeholder={
-                  activeTab === 'friends'
-                    ? 'Имя или @username'
-                    : searchResults.length > 0 || channelResults.length > 0
-                      ? 'Уточните запрос...'
-                      : 'Поиск чатов, людей...'
-                }
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 rounded-xl text-[13px] text-white placeholder-white/30 liquid-glass-input border border-white/[0.06] focus:border-white/[0.14] focus:bg-surface-tertiary outline-none transition-all duration-200"
-              />
-              {searchQuery ? (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/[0.08] transition-all duration-150"
-                  title="Очистить"
-                  aria-label="Очистить"
-                >
-                  <X size={11} />
-                </button>
-              ) : isSearching ? (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Spinner size="sm" />
+            {/* Поиск */}
+            <div className="relative px-3 pb-2.5">
+              <div className="relative group">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-nexo-400 transition-colors duration-200 pointer-events-none z-10" />
+                <input
+                  type="text"
+                  placeholder={
+                    activeTab === 'friends'
+                      ? 'Имя или @username'
+                      : searchResults.length > 0 || channelResults.length > 0
+                        ? 'Уточните запрос...'
+                        : 'Поиск чатов, людей...'
+                  }
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 rounded-xl text-[13px] text-white placeholder-white/30 outline-none transition-all duration-200"
+                  style={{ background: '#252525', border: '1px solid #2a2a2a' }}
+                />
+                {searchQuery ? (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-white/30 hover:text-white transition-all duration-150"
+                    title="Очистить"
+                    aria-label="Очистить"
+                  >
+                    <X size={11} />
+                  </button>
+                ) : isSearching ? (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Spinner size="sm" />
+                  </div>
+                ) : null}
+              </div>
+
+              {searchQuery.trim() && (
+                <div className="flex items-center justify-between mt-1.5 px-1">
+                  <span className="text-[10px] text-white/30">
+                    {searchResults.length + channelResults.length > 0
+                      ? `Найдено: ${searchResults.length} польз., ${channelResults.length} кан.`
+                      : isSearching
+                        ? 'Ищем...'
+                        : 'Ничего не найдено'}
+                  </span>
+                  <button
+                    onClick={() => setShowSearchPanel(true)}
+                    className="text-[10px] text-nexo-400/70 hover:text-nexo-300 transition-colors duration-150"
+                  >
+                    Расширенный поиск →
+                  </button>
                 </div>
-              ) : null}
+              )}
             </div>
 
-            {searchQuery.trim() && (
-              <div className="flex items-center justify-between mt-1.5 px-1">
-                <span className="text-[10px] text-white/30">
-                  {searchResults.length + channelResults.length > 0
-                    ? `Найдено: ${searchResults.length} польз., ${channelResults.length} кан.`
-                    : isSearching
-                      ? 'Ищем...'
-                      : 'Ничего не найдено'}
-                </span>
-                <button
-                  onClick={() => setShowSearchPanel(true)}
-                  className="text-[10px] text-nexo-400/70 hover:text-nexo-300 transition-colors duration-150"
-                >
-                  Расширенный поиск →
-                </button>
+            {/* Сторисы */}
+            {activeTab === 'chats' && (
+              <div className="px-3 pb-2.5">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Истории</span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  <button
+                    onClick={() => setShowCreateStory(true)}
+                    className="flex flex-col items-center gap-1 flex-shrink-0 group"
+                  >
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center transition-transform group-hover:scale-105" style={{ background: '#252525', border: '1px solid #2a2a2a' }}>
+                      <Plus size={16} className="text-nexo-400" />
+                    </div>
+                    <span className="text-[10px] text-zinc-500 truncate w-14 text-center">{t('newStory')}</span>
+                  </button>
+
+                  {storyGroups.map((group, idx) => {
+                    const avatarUrl = group.user.avatar ? normalizeMediaUrl(group.user.avatar) : null;
+                    const isMine = group.user.id === user?.id;
+                    return (
+                      <button
+                        key={group.user.id}
+                        onClick={() => setStoryViewerIndex(idx)}
+                        className="flex flex-col items-center gap-1 flex-shrink-0 group"
+                      >
+                        <div className={`w-14 h-14 rounded-[16px] p-[2px] transition-transform group-hover:scale-105 ${
+                          group.hasUnviewed
+                            ? 'bg-gradient-to-tr from-nexo-400 via-purple-500 to-pink-500 shadow-lg shadow-nexo-500/20'
+                            : isMine
+                              ? 'bg-gradient-to-tr from-zinc-500 to-zinc-600'
+                              : 'bg-zinc-700'
+                        }`}>
+                          <div className="w-full h-full rounded-[14px] overflow-hidden border-2" style={{ borderColor: '#111' }}>
+                            <Avatar
+                              src={avatarUrl}
+                              name={group.user.displayName || group.user.username}
+                              size="lg"
+                              className="w-full h-full"
+                              isVerified={(group.user as any).isVerified}
+                              verifiedBadgeUrl={(group.user as any).verifiedBadgeUrl}
+                              verifiedBadgeType={(group.user as any).verifiedBadgeType}
+                            />
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-zinc-400 truncate w-14 text-center">
+                          {isMine ? t('myStory') : (group.user.displayName || group.user.username).split(' ')[0]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Сторисы (только на вкладке чатов) — всегда показываем с кнопкой создания */}
-          {activeTab === 'chats' && (
-            <div className="px-4 pb-2 flex-shrink-0">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Истории</span>
-              </div>
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                <button
-                  onClick={() => setShowCreateStory(true)}
-                  className="flex flex-col items-center gap-1 flex-shrink-0 group"
-                >
-                  <div className="w-14 h-14 rounded-full glass-btn group-hover:scale-105 transition-transform">
-                    <Plus size={16} className="text-nexo-400" />
-                  </div>
-                  <span className="text-[10px] text-zinc-500 truncate w-14 text-center">{t('newStory')}</span>
-                </button>
-
-                {storyGroups.map((group, idx) => {
-                  const avatarUrl = group.user.avatar ? normalizeMediaUrl(group.user.avatar) : null;
-                  const isMine = group.user.id === user?.id;
-                  return (
-                    <button
-                      key={group.user.id}
-                      onClick={() => setStoryViewerIndex(idx)}
-                      className="flex flex-col items-center gap-1 flex-shrink-0 group"
-                    >
-                      <div className={`w-14 h-14 rounded-xl p-[2px] transition-transform group-hover:scale-105 ${
-                        group.hasUnviewed
-                          ? 'bg-gradient-to-tr from-nexo-400 via-purple-500 to-pink-500 shadow-lg shadow-nexo-500/20'
-                          : isMine
-                            ? 'bg-gradient-to-tr from-zinc-500 to-zinc-600'
-                            : 'bg-zinc-700'
-                      }`}>
-                        <div className="w-full h-full rounded-xl overflow-hidden border-2 border-[#0a0a0f]">
-                          <Avatar
-                            src={avatarUrl}
-                            name={group.user.displayName || group.user.username}
-                            size="lg"
-                            className="w-full h-full"
-                            isVerified={(group.user as any).isVerified}
-                            verifiedBadgeUrl={(group.user as any).verifiedBadgeUrl}
-                            verifiedBadgeType={(group.user as any).verifiedBadgeType}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-zinc-400 truncate w-14 text-center">
-                        {isMine ? t('myStory') : (group.user.displayName || group.user.username).split(' ')[0]}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Разделитель */}
-          <div className="mx-4 h-px bg-white/5 flex-shrink-0" />
-
           {/* Контент вкладки */}
-          <div className={`flex-1 overflow-y-auto relative ${isMobile ? 'pb-28' : 'pb-2'}`}>
+          <div className={`flex-1 overflow-y-auto relative ${isMobile ? 'pb-28' : 'pb-0'}`}>
             <AnimatePresence mode="wait">
               {activeTab === 'chats' && (
                 <motion.div
@@ -595,254 +592,258 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
+                  className="h-full"
                 >
-                  {/* Вкладки папок */}
-                  {!searchQuery.trim() && (
-                    <div className="px-2 py-2 flex items-center gap-1 overflow-x-auto scrollbar-hide border-b border-white/5">
-                      {/* Все чаты */}
+                  {/* Список чатов — отдельная панель */}
+                  <div className="h-full rounded-2xl overflow-hidden flex flex-col" style={{ background: '#1a1a1a', border: '1px solid #222' }}>
+                    {/* Вкладки папок */}
+                    {!searchQuery.trim() && (
+                      <div className="px-2 py-2 flex items-center gap-1 overflow-x-auto scrollbar-hide" style={{ borderBottom: '1px solid #222' }}>
+                        {/* Все чаты */}
                       <button
                         onClick={() => setSelectedFolder(null)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                           selectedFolder === null
-                            ? 'bg-nexo-500/20 text-nexo-400 ring-1 ring-nexo-500/50'
+                            ? 'bg-white/10 text-white ring-1 ring-white/20'
                             : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                         }`}
-                      >
-                        <MessageSquare size={14} />
-                        Все чаты
-                        <span className="text-[10px] opacity-60">({chats.length})</span>
-                      </button>
-
-                      {/* Папки */}
-                      {folders.map((folder) => (
-                        <button
-                          key={folder.id}
-                          onClick={() => setSelectedFolder(folder.id)}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            setFolderContextMenu({ folderId: folder.id, x: e.clientX, y: e.clientY });
-                          }}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.style.opacity = '0.5';
-                          }}
-                          onDragLeave={(e) => {
-                            e.currentTarget.style.opacity = '1';
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.style.opacity = '1';
-                            const chatId = e.dataTransfer.getData('chatId');
-                            if (chatId) {
-                              handleAddChatToFolder(chatId, folder.id);
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                            selectedFolder === folder.id
-                              ? 'ring-1'
-                              : 'hover:bg-white/5'
-                          }`}
-                          style={{
-                            backgroundColor: selectedFolder === folder.id ? folder.color + '20' : 'transparent',
-                            color: selectedFolder === folder.id ? folder.color : '#a1a1aa',
-                            borderColor: selectedFolder === folder.id ? folder.color + '50' : 'transparent',
-                          }}
                         >
-                          <span>{folder.icon}</span>
-                          {folder.name}
-                          <span className="text-[10px] opacity-60">({folder.chats.length})</span>
+                          <MessageSquare size={14} />
+                          Все чаты
+                          <span className="text-[10px] opacity-60">({chats.length})</span>
                         </button>
-                      ))}
 
-                      {/* Кнопка создать папку */}
-                      <button
-                        onClick={() => {
-                          setEditingFolder(null);
-                          setShowFolderModal(true);
-                        }}
-                        className="px-2 py-1.5 rounded-lg text-zinc-400 hover:bg-white/5 hover:text-white transition-all flex items-center gap-1"
-                        title="Создать папку"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  )}
+                        {/* Папки */}
+                        {folders.map((folder) => (
+                          <button
+                            key={folder.id}
+                            onClick={() => setSelectedFolder(folder.id)}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setFolderContextMenu({ folderId: folder.id, x: e.clientX, y: e.clientY });
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.style.opacity = '0.5';
+                            }}
+                            onDragLeave={(e) => {
+                              e.currentTarget.style.opacity = '1';
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.currentTarget.style.opacity = '1';
+                              const chatId = e.dataTransfer.getData('chatId');
+                              if (chatId) {
+                                handleAddChatToFolder(chatId, folder.id);
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                              selectedFolder === folder.id
+                                ? 'ring-1'
+                                : 'hover:bg-white/5'
+                            }`}
+                            style={{
+                              backgroundColor: selectedFolder === folder.id ? folder.color + '20' : 'transparent',
+                              color: selectedFolder === folder.id ? folder.color : '#a1a1aa',
+                              borderColor: selectedFolder === folder.id ? folder.color + '50' : 'transparent',
+                            }}
+                          >
+                            <span>{folder.icon}</span>
+                            {folder.name}
+                            <span className="text-[10px] opacity-60">({folder.chats.length})</span>
+                          </button>
+                        ))}
 
-                  {searchQuery.trim() ? (
-                    /* Результаты поиска */
-                    <div className="py-2">
-                      {searchResults.length > 0 && (
-                        <div className="mb-4">
-                          <div className="px-4 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                            <MessageSquare size={10} />
-                            Пользователи
-                          </div>
-                          <div className="space-y-0.5">
-                            {searchResults.map((u) => (
-                              <motion.button
-                                key={u.id}
-                                onClick={() => handleOpenChatWithUser(u.id)}
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
-                                className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-white/5 transition-colors"
-                              >
-                                <Avatar
-                                  src={u.avatar}
-                                  name={u.displayName || u.username}
-                                  size="md"
-                                  isVerified={u.isVerified}
-                                  verifiedBadgeUrl={u.verifiedBadgeUrl}
-                                  verifiedBadgeType={u.verifiedBadgeType}
-                                />
-                                <div className="flex-1 text-left min-w-0">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <p className="text-sm font-medium text-white truncate">{u.displayName || u.username}</p>
-                                    {u.isVerified && (
-                                      <span className="flex-shrink-0 inline-flex items-center justify-center">
-                                        <VerifiedBadge
-                                          size="sm"
-                                          verifiedBadgeUrl={u.verifiedBadgeUrl}
-                                          verifiedBadgeType={u.verifiedBadgeType}
-                                        />
-                                      </span>
-                                    )}
-                                    {u.tagText && (
-                                      <UserTag text={u.tagText} color={u.tagColor} style={u.tagStyle} size="xs" />
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-zinc-500">@{u.username}</p>
-                                </div>
-                                <MessageSquare size={14} className="text-zinc-600" />
-                              </motion.button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {channelResults.length > 0 && (
-                        <div className="mb-4">
-                          <div className="px-4 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                            Каналы
-                          </div>
-                          <div className="space-y-0.5">
-                            {channelResults.map((channel) => (
-                              <motion.button
-                                key={channel.id}
-                                onClick={() => handleJoinChannel(channel)}
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
-                                className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-white/5 transition-colors"
-                              >
-                                <Avatar
-                                  src={channel.avatar}
-                                  name={channel.name || channel.username || '?'}
-                                  size="md"
-                                  isVerified={channel.isVerified}
-                                  verifiedBadgeUrl={channel.verifiedBadgeUrl}
-                                  verifiedBadgeType={channel.verifiedBadgeType}
-                                />
-                                <div className="flex-1 text-left min-w-0">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <p className="text-sm font-medium text-white truncate">{channel.name}</p>
-                                    {channel.isVerified && (
-                                      <span className="flex-shrink-0 inline-flex items-center justify-center">
-                                        <VerifiedBadge
-                                          size="xs"
-                                          verifiedBadgeUrl={channel.verifiedBadgeUrl}
-                                          verifiedBadgeType={channel.verifiedBadgeType}
-                                        />
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-zinc-500">@{channel.username}</p>
-                                </div>
-                                <MessageSquare size={14} className="text-zinc-600" />
-                              </motion.button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {searchResults.length === 0 && channelResults.length === 0 && !isSearching && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="flex flex-col items-center justify-center py-12 text-zinc-500 gap-3"
+                        {/* Кнопка создать папку */}
+                        <button
+                          onClick={() => {
+                            setEditingFolder(null);
+                            setShowFolderModal(true);
+                          }}
+                          className="px-2 py-1.5 rounded-lg text-zinc-400 hover:bg-white/5 hover:text-white transition-all flex items-center gap-1"
+                          title="Создать папку"
                         >
-                          <div className="w-16 h-16 rounded-full glass-subtle flex items-center justify-center">
-                            <Search size={24} className="opacity-50" />
-                          </div>
-                          <p className="text-sm">Ничего не найдено</p>
-                        </motion.div>
-                      )}
-
-                      {isSearching && (
-                        <div className="flex items-center justify-center py-12">
-                          <div className="w-6 h-6 border-2 border-nexo-500 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                      )}
-                    </div>
-                  ) : filteredChats.length === 0 ? (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex flex-col items-center justify-center h-full text-zinc-500 gap-3 px-6"
-                    >
-                      <div className="w-20 h-20 rounded-full glass-subtle flex items-center justify-center">
-                        <MessageSquare size={36} className="opacity-30" />
+                          <Plus size={14} />
+                        </button>
                       </div>
-                      <p className="text-sm text-center">{showArchive ? 'Архив пуст' : t('noChats')}</p>
-                      {showArchive && (
-                        <button
-                          onClick={() => setShowArchive(false)}
-                          className="text-xs text-nexo-400 hover:text-nexo-300 transition-colors"
-                        >
-                          ← Вернуться к чатам
-                        </button>
-                      )}
-                    </motion.div>
-                  ) : (
-                    <div className="py-2">
-                      {/* Заголовок архива */}
-                      {showArchive && (
-                        <div className="px-4 py-3 flex items-center justify-between border-b border-white/5 mb-2">
+                    )}
+
+                    {searchQuery.trim() ? (
+                      /* Результаты поиска */
+                      <div className="py-2">
+                        {searchResults.length > 0 && (
+                          <div className="mb-4">
+                            <div className="px-4 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                              <MessageSquare size={10} />
+                              Пользователи
+                            </div>
+                            <div className="space-y-0.5">
+                              {searchResults.map((u) => (
+                                <motion.button
+                                  key={u.id}
+                                  onClick={() => handleOpenChatWithUser(u.id)}
+                                  whileHover={{ scale: 1.01 }}
+                                  whileTap={{ scale: 0.99 }}
+                                  className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-white/5 transition-colors"
+                                >
+                                  <Avatar
+                                    src={u.avatar}
+                                    name={u.displayName || u.username}
+                                    size="md"
+                                    isVerified={u.isVerified}
+                                    verifiedBadgeUrl={u.verifiedBadgeUrl}
+                                    verifiedBadgeType={u.verifiedBadgeType}
+                                  />
+                                  <div className="flex-1 text-left min-w-0">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <p className="text-sm font-medium text-white truncate">{u.displayName || u.username}</p>
+                                      {u.isVerified && (
+                                        <span className="flex-shrink-0 inline-flex items-center justify-center">
+                                          <VerifiedBadge
+                                            size="sm"
+                                            verifiedBadgeUrl={u.verifiedBadgeUrl}
+                                            verifiedBadgeType={u.verifiedBadgeType}
+                                          />
+                                        </span>
+                                      )}
+                                      {u.tagText && (
+                                        <UserTag text={u.tagText} color={u.tagColor} style={u.tagStyle} size="xs" />
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-zinc-500">@{u.username}</p>
+                                  </div>
+                                  <MessageSquare size={14} className="text-zinc-600" />
+                                </motion.button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {channelResults.length > 0 && (
+                          <div className="mb-4">
+                            <div className="px-4 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                              Каналы
+                            </div>
+                            <div className="space-y-0.5">
+                              {channelResults.map((channel) => (
+                                <motion.button
+                                  key={channel.id}
+                                  onClick={() => handleJoinChannel(channel)}
+                                  whileHover={{ scale: 1.01 }}
+                                  whileTap={{ scale: 0.99 }}
+                                  className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-white/5 transition-colors"
+                                >
+                                  <Avatar
+                                    src={channel.avatar}
+                                    name={channel.name || channel.username || '?'}
+                                    size="md"
+                                    isVerified={channel.isVerified}
+                                    verifiedBadgeUrl={channel.verifiedBadgeUrl}
+                                    verifiedBadgeType={channel.verifiedBadgeType}
+                                  />
+                                  <div className="flex-1 text-left min-w-0">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <p className="text-sm font-medium text-white truncate">{channel.name}</p>
+                                      {channel.isVerified && (
+                                        <span className="flex-shrink-0 inline-flex items-center justify-center">
+                                          <VerifiedBadge
+                                            size="xs"
+                                            verifiedBadgeUrl={channel.verifiedBadgeUrl}
+                                            verifiedBadgeType={channel.verifiedBadgeType}
+                                          />
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-zinc-500">@{channel.username}</p>
+                                  </div>
+                                  <MessageSquare size={14} className="text-zinc-600" />
+                                </motion.button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {searchResults.length === 0 && channelResults.length === 0 && !isSearching && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex flex-col items-center justify-center py-12 text-zinc-500 gap-3"
+                          >
+                            <div className="w-16 h-16 rounded-full glass-subtle flex items-center justify-center">
+                              <Search size={24} className="opacity-50" />
+                            </div>
+                            <p className="text-sm">Ничего не найдено</p>
+                          </motion.div>
+                        )}
+
+                        {isSearching && (
+                          <div className="flex items-center justify-center py-12">
+                            <div className="w-6 h-6 border-2 border-nexo-500 border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                    ) : filteredChats.length === 0 ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex flex-col items-center justify-center py-12 text-zinc-500 gap-3 px-6"
+                      >
+                        <div className="w-20 h-20 rounded-full glass-subtle flex items-center justify-center">
+                          <MessageSquare size={36} className="opacity-30" />
+                        </div>
+                        <p className="text-sm text-center">{showArchive ? 'Архив пуст' : t('noChats')}</p>
+                        {showArchive && (
                           <button
                             onClick={() => setShowArchive(false)}
-                            className="flex items-center gap-2 text-sm text-nexo-400 hover:text-nexo-300 transition-colors"
+                            className="text-xs text-nexo-400 hover:text-nexo-300 transition-colors"
                           >
-                            <ArchiveRestore size={16} />
-                            ← Назад
+                            ← Вернуться к чатам
                           </button>
-                          <div className="text-xs text-zinc-500">
-                            {archivedCount} {archivedCount === 1 ? 'чат' : archivedCount < 5 ? 'чата' : 'чатов'}
+                        )}
+                      </motion.div>
+                    ) : (
+                      <div className="py-2">
+                        {/* Заголовок архива */}
+                        {showArchive && (
+                          <div className="px-4 py-3 flex items-center justify-between border-b border-white/5 mb-2">
+                            <button
+                              onClick={() => setShowArchive(false)}
+                              className="flex items-center gap-2 text-sm text-nexo-400 hover:text-nexo-300 transition-colors"
+                            >
+                              <ArchiveRestore size={16} />
+                              ← Назад
+                            </button>
+                            <div className="text-xs text-zinc-500">
+                              {archivedCount} {archivedCount === 1 ? 'чат' : archivedCount < 5 ? 'чата' : 'чатов'}
+                            </div>
                           </div>
+                        )}
+                        
+                        {/* Кнопка архива */}
+                        {!showArchive && !searchQuery.trim() && archivedCount > 0 && (
+                          <button
+                            onClick={() => setShowArchive(true)}
+                            className="flex items-center gap-3 w-full px-3 py-3 hover:bg-white/5 transition-colors text-left mb-1"
+                          >
+                            <div className="w-12 h-12 rounded-full bg-zinc-700/50 flex items-center justify-center flex-shrink-0">
+                              <Archive size={22} className="text-zinc-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-white">Архив</p>
+                              <p className="text-xs text-zinc-500">{archivedCount} {archivedCount === 1 ? 'чат' : archivedCount < 5 ? 'чата' : 'чатов'}</p>
+                            </div>
+                          </button>
+                        )}
+                        
+                        {/* Список чатов */}
+                        <div className="overflow-y-auto flex-1 min-h-0">
+                          {filteredChats.map(chat => (
+                            <ChatListItem key={chat.id} chat={chat} isActive={chat.id === activeChat} />
+                          ))}
                         </div>
-                      )}
-                      
-                      {/* Кнопка архива — показывается как чат в начале списка */}
-                      {!showArchive && !searchQuery.trim() && archivedCount > 0 && (
-                        <button
-                          onClick={() => setShowArchive(true)}
-                          className="flex items-center gap-3 w-full px-3 py-3 hover:bg-white/5 transition-colors text-left mb-1"
-                        >
-                          <div className="w-12 h-12 rounded-full bg-zinc-700/50 flex items-center justify-center flex-shrink-0">
-                            <Archive size={22} className="text-zinc-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white">Архив</p>
-                            <p className="text-xs text-zinc-500">{archivedCount} {archivedCount === 1 ? 'чат' : archivedCount < 5 ? 'чата' : 'чатов'}</p>
-                          </div>
-                        </button>
-                      )}
-                      
-                      {/* Список чатов */}
-                      <div className="overflow-y-auto flex-1 min-h-0">
-                        {filteredChats.map(chat => (
-                          <ChatListItem key={chat.id} chat={chat} isActive={chat.id === activeChat} />
-                        ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </motion.div>
               )}
 
@@ -852,13 +853,32 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
                   initial={{ opacity: 0, x: 10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
-                  className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 px-6"
+                  className="h-full rounded-2xl flex flex-col items-center justify-center text-zinc-500 gap-4 px-6"
+                  style={{ background: '#1a1a1a', border: '1px solid #222' }}
                 >
-                  <div className="w-20 h-20 rounded-full glass-subtle flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: '#252525' }}>
                     <Users size={36} className="opacity-30" />
                   </div>
                   <p className="text-sm text-center font-medium">Друзья</p>
                   <p className="text-xs text-zinc-600 text-center">Управление друзьями через панель</p>
+                </motion.div>
+              )}
+
+              {activeTab === 'profile' && user && (
+                <motion.div
+                  key="profile"
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="h-full rounded-2xl overflow-y-auto"
+                  style={{ background: '#1a1a1a', border: '1px solid #222' }}
+                >
+                  <UserProfile
+                    userId={user.id}
+                    isSelf
+                    embedded
+                    onClose={() => setActiveTab('chats')}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -871,12 +891,6 @@ export default function Sidebar({ onOpenAI, onOpenFriends, onOpenWall }: Sidebar
       {/* ====== МОДАЛКИ ====== */}
       <AnimatePresence>
         {showNewChat && <NewChatModal onClose={() => setShowNewChat(false)} />}
-      </AnimatePresence>
-      <AnimatePresence>
-        {showProfile && <UserProfile userId={user!.id} onClose={() => {
-          setShowProfile(false);
-          setActiveTab('chats');
-        }} isSelf />}
       </AnimatePresence>
       <SideMenu
         isOpen={showSideMenu}

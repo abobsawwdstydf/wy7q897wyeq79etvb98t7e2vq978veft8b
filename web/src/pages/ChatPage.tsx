@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { playNotificationSound, playUvedSound, isChatMuted } from '../lib/sounds';
 import { useLang } from '../lib/i18n';
 import type { Message, UserBasic, CallInfo } from '../lib/types';
-import { Send, Check, ArrowLeft, Phone, MessageSquare, Users, Archive, Plus } from 'lucide-react';
+import { Send, Check, Phone, MessageSquare, Users, Archive, Plus } from 'lucide-react';
 import ChatView from '../components/ChatView';
 import CallModal from '../components/CallModal';
 import GroupCallModal from '../components/GroupCallModal';
@@ -343,16 +343,28 @@ export default function ChatPage() {
     const socket = getSocket();
     if (!socket) return;
 
-    socket.on('new_message', async (message: Message) => {
-      // If this chat isn't in our store yet (e.g. someone just created it and sent a message),
-      // fetch chats so the new chat appears in the sidebar immediately
-      const { chats } = useChatStore.getState();
+    socket.on('new_message', async (message: Message & { _tempId?: string }) => {
+      const { messages, chats } = useChatStore.getState();
+      const chatMessages = messages[message.chatId] || [];
+
+      // If this is our own message and we have a temp version, replace it
+      if (message.senderId === user?.id && message._tempId) {
+        const hasTemp = chatMessages.some(m => m.id === message._tempId);
+        if (hasTemp) {
+          useChatStore.getState().replaceMessage(message._tempId, message);
+          return;
+        }
+      }
+
+      // Deduplication: skip if message already exists
+      if (chatMessages.some(m => m.id === message.id)) return;
+
+      // If this chat isn't in our store yet, fetch chats
       if (!chats.some(c => c.id === message.chatId)) {
         try {
           const allChats = await api.getChats();
           const newChat = allChats.find(c => c.id === message.chatId);
           if (newChat) {
-            // Reset unreadCount to 0 because addMessage below will increment it by 1
             useChatStore.getState().addChat({ ...newChat, unreadCount: 0 });
           }
         } catch (e) {
@@ -571,15 +583,6 @@ export default function ChatPage() {
     >
       {/* ChatView — занимает всё пространство */}
       <div className="flex-1 w-full h-full min-h-0 overflow-hidden relative">
-        {/* Back button for mobile — возвращает к sidebar */}
-        {isMobile && activeChat && (
-          <button
-            onClick={() => useChatStore.getState().setActiveChat(null)}
-            className="absolute left-3 top-3 z-30 p-2 rounded-lg bg-surface-secondary/90 backdrop-blur border border-border text-white hover:bg-surface-hover transition-colors shadow-lg"
-          >
-            <ArrowLeft size={20} />
-          </button>
-        )}
         <ChatView onStartCall={handleStartCall} onStartGroupCall={handleStartGroupCall} />
       </div>
 
@@ -590,20 +593,22 @@ export default function ChatPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
+            transition={{ duration: 0.1 }}
+            className="fixed inset-0 z-[200]"
             onClick={() => closeAI()}
           >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95 }}
+              animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1 }}
+              exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className={`${
                 isMobile
-                  ? 'fixed inset-0 rounded-none'
+                  ? 'absolute inset-x-0 bottom-0 top-[52px] rounded-t-[20px]'
                   : 'fixed inset-8 rounded-2xl shadow-2xl overflow-hidden'
-              } bg-[#0a0a0f] border border-white/10`}
+              } border border-white/10 overflow-hidden`}
+              style={{ background: '#111' }}
               onClick={(e) => e.stopPropagation()}
             >
               <NexoAIPage onClose={() => closeAI()} />
@@ -622,7 +627,7 @@ export default function ChatPage() {
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
             className={`${isMobile ? 'fixed inset-0 z-[150]' : 'absolute right-0 top-0 bottom-0 w-[480px] z-[140]'}`}
           >
-            <div className={`h-full bg-[#0a0a0f] ${isMobile ? '' : 'border-l border-white/10 shadow-2xl'}`}>
+            <div className={`h-full ${isMobile ? '' : 'border-l border-white/10 shadow-2xl'}`} style={{ background: '#111' }}>
               <FriendsPage onClose={() => closeFriends()} />
             </div>
           </motion.div>

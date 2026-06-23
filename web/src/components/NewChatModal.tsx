@@ -155,10 +155,10 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
     }
   };
 
-  const modes: { key: Mode; icon: typeof MessageSquare; label: string; desc: string; color: string; gradient: string }[] = [
-    { key: 'personal', icon: MessageSquare, label: 'Личный чат', desc: 'Напишите сообщение другу', color: 'from-blue-500 to-cyan-500', gradient: 'bg-gradient-to-br from-blue-500/10 to-cyan-500/10' },
-    { key: 'group', icon: Users, label: 'Группа', desc: 'Создайте групповой чат', color: 'from-purple-500 to-pink-500', gradient: 'bg-gradient-to-br from-purple-500/10 to-pink-500/10' },
-    { key: 'channel', icon: Megaphone, label: 'Канал', desc: 'Создайте публичный канал', color: 'from-amber-500 to-orange-500', gradient: 'bg-gradient-to-br from-amber-500/10 to-orange-500/10' },
+  const modes: { key: Mode; icon: typeof MessageSquare; label: string; desc: string }[] = [
+    { key: 'personal', icon: MessageSquare, label: 'Личный чат', desc: 'Напишите сообщение другу' },
+    { key: 'group', icon: Users, label: 'Группа', desc: 'Создайте групповой чат' },
+    { key: 'channel', icon: Megaphone, label: 'Канал', desc: 'Создайте публичный канал' },
   ];
 
   return (
@@ -166,7 +166,7 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm sm:bg-black/60 sm:backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-4"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
       onTouchEnd={e => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -175,32 +175,22 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: 100, opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="w-full sm:max-w-xl overflow-hidden relative sm:m-4 max-h-[85vh] sm:max-h-[90vh] flex flex-col rounded-t-[32px] sm:rounded-3xl"
+        className="w-full sm:max-w-xl overflow-hidden relative sm:m-4 max-h-[85vh] sm:max-h-[90vh] flex flex-col rounded-t-[32px] sm:rounded-3xl backdrop-blur-2xl"
+        style={{ background: 'rgba(17,17,17,0.85)', border: '1px solid rgba(255,255,255,0.08)' }}
       >
-        {/* Glass panel background for mobile, glass-strong for desktop */}
-        <div className="absolute inset-0 sm:bg-transparent sm:backdrop-blur-none bg-[rgba(11,19,38,0.6)] backdrop-blur-[40px] border border-white/[0.1] border-b-0 sm:border sm:border-white/[0.08] sm:bg-[rgba(20,20,30,0.85)] rounded-t-[32px] sm:rounded-3xl" />
-        {/* Gradient border glow */}
-        <div className="absolute -inset-px sm:rounded-3xl rounded-t-[32px] bg-gradient-to-br from-nexo-500/30 via-purple-500/15 to-pink-500/20 pointer-events-none opacity-50 blur-sm" />
-        <div className="absolute -inset-px sm:rounded-3xl rounded-t-[32px] bg-gradient-to-br from-nexo-500/15 via-transparent to-purple-500/10 pointer-events-none" />
-        {/* Фоновые градиенты */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className={`absolute -top-32 -right-32 w-64 h-64 rounded-full bg-gradient-to-br ${modes.find(m => m.key === mode)?.color} opacity-15 blur-3xl`} />
-          <div className={`absolute -bottom-32 -left-32 w-64 h-64 rounded-full bg-gradient-to-br ${modes.find(m => m.key === mode)?.color} opacity-15 blur-3xl`} />
-        </div>
-
         {/* Grabber handle - mobile only */}
-        <div className="relative flex justify-center pt-3 pb-1 sm:hidden">
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-12 h-1.5 bg-white/20 rounded-full" />
         </div>
 
         {/* Header */}
-        <div className="relative p-5 sm:border-b border-white/8">
+        <div className="p-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${modes.find(m => m.key === mode)?.color} flex items-center justify-center shadow-lg glass`}>
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: '#252525' }}>
                 {(() => {
                   const ModeIcon = modes.find(m => m.key === mode)!.icon;
-                  return <ModeIcon size={20} className="text-white" />;
+                  return <ModeIcon size={18} className="text-white" />;
                 })()}
               </div>
               <div>
@@ -210,7 +200,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
             </div>
             <button
               onClick={onClose}
-              className="glass-btn w-9 h-9 rounded-xl text-zinc-400 hover:text-white"
+              className="w-9 h-9 rounded-xl text-zinc-400 hover:text-white flex items-center justify-center"
+              style={{ background: '#252525' }}
             >
               <X size={16} />
             </button>
@@ -218,17 +209,18 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
         </div>
 
         {/* Mode tabs */}
-        <div className="relative p-4">
-          <div className="flex gap-2 p-1 rounded-2xl glass-subtle">
+        <div className="p-4">
+          <div className="flex gap-2 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
             {modes.map(m => (
               <button
                 key={m.key}
                 onClick={() => { setMode(m.key); setQuery(''); setUsers([]); setSelectedUsers(new Set()); setIsAnimating(true); setTimeout(() => setIsAnimating(false), 300); }}
                 className={`flex-1 py-3 px-3 rounded-xl text-xs font-medium transition-all duration-300 flex flex-col items-center gap-1.5 ${
                   mode === m.key
-                    ? `glass-tab-active text-white`
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    ? 'text-white'
+                    : 'text-zinc-400 hover:text-white'
                 }`}
+                style={mode === m.key ? { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' } : undefined}
               >
                 <m.icon size={16} />
                 <span>{m.label}</span>
@@ -259,19 +251,21 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
             >
               {/* Search */}
               <div className="relative group">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-nexo-400 transition-colors z-10" />
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-white transition-colors z-10" />
                 <input
                   ref={inputRef}
                   type="text"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Поиск по имени или username..."
-                  className="w-full pl-12 pr-12 py-3.5 text-sm text-white placeholder-zinc-500 glass-input rounded-2xl"
+                  className="w-full pl-12 pr-12 py-3.5 text-sm text-white placeholder-zinc-500 rounded-2xl outline-none transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                 />
                 {query && (
                   <button
                     onClick={() => { setQuery(''); setUsers([]); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-xl glass-btn text-zinc-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-xl text-zinc-400 hover:text-white flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.06)' }}
                   >
                     <X size={12} />
                   </button>
@@ -293,7 +287,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                       onClick={() => handleSelectUser(user)}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full flex items-center gap-3 p-3 rounded-2xl glass-subtle hover:glass transition-all text-left group"
+                      className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left group"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                     >
                       <div className="relative">
                         <Avatar 
@@ -312,7 +307,7 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                         <p className="text-sm font-medium text-white truncate">{user.displayName || user.username}</p>
                         <p className="text-xs text-zinc-500">@{user.username}</p>
                       </div>
-                      <MessageSquare size={16} className="text-zinc-600 group-hover:text-nexo-400 transition-colors opacity-0 group-hover:opacity-100" />
+                      <MessageSquare size={16} className="text-zinc-600 group-hover:text-white transition-colors opacity-0 group-hover:opacity-100" />
                     </motion.button>
                   ))}
                   {channelSearchResults.length > 0 && (
@@ -324,7 +319,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                           onClick={() => { useChatStore.getState().setActiveChat(ch.id); onClose(); }}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          className="w-full flex items-center gap-3 p-3 rounded-2xl glass-subtle hover:glass transition-all text-left group"
+                          className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left group"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                         >
                           <Avatar src={ch.avatar} name={ch.name || ch.username || 'C'} size="md" isVerified={ch.isVerified} />
                           <div className="flex-1 min-w-0">
@@ -339,7 +335,7 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                 </div>
               ) : query.length >= 2 ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <div className="w-16 h-16 rounded-full glass-subtle flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <Search size={28} className="text-zinc-400" />
                   </div>
                   <div className="text-center">
@@ -349,8 +345,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <div className="w-16 h-16 rounded-full glass flex items-center justify-center animate-pulse-soft">
-                    <Sparkles size={28} className="text-nexo-400" />
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <Sparkles size={28} className="text-zinc-400" />
                   </div>
                   <div className="text-center">
                     <p className="text-sm text-zinc-400">Начните вводить имя или username</p>
@@ -375,7 +371,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                   <button
                     type="button"
                     onClick={() => avatarInputRef.current?.click()}
-                    className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-2 border-dashed border-white/20 hover:border-white/40 flex items-center justify-center transition-all group"
+                    className="w-20 h-20 rounded-[20px] overflow-hidden border-2 border-dashed border-white/20 hover:border-white/40 flex items-center justify-center transition-all group"
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
                   >
                     {avatarPreview ? (
                       <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
@@ -408,7 +405,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                   onChange={e => setGroupName(e.target.value)}
                   placeholder="Моя супер группа"
                   maxLength={50}
-                  className="w-full px-4 py-3.5 text-sm text-white placeholder-zinc-500 glass-input rounded-2xl"
+                  className="w-full px-4 py-3.5 text-sm text-white placeholder-zinc-500 rounded-2xl outline-none transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                 />
                 {groupName && (
                   <p className="text-xs text-zinc-600 mt-1 text-right">{groupName.length}/50</p>
@@ -420,25 +418,26 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                 <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                   <UserPlus size={12} />
                   Участники {selectedUsers.size > 0 && (
-                    <span className="bg-nexo-500/20 text-nexo-300 px-2 py-0.5 rounded-full text-xs">
+                    <span className="bg-white/10 text-zinc-300 px-2 py-0.5 rounded-full text-xs">
                       {selectedUsers.size}
                     </span>
                   )}
                 </label>
                 <div className="relative group">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-nexo-400 transition-colors z-10" />
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-white transition-colors z-10" />
                   <input
                     type="text"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Поиск участников..."
-                    className="w-full pl-12 pr-4 py-3.5 text-sm text-white placeholder-zinc-500 glass-input rounded-2xl"
+                    className="w-full pl-12 pr-4 py-3.5 text-sm text-white placeholder-zinc-500 rounded-2xl outline-none transition-all"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                   />
                 </div>
 
                 {/* Selected users */}
                 {selectedUsers.size > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                  <div className="flex flex-wrap gap-2 mt-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     {Array.from(selectedUsers).map(id => {
                       const user = users.find(u => u.id === id);
                       if (!user) return null;
@@ -448,7 +447,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                           onClick={() => toggleUser(id)}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-nexo-500/20 to-purple-500/20 border border-nexo-500/30 text-nexo-300 text-sm hover:from-nexo-500/30 hover:to-purple-500/30 transition-all"
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm transition-all"
+                          style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)', color: '#e4e4e7' }}
                         >
                           <Check size={12} />
                           {user.displayName || user.username}
@@ -461,7 +461,7 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
 
                 {/* Users list */}
                 {users.length > 0 && (
-                  <div className="space-y-1 mt-3 max-h-48 overflow-y-auto rounded-xl bg-white/5 border border-white/5 p-2">
+                  <div className="space-y-1 mt-3 max-h-48 overflow-y-auto rounded-xl p-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                     {users.map(user => (
                       <motion.button
                         key={user.id}
@@ -469,8 +469,9 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.99 }}
                         className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left ${
-                          selectedUsers.has(user.id) ? 'bg-nexo-500/10 border border-nexo-500/20' : 'hover:bg-white/5 border border-transparent'
+                          selectedUsers.has(user.id) ? 'border border-white/10' : 'hover:bg-white/5 border border-transparent'
                         }`}
+                        style={selectedUsers.has(user.id) ? { background: 'rgba(255,255,255,0.06)' } : undefined}
                       >
                         <div className="relative">
                           <Avatar 
@@ -493,7 +494,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                           <motion.div 
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            className="w-5 h-5 rounded-full bg-nexo-500 flex items-center justify-center"
+                            className="w-5 h-5 rounded-full flex items-center justify-center"
+                            style={{ background: 'rgba(255,255,255,0.1)' }}
                           >
                             <Check size={12} className="text-white" />
                           </motion.div>
@@ -510,7 +512,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                 disabled={!groupName.trim() || isCreating}
                 whileHover={{ scale: !(!groupName.trim() || isCreating) ? 1.02 : 1 }}
                 whileTap={{ scale: !(!groupName.trim() || isCreating) ? 0.98 : 1 }}
-                className="w-full py-4 rounded-2xl text-white font-medium glass-btn bg-gradient-to-r from-nexo-500 to-purple-600 border-0 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-nexo-500/30 flex items-center justify-center gap-2 group"
+                className="w-full py-4 rounded-2xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
                 {isCreating ? (
                   <Loader2 size={18} className="animate-spin" />
@@ -538,7 +541,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                   <button
                     type="button"
                     onClick={() => avatarInputRef.current?.click()}
-                    className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-2 border-dashed border-white/20 hover:border-white/40 flex items-center justify-center transition-all group"
+                    className="w-20 h-20 rounded-[20px] overflow-hidden border-2 border-dashed border-white/20 hover:border-white/40 flex items-center justify-center transition-all group"
+                    style={{ background: 'rgba(255,255,255,0.04)' }}
                   >
                     {avatarPreview ? (
                       <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
@@ -570,7 +574,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                   onChange={e => setGroupName(e.target.value)}
                   placeholder="Мой крутой канал"
                   maxLength={50}
-                  className="w-full px-4 py-3.5 text-sm text-white placeholder-zinc-500 glass-input rounded-2xl"
+                  className="w-full px-4 py-3.5 text-sm text-white placeholder-zinc-500 rounded-2xl outline-none transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                 />
                 {groupName && (
                   <p className="text-xs text-zinc-600 mt-1 text-right">{groupName.length}/50</p>
@@ -590,7 +595,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                     value={channelUsername}
                     onChange={e => setChannelUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
                     placeholder="my_channel"
-                    className="w-full pl-8 pr-4 py-3.5 text-sm text-white placeholder-zinc-500 glass-input rounded-2xl lowercase"
+                    className="w-full pl-8 pr-4 py-3.5 text-sm text-white placeholder-zinc-500 rounded-2xl lowercase outline-none transition-all"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                   />
                 </div>
                 <p className="text-xs text-zinc-500 mt-1.5 flex items-center gap-1">
@@ -610,7 +616,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                   onChange={e => setChannelDescription(e.target.value)}
                   placeholder="О чём ваш канал..."
                   maxLength={255}
-                  className="w-full px-4 py-3.5 text-sm text-white placeholder-zinc-500 glass-input rounded-2xl resize-none h-24"
+                  className="w-full px-4 py-3.5 text-sm text-white placeholder-zinc-500 rounded-2xl resize-none h-24 outline-none transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                 />
                 <p className="text-xs text-zinc-600 mt-1 text-right">{channelDescription.length}/255</p>
               </div>
@@ -620,11 +627,12 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-4 rounded-2xl glass-card"
+                  className="p-4 rounded-2xl"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                 >
                   <p className="text-xs text-zinc-500 mb-3">Предпросмотр:</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ background: 'rgba(255,255,255,0.08)' }}>
                       {groupName.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
@@ -642,7 +650,8 @@ export default function NewChatModal({ onClose }: NewChatModalProps) {
                 disabled={!groupName.trim() || !channelUsername.trim() || isCreating}
                 whileHover={{ scale: !(!groupName.trim() || !channelUsername.trim() || isCreating) ? 1.02 : 1 }}
                 whileTap={{ scale: !(!groupName.trim() || !channelUsername.trim() || isCreating) ? 0.98 : 1 }}
-                className="w-full py-4 rounded-2xl text-white font-medium glass-btn bg-gradient-to-r from-amber-500 to-orange-500 border-0 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 group"
+                className="w-full py-4 rounded-2xl text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
                 {isCreating ? (
                   <Loader2 size={18} className="animate-spin" />

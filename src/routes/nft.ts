@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db';
 import { authenticateTokenOrAdmin, AuthRequest } from '../middleware/auth';
 import { getSocket } from '../socket';
 import multer from 'multer';
@@ -8,7 +8,6 @@ import fs from 'fs';
 import { getAdminSession } from '../services/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Вспомогательная функция для проверки админ-прав
 async function checkAdminAccess(req: AuthRequest): Promise<boolean> {

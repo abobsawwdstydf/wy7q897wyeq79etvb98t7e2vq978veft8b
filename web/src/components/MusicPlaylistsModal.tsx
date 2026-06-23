@@ -4,6 +4,8 @@ import { X, Plus, Music, Play, Pause, Volume2, Trash2, Edit3, Check, Image as Im
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useMusicPlayerStore } from '../stores/musicPlayerStore';
+import { useToastStore } from '../stores/toastStore';
+import BottomSheet from './BottomSheet';
 
 interface Playlist {
   id: string;
@@ -40,9 +42,16 @@ export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProp
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
 
   useEffect(() => {
     loadPlaylists();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadPlaylists = async () => {
@@ -135,33 +144,63 @@ export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProp
     }
   };
 
+  const { success: showSuccess, error: showError } = useToastStore();
+  const [isUploading, setIsUploading] = useState(false);
+
   const handleAddTrackToProfile = async (track: PlaylistTrack) => {
     try {
-      await api.post('/profile-music', {
-        url: track.url,
-        filename: track.filename,
-        duration: track.duration,
+      setIsUploading(true);
+      const response = await fetch(track.url);
+      if (!response.ok) throw new Error('Failed to fetch audio');
+      const blob = await response.blob();
+      const file = new File([blob], track.filename || 'track.mp3', { type: blob.type || 'audio/mpeg' });
+      const formData = new FormData();
+      formData.append('audio', file);
+      formData.append('duration', String(track.duration || 0));
+      const uploadResponse = await fetch('/api/profile-music', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
       });
-      alert('Трек добавлен в профиль!');
+      if (!uploadResponse.ok) throw new Error('Upload failed');
+      showSuccess('Трек добавлен в профиль!');
     } catch (e) {
       console.error('Failed to add track to profile:', e);
-      alert('Ошибка добавления трека в профиль');
+      showError('Ошибка добавления трека в профиль');
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleAddPlaylistToProfile = async (playlist: Playlist) => {
     try {
+      setIsUploading(true);
+      let added = 0;
       for (const track of playlist.tracks) {
-        await api.post('/profile-music', {
-          url: track.url,
-          filename: track.filename,
-          duration: track.duration,
-        });
+        try {
+          const response = await fetch(track.url);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const file = new File([blob], track.filename || 'track.mp3', { type: blob.type || 'audio/mpeg' });
+          const formData = new FormData();
+          formData.append('audio', file);
+          formData.append('duration', String(track.duration || 0));
+          const uploadResponse = await fetch('/api/profile-music', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+          });
+          if (uploadResponse.ok) added++;
+        } catch (e) {
+          console.error('Failed to upload track:', track.filename, e);
+        }
       }
-      alert('Все треки плейлиста добавлены в профиль!');
+      showSuccess(`Добавлено ${added} из ${playlist.tracks.length} треков в профиль!`);
     } catch (e) {
       console.error('Failed to add playlist to profile:', e);
-      alert('Ошибка добавления плейлиста в профиль');
+      showError('Ошибка добавления плейлиста в профиль');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -183,128 +222,225 @@ export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProp
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="fixed inset-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[600px] sm:max-w-[calc(100%-32px)] sm:max-h-[80vh] bg-surface-secondary/95 backdrop-blur-xl rounded-none sm:rounded-2xl border-0 sm:border sm:border-white/10 shadow-2xl z-50 flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center">
-              <ListMusic size={20} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">Плейлисты</h2>
-              <p className="text-xs text-zinc-500">Управление музыкальными плейлистами</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 size={32} className="animate-spin text-nexo-500" />
-            </div>
-          ) : (
-            <>
-              {/* Create button */}
-              <button
-                onClick={() => setIsCreating(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-nexo-500/10 hover:bg-nexo-500/20 border border-nexo-500/30 text-nexo-400 transition-colors mb-4"
-              >
-                <Plus size={18} />
-                <span className="font-medium">Создать плейлист</span>
-              </button>
-
-              {/* Playlists grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {playlists.map(playlist => (
-                  <div
-                    key={playlist.id}
-                    className="group relative bg-surface-tertiary/50 hover:bg-surface-tertiary rounded-xl p-4 transition-all cursor-pointer"
-                    onClick={() => setSelectedPlaylist(playlist)}
-                  >
-                    {/* Cover */}
-                    <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-nexo-500/20 to-purple-600/20">
-                      {playlist.coverUrl ? (
-                        <img src={playlist.coverUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Music size={32} className="text-zinc-600" />
-                        </div>
-                      )}
-                      {/* Play button overlay */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlayPlaylist(playlist);
-                        }}
-                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                      >
-                        <div className="w-12 h-12 rounded-full bg-nexo-500 flex items-center justify-center">
-                          <Play size={20} className="text-white ml-0.5" />
-                        </div>
-                      </button>
-                    </div>
-
-                    {/* Info */}
-                    <h3 className="font-semibold text-white text-sm mb-1 truncate">{playlist.name}</h3>
-                    <p className="text-xs text-zinc-500">{playlist.tracks.length} треков</p>
-
-                    {/* Actions */}
-                    <div className="flex gap-1 mt-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddPlaylistToProfile(playlist);
-                        }}
-                        className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-zinc-400 hover:text-white transition-colors"
-                      >
-                        В профиль
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePlaylist(playlist.id);
-                        }}
-                        className="px-2 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+      {isMobile ? (
+        <BottomSheet isOpen={true} onClose={onClose} showCloseButton={false}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center">
+                <ListMusic size={20} className="text-white" />
               </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Плейлисты</h2>
+                <p className="text-xs text-zinc-500">Управление музыкальными плейлистами</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
-              {playlists.length === 0 && (
-                <div className="text-center py-12">
-                  <Music size={48} className="mx-auto text-zinc-600 mb-3" />
-                  <p className="text-zinc-500">Нет плейлистов</p>
-                  <p className="text-xs text-zinc-600 mt-1">Создайте свой первый плейлист</p>
+          <div className="p-5">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 size={32} className="animate-spin text-nexo-500" />
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-nexo-500/10 hover:bg-nexo-500/20 border border-nexo-500/30 text-nexo-400 transition-colors mb-4"
+                >
+                  <Plus size={18} />
+                  <span className="font-medium">Создать плейлист</span>
+                </button>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {playlists.map(playlist => (
+                    <div
+                      key={playlist.id}
+                      className="group relative bg-surface-tertiary/50 hover:bg-surface-tertiary rounded-xl p-4 transition-all cursor-pointer"
+                      onClick={() => setSelectedPlaylist(playlist)}
+                    >
+                      <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-nexo-500/20 to-purple-600/20">
+                        {playlist.coverUrl ? (
+                          <img src={playlist.coverUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Music size={32} className="text-zinc-600" />
+                          </div>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlayPlaylist(playlist);
+                          }}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          <div className="w-12 h-12 rounded-full bg-nexo-500 flex items-center justify-center">
+                            <Play size={20} className="text-white ml-0.5" />
+                          </div>
+                        </button>
+                      </div>
+
+                      <h3 className="font-semibold text-white text-sm mb-1 truncate">{playlist.name}</h3>
+                      <p className="text-xs text-zinc-500">{playlist.tracks.length} треков</p>
+
+                      <div className="flex gap-1 mt-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddPlaylistToProfile(playlist);
+                          }}
+                          className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-zinc-400 hover:text-white transition-colors"
+                        >
+                          В профиль
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePlaylist(playlist.id);
+                          }}
+                          className="px-2 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+
+                {playlists.length === 0 && (
+                  <div className="text-center py-12">
+                    <Music size={48} className="mx-auto text-zinc-600 mb-3" />
+                    <p className="text-zinc-500">Нет плейлистов</p>
+                    <p className="text-xs text-zinc-600 mt-1">Создайте свой первый плейлист</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </BottomSheet>
+      ) : (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed inset-0 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[600px] sm:max-w-[calc(100%-32px)] sm:max-h-[80vh] bg-[#1a1a1a] rounded-none sm:rounded-2xl border-0 sm:border sm:border-white/10 shadow-2xl z-50 flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center">
+                  <ListMusic size={20} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Плейлисты</h2>
+                  <p className="text-xs text-zinc-500">Управление музыкальными плейлистами</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 size={32} className="animate-spin text-nexo-500" />
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setIsCreating(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-nexo-500/10 hover:bg-nexo-500/20 border border-nexo-500/30 text-nexo-400 transition-colors mb-4"
+                  >
+                    <Plus size={18} />
+                    <span className="font-medium">Создать плейлист</span>
+                  </button>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {playlists.map(playlist => (
+                      <div
+                        key={playlist.id}
+                        className="group relative bg-surface-tertiary/50 hover:bg-surface-tertiary rounded-xl p-4 transition-all cursor-pointer"
+                        onClick={() => setSelectedPlaylist(playlist)}
+                      >
+                        <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-nexo-500/20 to-purple-600/20">
+                          {playlist.coverUrl ? (
+                            <img src={playlist.coverUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Music size={32} className="text-zinc-600" />
+                            </div>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePlayPlaylist(playlist);
+                            }}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                          >
+                            <div className="w-12 h-12 rounded-full bg-nexo-500 flex items-center justify-center">
+                              <Play size={20} className="text-white ml-0.5" />
+                            </div>
+                          </button>
+                        </div>
+
+                        <h3 className="font-semibold text-white text-sm mb-1 truncate">{playlist.name}</h3>
+                        <p className="text-xs text-zinc-500">{playlist.tracks.length} треков</p>
+
+                        <div className="flex gap-1 mt-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddPlaylistToProfile(playlist);
+                            }}
+                            className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-zinc-400 hover:text-white transition-colors"
+                          >
+                            В профиль
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePlaylist(playlist.id);
+                            }}
+                            className="px-2 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {playlists.length === 0 && (
+                    <div className="text-center py-12">
+                      <Music size={48} className="mx-auto text-zinc-600 mb-3" />
+                      <p className="text-zinc-500">Нет плейлистов</p>
+                      <p className="text-xs text-zinc-600 mt-1">Создайте свой первый плейлист</p>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
-      </motion.div>
+            </div>
+          </motion.div>
+        </>
+      )}
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
@@ -327,7 +463,7 @@ export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProp
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] max-w-[calc(100%-32px)] bg-surface-secondary rounded-2xl border border-white/10 shadow-2xl z-[60] p-5"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] max-w-[calc(100%-32px)] bg-[#1a1a1a] rounded-2xl border border-white/10 shadow-2xl z-[60] p-5"
               onClick={e => e.stopPropagation()}
             >
               <h3 className="text-lg font-bold text-white mb-4">
@@ -424,11 +560,11 @@ export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProp
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] max-w-[calc(100%-32px)] max-h-[80vh] bg-surface-secondary rounded-2xl border border-white/10 shadow-2xl z-[60] flex flex-col overflow-hidden"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] max-w-[calc(100%-32px)] max-h-[80vh] bg-[#1a1a1a] rounded-2xl border border-white/10 shadow-2xl z-[60] flex flex-col overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
                 <h3 className="text-lg font-bold text-white">{selectedPlaylist.name}</h3>
                 <div className="flex items-center gap-2">
                   <button
@@ -482,7 +618,7 @@ export default function MusicPlaylistsModal({ onClose }: MusicPlaylistsModalProp
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-4 border-t border-white/10">
+              <div className="px-5 py-4 border-t border-white/5">
                 <button
                   onClick={() => handlePlayPlaylist(selectedPlaylist)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-nexo-500 hover:bg-nexo-600 text-white font-medium transition-colors"

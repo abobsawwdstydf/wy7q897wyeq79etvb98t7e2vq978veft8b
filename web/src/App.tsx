@@ -152,7 +152,8 @@ export default function App() {
     if (!socket) return;
 
     const handleBeaversReceived = (data: { fromDisplayName: string; fromUsername: string; amount: number; note?: string }) => {
-      updateUser({ beavers: (user.beavers || 0) + data.amount });
+      const latest = useAuthStore.getState().user;
+      updateUser({ beavers: (latest?.beavers || 0) + data.amount });
       success(
         <span className="flex items-center gap-1">
           Вы получили {data.amount} бобров <BeaverIcon size={16} /> от {data.fromDisplayName || '@' + data.fromUsername}
@@ -162,7 +163,8 @@ export default function App() {
     };
 
     const handleBeaversTopup = (data: { amount: number; rubles: number }) => {
-      updateUser({ beavers: (user.beavers || 0) + data.amount });
+      const latest = useAuthStore.getState().user;
+      updateUser({ beavers: (latest?.beavers || 0) + data.amount });
       success(
         <span className="flex items-center gap-1">
           Баланс пополнен на {data.amount} бобров <BeaverIcon size={16} /> ({data.rubles} ₽)
@@ -179,24 +181,14 @@ export default function App() {
     };
   }, [user?.id]);
 
-  if (isLoading) {
+  if (isLoading && user) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="h-full flex items-center justify-center bg-surface"
       >
-        <div className="flex flex-col items-center gap-4">
-          <НексоLoader size="lg" />
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-zinc-500 text-sm"
-          >
-            Загрузка...
-          </motion.p>
-        </div>
+        <НексоLoader size="lg" />
       </motion.div>
     );
   }
@@ -212,7 +204,7 @@ export default function App() {
             <div className="flex-1 min-h-0 overflow-hidden flex">
               {/* Sidebar - show on all views for consistent layout */}
               {(currentView === 'chat' || currentView === 'wall' || currentView === 'friends') && (
-                <div className={`${isMobile && activeChat ? 'hidden' : 'flex'} w-full ${currentView === 'wall' ? 'sm:w-[56px]' : 'sm:w-[380px]'} flex-shrink-0 border-r border-border sm:rounded-2xl overflow-hidden transition-all duration-300`}>
+                <div className={`${(isMobile && activeChat) || (isMobile && currentView === 'wall') ? 'hidden' : 'flex'} w-full ${currentView === 'wall' ? 'sm:w-[56px]' : 'sm:w-[380px]'} flex-shrink-0 border-r border-border sm:rounded-2xl overflow-hidden transition-all duration-300`}>
                   <Sidebar 
                     onOpenAI={() => openAI()}
                     onOpenFriends={() => openFriends()}
@@ -250,11 +242,11 @@ export default function App() {
                       <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => navigateTo('chat')} />
                       {/* Centered profile modal */}
                       <motion.div
-                        initial={{ scale: 0.92, y: 16 }}
+                        initial={{ scale: 0.95, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
-                        exit={{ scale: 0.95, y: 12 }}
-                        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-                        className="relative z-10 w-full max-w-lg h-[85vh] sm:rounded-3xl rounded-none overflow-hidden liquid-glass border border-white/[0.08]"
+                        exit={{ scale: 0.97, y: 16 }}
+                        transition={{ type: 'spring', damping: 30, stiffness: 280 }}
+                        className="relative z-10 w-full max-w-2xl h-[88vh] sm:rounded-3xl rounded-none overflow-hidden liquid-glass border border-white/[0.08]"
                       >
                         <UserProfile
                           userId={profileUserId}
@@ -316,15 +308,11 @@ export default function App() {
         )}
       </AnimatePresence>
       
-      {/* Mobile Bottom Navigation - только на мобильном */}
-      {user && isMobile && (
+      {/* Mobile Bottom Navigation - только на мобильном, скрывается когда открыт чат */}
+      {user && isMobile && !(activeChat && currentView === 'chat') && (
         <MobileBottomNav
-          currentView={(mobileFriendsOpen ? 'friends' : currentView) as MobileView}
+          currentView={(mobileFriendsOpen ? 'wall' : currentView) as MobileView}
           onNavigate={(view) => {
-            if (view === 'friends') {
-              setMobileFriendsOpen(true);
-              return;
-            }
             setMobileFriendsOpen(false);
             navigateTo(view as AppView);
           }}

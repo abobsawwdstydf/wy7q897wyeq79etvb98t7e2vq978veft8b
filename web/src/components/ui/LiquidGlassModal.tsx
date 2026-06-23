@@ -16,11 +16,11 @@ interface LiquidGlassModalProps {
 }
 
 const sizeClasses: Record<LiquidGlassModalSize, string> = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  full: 'max-w-3xl',
+  sm: 'max-w-md',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-3xl',
+  full: 'max-w-4xl',
 };
 
 export default function LiquidGlassModal({
@@ -67,12 +67,12 @@ export default function LiquidGlassModal({
 
           {/* Modal body */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 12 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            exit={{ opacity: 0, scale: 0.97, y: 16 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 280 }}
             className={`relative z-10 w-full ${sizeClasses[size]} ${
-              fullScreenOnMobile ? 'sm:max-h-[85vh]' : 'max-h-[85vh]'
+              fullScreenOnMobile ? 'sm:max-h-[88vh]' : 'max-h-[88vh]'
             } ${
               fullScreenOnMobile
                 ? 'max-sm:fixed max-sm:inset-0 max-sm:w-full max-sm:h-full max-sm:max-w-full max-sm:max-h-full max-sm:rounded-none'

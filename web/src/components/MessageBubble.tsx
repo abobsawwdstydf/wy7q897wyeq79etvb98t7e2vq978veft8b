@@ -6,6 +6,8 @@ import {
   CheckCheck,
   Clock,
   Eye,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
@@ -346,13 +348,13 @@ function MessageBubble({
             onContextMenu={handleContextMenu}
             onDoubleClick={handleReply}
             title={t('reply') ? `${t('reply')} (Double Click)` : 'Double click to reply'}
-            className={`cursor-pointer rounded-[1.25rem] overflow-hidden transition-all duration-300 ${
+            className={`cursor-pointer rounded-[1.15rem] overflow-hidden transition-all duration-300 ${
               hasImage && !message.content
                 ? 'p-0 shadow-none border-none bg-transparent'
                 : isMine
-                  ? 'bubble-sent text-white shadow-sm px-4 py-2.5 hover:shadow-md hover:brightness-105'
-                  : 'bubble-received text-zinc-100 shadow-sm px-4 py-2.5 hover:shadow-md hover:brightness-105'
-            }`}
+                  ? 'bubble-sent text-white shadow-sm px-[13px] py-[7px] hover:shadow-md'
+                  : 'bubble-received text-[#f5f5f5] shadow-sm px-[13px] py-[7px] hover:shadow-md'
+            } ${(message as any)._isSending ? 'opacity-70' : ''} ${(message as any)._isFailed ? 'ring-1 ring-red-500/40' : ''}`}
           >
             {/* Forwarded message header */}
             {message.forwardedFrom && (
@@ -469,7 +471,11 @@ function MessageBubble({
               <div className={`flex justify-end px-3 py-1 ${hasImage ? '-mt-8 relative z-10' : ''}`}>
                 <span className="text-[10px] text-white/70 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-sm select-none">
                   {timeStr}
-                  {isChannel ? (
+                  {(message as any)._isFailed ? (
+                    <AlertCircle size={12} className="text-red-400" />
+                  ) : (message as any)._isSending ? (
+                    <Loader2 size={12} className="text-white/50 animate-spin" />
+                  ) : isChannel ? (
                     <span className="flex items-center gap-1">
                       <Eye size={11} className="text-zinc-400" />
                       {message.viewCount || 0}

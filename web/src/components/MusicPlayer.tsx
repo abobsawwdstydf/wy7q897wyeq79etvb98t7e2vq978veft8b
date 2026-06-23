@@ -124,7 +124,7 @@ export default function MusicPlayer() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9980] w-full max-w-sm px-3"
+        className="fixed bottom-[80px] sm:bottom-4 left-1/2 -translate-x-1/2 z-[9980] w-full max-w-sm px-3"
         style={{ pointerEvents: 'auto' }}
       >
         <div className="glass-strong rounded-2xl border border-white/10 shadow-2xl overflow-hidden">

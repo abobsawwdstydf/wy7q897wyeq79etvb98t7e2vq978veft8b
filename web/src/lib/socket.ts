@@ -121,6 +121,18 @@ export function connectSocket(token?: string): Socket | null {
   });
 
   socket.on('connect_error', (err) => {
+    const msg = err?.message || '';
+    const isAuthError = msg.includes('авторизация') || msg.includes('токен') || msg.includes('Недействительный');
+
+    if (isAuthError) {
+      try {
+        localStorage.removeItem('nexo_access_token');
+        localStorage.removeItem('nexo_user');
+      } catch {}
+      socket?.disconnect();
+      return;
+    }
+
     connectAttempts++;
 
     const delay = Math.min(1000 * Math.pow(2, connectAttempts - 1), 30000);

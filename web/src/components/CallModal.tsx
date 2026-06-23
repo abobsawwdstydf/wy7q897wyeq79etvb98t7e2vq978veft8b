@@ -10,6 +10,7 @@ import FloatingReactions from './FloatingReactions';
 import { useCallSettingsStore } from '../stores/callSettingsStore';
 import VideoShareModal from './VideoShareModal';
 import { WatchPartyModal } from './WatchPartyModal';
+import TelegramCallScreen from './telegram-ui/TelegramCallScreen';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -1818,14 +1819,30 @@ export default function CallModal({ isOpen, onClose, targetUser, callType: initi
         role="dialog"
         aria-modal="true"
         aria-label="Call"
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-surface/90 backdrop-blur-xl overflow-hidden"
+        className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden"
         onClick={() => { setShowCameraMenu(false); setShowVolumeSlider(false); setShowMicMenu(false); }}
       >
-        {/* Ambient background glow for call modal with gradients */}
-        <div className="absolute inset-0 pointer-events-none opacity-50">
-          <div className="absolute top-[5%] left-[10%] w-[60vh] h-[60vh] bg-gradient-to-br from-nexo-500/40 via-purple-500/30 to-pink-500/30 rounded-full blur-[140px] animate-float" />
-          <div className="absolute bottom-[5%] right-[10%] w-[60vh] h-[60vh] bg-gradient-to-tl from-emerald-500/30 via-cyan-500/20 to-blue-500/30 rounded-full blur-[140px] animate-float-delayed" />
-          <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[40vh] h-[40vh] bg-gradient-to-r from-nexo-600/20 to-purple-600/20 rounded-full blur-[100px] animate-pulse" />
+        {/* Telegram-style gradient background */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className={`absolute inset-0 transition-all duration-1000 ${
+            callState === 'connected'
+              ? 'bg-gradient-to-br from-[#ACBD65] via-[#459F8D] to-[#53A4D1]'
+              : callState === 'ended'
+                ? 'bg-gradient-to-br from-[#568FD6] via-[#626ED5] to-[#A667D5]'
+                : 'bg-gradient-to-br from-[#568FD6] via-[#626ED5] to-[#A667D5]'
+          }`} />
+          <motion.div
+            className="absolute w-[400px] h-[400px] rounded-full bg-white/[0.08] blur-[100px]"
+            animate={{ x: [0, 60, -40, 0], y: [0, -50, 30, 0] }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ top: '10%', left: '20%' }}
+          />
+          <motion.div
+            className="absolute w-[350px] h-[350px] rounded-full bg-white/[0.06] blur-[80px]"
+            animate={{ x: [0, -50, 40, 0], y: [0, 40, -60, 0] }}
+            transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ top: '30%', right: '15%' }}
+          />
         </div>
 
         <motion.div
@@ -1833,7 +1850,7 @@ export default function CallModal({ isOpen, onClose, targetUser, callType: initi
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className={`relative w-full mx-4 rounded-[2.5rem] glass-strong shadow-2xl shadow-black/50 overflow-hidden border border-white/5 ${showVideoArea ? 'max-w-5xl' : 'max-w-md'
+          className={`relative w-full mx-4 rounded-[2.5rem] overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50 ${showVideoArea ? 'max-w-5xl' : 'max-w-md'
             }`}
         >
           {/* Mic selector popup */}
@@ -2006,215 +2023,107 @@ export default function CallModal({ isOpen, onClose, targetUser, callType: initi
               </div>
             </div>
           ) : (
-            /* === Voice / calling / incoming layout === */
-            <div className="px-8 py-12 flex flex-col items-center relative z-10">
-              {/* Minimize button (top-right) */}
+            /* === Voice / calling / incoming layout — Telegram CallScreen === */
+            <div className="relative flex flex-col items-center justify-between min-h-[480px]">
+              <TelegramCallScreen
+                callState={
+                  callState === 'calling' ? 'requesting' :
+                  callState === 'incoming' ? 'ringing' :
+                  callState === 'connected' ? 'active' :
+                  callState === 'ended' ? 'terminated' :
+                  'requesting'
+                }
+                name={displayName}
+                avatarUrl={displayAvatar}
+                isMuted={isMuted}
+                isVideoEnabled={!isVideoOff && initialCallType === 'video'}
+                isSpeakerEnabled={true}
+                duration={duration}
+                endReason={callState === 'ended' ? (t('callEnded') as string) : undefined}
+                onToggleMute={toggleMic}
+                onToggleVideo={toggleVideo}
+                onToggleSpeaker={toggleMic}
+                onEndCall={endCallSafe}
+                onFlipCamera={undefined}
+                localVideo={hasLocalVideo && localVideoRef.current?.srcObject instanceof MediaStream ? localVideoRef.current.srcObject : null}
+                remoteVideo={remoteVideoRef.current?.srcObject instanceof MediaStream ? remoteVideoRef.current.srcObject : null}
+                className="w-full h-full"
+              />
+
+              {/* Extra controls overlay for connected calls */}
               {callState === 'connected' && (
-                <button
-                  onClick={() => setIsMinimized(true)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors"
-                  title={t('minimize')}
-                >
-                  <Minimize2 size={16} />
-                </button>
-              )}
-              {/* Avatar with pulse — right-click for volume */}
-              <div
-                className="relative mb-8 mt-4"
-                onContextMenu={(e) => {
-                  if (callState === 'connected') {
-                    e.preventDefault();
-                    setShowVolumeSlider(true);
-                  }
-                }}
-                title={callState === 'connected' ? t('rightClickVolume') : undefined}
-              >
-                {(callState === 'calling' || callState === 'connected') && (
-                  <>
-                    <div className="absolute inset-0 rounded-full bg-nexo-500/30 animate-call-wave" />
-                    <div className="absolute inset-0 rounded-full bg-nexo-500/20 animate-call-wave-delayed" />
-                  </>
-                )}
-                {callState === 'incoming' && (
-                  <>
-                    <div className="absolute inset-0 rounded-full bg-emerald-500/30 animate-call-wave" />
-                    <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-call-wave-delayed" />
-                  </>
-                )}
-                <div className="relative z-10 p-1.5 rounded-full bg-gradient-to-br from-white/10 to-transparent backdrop-blur-md border border-white/10 shadow-2xl cursor-pointer">
-                  {displayAvatar ? (
-                    <img src={displayAvatar} alt="" className="w-32 h-32 rounded-xl object-cover shadow-inner" />
-                  ) : (
-                    <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-nexo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl shadow-inner">
-                      {initials}
+                <div className="absolute bottom-0 left-0 right-0 z-20 px-6 pb-4">
+                  {/* Screen share */}
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <motion.button
+                      whileTap={{ scale: 0.88 }}
+                      onClick={toggleScreenShare}
+                      className={`w-[44px] h-[44px] rounded-full flex items-center justify-center transition-all duration-200 ${
+                        isScreenSharing ? 'bg-[var(--color-accent)] text-white' : 'bg-white/[0.15] text-white backdrop-blur-sm'
+                      }`}
+                    >
+                      {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
+                    </motion.button>
+
+                    {/* Noise suppression */}
+                    <motion.button
+                      whileTap={{ scale: 0.88 }}
+                      onClick={toggleNoiseSuppression}
+                      className={`w-[44px] h-[44px] rounded-full flex items-center justify-center transition-all duration-200 ${
+                        noiseSuppression ? 'bg-emerald-500/30 text-emerald-400' : 'bg-white/[0.15] text-white backdrop-blur-sm'
+                      }`}
+                    >
+                      {noiseSuppression ? <ShieldCheck size={18} /> : <ShieldOff size={18} />}
+                    </motion.button>
+
+                    {/* Reactions */}
+                    <div className="relative">
+                      <motion.button
+                        whileTap={{ scale: 0.88 }}
+                        onClick={() => setShowReactions(!showReactions)}
+                        className="w-[44px] h-[44px] rounded-full bg-white/[0.15] text-white flex items-center justify-center backdrop-blur-sm"
+                      >
+                        <Smile size={18} />
+                      </motion.button>
+                      <CallReactions
+                        isActive={showReactions}
+                        onSendReaction={handleSendReaction}
+                        onClose={() => setShowReactions(false)}
+                      />
                     </div>
-                  )}
-                </div>
-              </div>
 
-              <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">{displayName}</h3>
-              <p className="text-sm text-zinc-400 mb-8">
-                {callState === 'calling' && t('calling')}
-                {callState === 'incoming' && (callType === 'video' ? t('incomingVideoCall') : t('incomingCall'))}
-                {callState === 'connected' && formatDuration(duration)}
-                {callState === 'ended' && t('callEnded')}
-              </p>
+                    {/* Video Share */}
+                    {initialCallType === 'video' && (
+                      <motion.button
+                        whileTap={{ scale: 0.88 }}
+                        onClick={() => setShowVideoShare(true)}
+                        className="w-[44px] h-[44px] rounded-full bg-white/[0.15] text-white flex items-center justify-center backdrop-blur-sm"
+                      >
+                        <Film size={18} />
+                      </motion.button>
+                    )}
 
-              {/* Local video preview (during calling with camera) */}
-              {hasLocalVideo && callState === 'calling' && (
-                <div className="mb-6 rounded-2xl overflow-hidden bg-zinc-900 w-48">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-auto"
-                  />
+                    {/* Minimize */}
+                    <motion.button
+                      whileTap={{ scale: 0.88 }}
+                      onClick={() => setIsMinimized(true)}
+                      className="w-[44px] h-[44px] rounded-full bg-white/[0.15] text-white flex items-center justify-center backdrop-blur-sm"
+                    >
+                      <Minimize2 size={18} />
+                    </motion.button>
+                  </div>
+
+                  {/* Floating reactions */}
+                  <FloatingReactions reactions={sentReactions} />
                 </div>
               )}
+
+              {/* Incoming: extra accept/decline buttons handled by TelegramCallScreen */}
 
               {/* Hidden remote audio element */}
               <audio ref={remoteAudioRef} autoPlay playsInline />
             </div>
           )}
-
-          {/* === Controls === */}
-          <div className="px-8 pb-10 flex items-center justify-center gap-4 relative z-10 flex-wrap">
-            {callState === 'incoming' && (
-              <>
-                <button
-                  onClick={declineCall}
-                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-xl shadow-red-500/30 transition-all hover:scale-105"
-                >
-                  <PhoneOff size={24} />
-                </button>
-                <div className="w-8" />
-                <button
-                  onClick={acceptCall}
-                  className="w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white shadow-xl shadow-emerald-500/30 transition-all hover:scale-105 animate-pulse"
-                >
-                  {callType === 'video' ? <Video size={24} /> : <Phone size={24} className="animate-bounce" />}
-                </button>
-              </>
-            )}
-
-            {callState === 'connected' && (
-              <>
-                {/* Mic button with dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={toggleMic}
-                    className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white hover:bg-white/20'
-                      }`}
-                    title={isMuted ? t('unmute') : t('mute')}
-                  >
-                    {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-                  </button>
-                  <button
-                    onClick={async (e) => { e.stopPropagation(); await refreshMicrophones(); setShowMicMenu(!showMicMenu); setShowCameraMenu(false); setShowVolumeSlider(false); }}
-                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zinc-700 hover:bg-zinc-600 flex items-center justify-center text-white/70 hover:text-white transition-colors border border-zinc-600"
-                  >
-                    <ChevronUp size={10} />
-                  </button>
-                </div>
-                {/* Camera toggle — only for video calls */}
-                {initialCallType === 'video' && (
-                  <button
-                    onClick={toggleVideo}
-                    className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${isVideoOff ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white hover:bg-white/20'
-                      }`}
-                  >
-                    {isVideoOff ? <VideoOff size={18} /> : <Video size={18} />}
-                  </button>
-                )}
-                {/* Camera selector — only for video calls */}
-                {initialCallType === 'video' && (
-                  <button
-                    onClick={openCameraMenu}
-                    className="w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/10 text-white hover:bg-white/20"
-                    title={t('switchCamera')}
-                  >
-                    <SwitchCamera size={18} />
-                  </button>
-                )}
-                <button
-                  onClick={toggleScreenShare}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${isScreenSharing ? 'bg-nexo-500/30 text-nexo-400' : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  title={isScreenSharing ? t('stopScreenShare') : t('screenShare')}
-                >
-                  {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
-                </button>
-                {/* Watch Party button */}
-                <button
-                  onClick={() => setShowWatchParty(true)}
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/10 text-white hover:bg-white/20"
-                  title="Смотреть вместе"
-                >
-                  <Film size={18} />
-                </button>
-                {/* Reactions button */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowReactions(!showReactions)}
-                    className="w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/10 text-white hover:bg-white/20"
-                    title="Реакции"
-                  >
-                    <Smile size={18} />
-                  </button>
-                  <CallReactions
-                    isActive={showReactions}
-                    onSendReaction={handleSendReaction}
-                    onClose={() => setShowReactions(false)}
-                  />
-                </div>
-                {/* Volume control */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowVolumeSlider(!showVolumeSlider); }}
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-colors bg-white/10 text-white hover:bg-white/20"
-                  title={t('volume')}
-                >
-                  <Volume2 size={18} />
-                </button>
-                {/* Noise suppression */}
-                <button
-                  onClick={toggleNoiseSuppression}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${noiseSuppression ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  title={noiseSuppression ? t('noiseSuppressionOn') : t('noiseSuppressionOff')}
-                >
-                  {noiseSuppression ? <ShieldCheck size={18} /> : <ShieldOff size={18} />}
-                </button>
-                {/* Video share button */}
-                <button
-                  onClick={() => setShowVideoShare(true)}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center transition-colors ${isVideoShareActive ? 'bg-purple-500/30 text-purple-400' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                  title="Транслировать видео"
-                >
-                  <Film size={18} />
-                </button>
-                <button
-                  onClick={endCallSafe}
-                  className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-xl shadow-red-500/30 transition-all hover:scale-105 ml-2"
-                >
-                  <PhoneOff size={22} />
-                </button>
-              </>
-            )}
-
-            {callState === 'calling' && (
-              <button
-                onClick={endCallSafe}
-                className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center text-white shadow-xl shadow-red-500/30 transition-all hover:scale-105"
-              >
-                <PhoneOff size={24} />
-              </button>
-            )}
-
-            {callState === 'ended' && (
-              <p className="text-sm text-zinc-500">{t('callEnded')}</p>
-            )}
-          </div>
         </motion.div>
       </motion.div>
       )}

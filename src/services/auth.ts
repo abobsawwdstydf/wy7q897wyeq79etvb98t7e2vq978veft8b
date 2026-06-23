@@ -218,6 +218,24 @@ export async function resetAdminLoginAttempts(ip: string): Promise<void> {
 
 const RATE_LIMIT_KEY = (key: string) => `nexo:ratelimit:${key}`;
 
+// ═══════════════════════════════════════════════════════════════════
+// VERIFICATION CODES (Redis-backed)
+// ═══════════════════════════════════════════════════════════════════
+
+const VERIFICATION_CODE_KEY = (phone: string) => `nexo:verify_code:${phone}`;
+
+export async function storeVerificationCode(phone: string, code: string, ttlSeconds: number): Promise<void> {
+  await store.set(VERIFICATION_CODE_KEY(phone), code, ttlSeconds);
+}
+
+export async function getVerificationCode(phone: string): Promise<string | null> {
+  return store.get(VERIFICATION_CODE_KEY(phone));
+}
+
+export async function deleteVerificationCode(phone: string): Promise<void> {
+  await store.del(VERIFICATION_CODE_KEY(phone));
+}
+
 export async function checkRateLimit(key: string, maxRequests: number, windowSeconds: number): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> {
   const redisKey = RATE_LIMIT_KEY(key);
   const current = await store.incr(redisKey);

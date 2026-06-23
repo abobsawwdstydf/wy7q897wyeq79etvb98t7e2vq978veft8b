@@ -30,7 +30,6 @@ const onlineDotSize = {
   xl: 'w-4 h-4 border-2',
 } as const;
 
-// Badge container size (slightly larger for glow effect)
 const verifiedBadgeSize = {
   xs: { cls: 'w-3.5 h-3.5', bottom: '-1px', right: '-1px', checkSize: 8 },
   sm: { cls: 'w-4 h-4', bottom: '-1px', right: '-1px', checkSize: 10 },
@@ -47,7 +46,6 @@ function AvatarInner({ src, name, size = 'md', className = '', online, isVerifie
 
   const hasCustomBadge = isVerified && verifiedBadgeUrl && verifiedBadgeType !== 'default';
 
-  // Detect if avatar is animated (GIF or video)
   const isGif = src?.toLowerCase().endsWith('.gif');
   const isVideo = src && (src.toLowerCase().endsWith('.mp4') || src.toLowerCase().endsWith('.webm'));
   const isAnimated = isGif || isVideo;
@@ -73,7 +71,7 @@ function AvatarInner({ src, name, size = 'md', className = '', online, isVerifie
 
   return (
     <div className={`relative shrink-0 ${className}`}>
-      <div 
+      <div
         className="relative inline-block"
         onMouseEnter={isAnimated ? handleMouseEnter : undefined}
         onMouseLeave={isAnimated ? handleMouseLeave : undefined}
@@ -83,7 +81,7 @@ function AvatarInner({ src, name, size = 'md', className = '', online, isVerifie
             <video
               ref={videoRef}
               src={src}
-              className={`${sizeClass} rounded-xl object-cover select-none pointer-events-none`}
+              className={`${sizeClass} rounded-[22%] object-cover select-none pointer-events-none`}
               muted
               loop
               playsInline
@@ -92,19 +90,18 @@ function AvatarInner({ src, name, size = 'md', className = '', online, isVerifie
             <img
               src={src}
               alt={name}
-              className={`${sizeClass} rounded-xl object-cover select-none pointer-events-none ${isAnimated ? 'transition-transform hover:scale-105' : ''}`}
+              className={`${sizeClass} rounded-[22%] object-cover select-none pointer-events-none ${isAnimated ? 'transition-transform hover:scale-105' : ''}`}
               draggable={false}
             />
           )
         ) : (
           <div
-            className={`${sizeClass} rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center text-white font-medium select-none`}
+            className={`${sizeClass} rounded-[22%] bg-gradient-to-br ${gradientClass} flex items-center justify-center text-white font-medium select-none`}
           >
             {initials}
           </div>
         )}
 
-        {/* Verified Badge */}
         {isVerified && (
           <div
             className={`absolute ${badge.cls}`}
@@ -123,11 +120,10 @@ function AvatarInner({ src, name, size = 'md', className = '', online, isVerifie
         )}
       </div>
 
-      {/* Online dot */}
       {online !== undefined && (
         <div
-          className={`absolute bottom-0 right-0 ${onlineDotSize[size]} rounded-full border-[2px] border-[#0a0a0f] ${
-            online ? 'bg-emerald-500' : 'bg-zinc-600'
+          className={`absolute bottom-0 right-0 ${onlineDotSize[size]} rounded-full border-[2px] border-[#0e1621] ${
+            online ? 'bg-[#4dcd5e]' : 'bg-[#6d7f8e]'
           }`}
           style={{ zIndex: isVerified ? 11 : 5 }}
         />

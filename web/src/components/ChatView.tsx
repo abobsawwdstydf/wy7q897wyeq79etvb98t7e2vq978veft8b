@@ -2,7 +2,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Phone,
-  Video,
   MoreVertical,
   Search,
   X,
@@ -82,7 +81,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
   const [scrollReady, setScrollReady] = useState(false);
   const [activeGroupCallParticipants, setActiveGroupCallParticipants] = useState<string[]>([]);
   const [isChannelSubscribed, setIsChannelSubscribed] = useState(true);
-  const [showCallTypeMenu, setShowCallTypeMenu] = useState(false);
+
   const [showChatSummary, setShowChatSummary] = useState(false);
   const [showHiddenChatModal, setShowHiddenChatModal] = useState(false);
   const [hiddenChatMode, setHiddenChatMode] = useState<'create' | 'unlock'>('create');
@@ -149,7 +148,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
   const searchInputRef = useRef<HTMLInputElement>(null);
   const topMenuRef = useRef<HTMLDivElement>(null);
   const deleteMenuRef = useRef<HTMLDivElement>(null);
-  const callTypeMenuRef = useRef<HTMLDivElement>(null);
+
   const chatViewRef = useRef<HTMLDivElement>(null);
 
   const chat = chats.find((c) => c.id === activeChat);
@@ -337,20 +336,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
     };
   }, [showDeleteMenu]);
 
-  // Close call type menu on click outside
-  useEffect(() => {
-    if (!showCallTypeMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (callTypeMenuRef.current && !callTypeMenuRef.current.contains(e.target as Node)) {
-        setShowCallTypeMenu(false);
-      }
-    };
-    const timer = setTimeout(() => document.addEventListener('click', handleClick), 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('click', handleClick);
-    };
-  }, [showCallTypeMenu]);
+
 
   // Прокрутка вниз
   const scrollToBottom = useCallback((smooth = true) => {
@@ -587,7 +573,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
     >
       {/* Шапка чата */}
       {selectionMode ? (
-        <div className="h-[60px] sm:h-[76px] flex items-center justify-between px-4 sm:px-6 border-b border-white/10 bg-black/30 backdrop-blur-2xl z-20 flex-shrink-0">
+        <div className="h-[60px] sm:h-[76px] flex items-center justify-between px-4 sm:px-6 border-b border-white/[0.06] glass-strong z-20 flex-shrink-0">
           <div className="flex items-center gap-4 text-white">
             <button onClick={() => { setSelectionMode(false); setSelectedMessages(new Set()); }} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition">
               <X size={20} className="text-zinc-300" />
@@ -644,51 +630,51 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
           </div>
         </div>
       ) : (
-        <div className="h-[60px] sm:h-[76px] flex items-center justify-between px-2 sm:px-6 border-b border-white/10 bg-black/25 backdrop-blur-2xl z-20 flex-shrink-0" style={{ boxShadow: '0 1px 0 rgba(255,255,255,0.05), inset 0 1px 0 rgba(255,255,255,0.04)' }}>
-          {/* Кнопка назад — только на мобилке */}
-          <button
-            className="sm:hidden flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-zinc-300 hover:text-white mr-1"
+        <div className="h-[60px] sm:h-[76px] flex items-center justify-between px-2 sm:px-4 z-20 flex-shrink-0 relative">
+          {/* Кнопка назад */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             onClick={() => setActiveChat(null)}
             aria-label="Назад"
-          >
-            <ChevronLeft size={22} />
-          </button>
-
-          <button
-            className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 group transition-all"
-            onClick={() => {
-              if (chat.type === 'channel') {
-                setShowChannelProfile(true);
-              } else if (chat.type === 'personal' && otherMember) {
-                setProfileUserId(otherMember.user.id);
-              } else if (chat.type === 'group') {
-                setShowGroupSettings(true);
-              }
+            className="relative z-10 w-[44px] h-[44px] rounded-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
+            style={{
+              background: 'rgba(30, 30, 30, 0.6)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
             }}
           >
-            <div className="relative flex-shrink-0 transform transition-transform duration-300 group-hover:scale-105">
-              {isFavorites ? (
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-300">
-                  <Bookmark size={20} className="text-white" />
-                </div>
-              ) : (
-                <Avatar
-                  src={chatAvatar}
-                  name={chatName}
-                  size="md"
-                  online={isOnline ? true : undefined}
-                  className="ring-2 ring-transparent group-hover:ring-accent/30 transition-all duration-300 rounded-xl"
-                  isVerified={chat.isVerified}
-                  verifiedBadgeUrl={chat.verifiedBadgeUrl}
-                  verifiedBadgeType={chat.verifiedBadgeType}
-                />
-              )}
-            </div>
-            <div className="min-w-0 text-left">
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-base font-semibold text-white truncate drop-shadow-sm group-hover:text-accent/90 transition-colors">{chatName}</h3>
-              </div>
-              <p className="text-xs text-zinc-400 truncate">
+            <ChevronLeft size={20} className="text-white" />
+          </motion.button>
+
+          {/* Центральная плашка — Имя + Статус + Кнопки */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 pl-5 pr-1 py-1 rounded-full transition-all min-w-[200px] max-w-[340px]"
+            style={{
+              background: 'rgba(30, 30, 30, 0.6)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+            }}
+          >
+            <button
+              onClick={() => {
+                if (chat.type === 'channel') {
+                  setShowChannelProfile(true);
+                } else if (chat.type === 'personal' && otherMember) {
+                  setProfileUserId(otherMember.user.id);
+                } else if (chat.type === 'group') {
+                  setShowGroupSettings(true);
+                }
+              }}
+              className="flex flex-col items-start min-w-0 flex-1 py-1.5"
+            >
+              <span className="font-bold text-[14px] sm:text-[15px] text-white truncate leading-tight w-full" style={{ letterSpacing: '0.3px' }}>
+                {chatName}
+              </span>
+              <span className="text-[10px] sm:text-[11px] leading-tight mt-0.5 w-full truncate" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
                 {isFavorites
                   ? t('favoritesDescription')
                   : showTypingIndicator
@@ -702,376 +688,250 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
                           : chat.type === 'channel'
                             ? `${chat.members.length} ${t('subscribers')}`
                             : ''}
-              </p>
-            </div>
-          </button>
-
-          {chat.type === 'channel' && !chat.members.some(m => m.user.id === user?.id && m.role === 'admin') && (
-            <button
-              onClick={async () => {
-                try {
-                  await api.deleteChat(activeChat);
-                  useChatStore.getState().removeChat(activeChat);
-                } catch (e) {
-                  console.error(e);
-                }
-              }}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                isChannelSubscribed
-                  ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-400'
-                  : 'bg-nexo-500 text-white hover:bg-nexo-600'
-              }`}
-            >
-              {isChannelSubscribed ? (t('unsubscribe') || 'Выйти') : (t('subscribe') || 'Подписаться')}
-            </button>
-          )}
-
-          <div className="flex items-center gap-0.5 sm:gap-1.5 ml-1 sm:ml-4">
-            {/* Поиск — скрыт на мобилке */}
-            <AnimatePresence>
-              {showSearch && (
-                <motion.div
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 200, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  className="overflow-hidden hidden sm:block"
-                >
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder={t('searchMessages')}
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg bg-surface-tertiary text-sm text-white placeholder-zinc-500 border border-border focus:border-accent"
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (showSearch) {
-                  setShowSearch(false);
-                  setSearchText('');
-                } else {
-                  openSearch();
-                }
-              }}
-              className="hidden sm:flex p-2 rounded-lg hover:bg-surface-hover transition-colors text-zinc-400 hover:text-white z-50 relative"
-              style={{ pointerEvents: 'auto' }}
-            >
-              {showSearch ? <X size={18} /> : <Search size={18} />}
+              </span>
             </button>
 
-            {!isFavorites && chat.type !== 'channel' && (
-              <div className="relative">
-                {/* Call button with dropdown menu */}
-                <div className="relative" ref={callTypeMenuRef}>
-                  <button
-                    onClick={() => setShowCallTypeMenu(!showCallTypeMenu)}
-                    className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-hover transition-colors text-emerald-400 hover:text-emerald-300"
-                    title={t('call')}
-                  >
-                    <Phone size={18} />
-                    <ChevronDown size={14} />
-                  </button>
-
-                  {/* Call type dropdown menu */}
-                  <AnimatePresence>
-                    {showCallTypeMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                        className="absolute right-0 top-full mt-2 w-48 rounded-2xl glass-strong shadow-2xl z-50 py-1.5 ring-1 ring-border/50 backdrop-blur-2xl overflow-hidden"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowCallTypeMenu(false);
-                        }}
-                      >
-                        <div className="px-3 py-2 border-b border-white/5">
-                          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Тип звонка</p>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            if (chat.type === 'personal' && otherMember) {
-                              // Check friendship status before allowing call
-                              try {
-                                const friendStatus = await api.getFriendshipStatus(otherMember.user.id);
-                                if (friendStatus.status !== 'accepted') {
-                                  alert('Вы можете звонить только друзьям. Сначала добавьте пользователя в друзья.');
-                                  return;
-                                }
-                                onStartCall?.(otherMember.user, 'video');
-                              } catch (e) {
-                                console.error('Failed to check friendship status:', e);
-                                alert('Не удалось проверить статус дружбы');
-                              }
-                            } else if (chat.type === 'group') {
-                              onStartGroupCall?.(chat.id, chat.name || 'Group', 'video');
-                            }
-                          }}
-                          className="flex items-center gap-3 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
-                            <Video size={16} className="text-purple-400" />
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className="font-medium">Видеозвонок</p>
-                            <p className="text-xs text-zinc-500">Видео + аудио</p>
-                          </div>
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (chat.type === 'personal' && otherMember) {
-                              // Check friendship status before allowing call
-                              try {
-                                const friendStatus = await api.getFriendshipStatus(otherMember.user.id);
-                                if (friendStatus.status !== 'accepted') {
-                                  alert('Вы можете звонить только друзьям. Сначала добавьте пользователя в друзья.');
-                                  return;
-                                }
-                                onStartCall?.(otherMember.user, 'voice');
-                              } catch (e) {
-                                console.error('Failed to check friendship status:', e);
-                                alert('Не удалось проверить статус дружбы');
-                              }
-                            } else if (chat.type === 'group') {
-                              onStartGroupCall?.(chat.id, chat.name || 'Group', 'voice');
-                            }
-                          }}
-                          className="flex items-center gap-3 w-full px-4 py-3 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors group"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
-                            <Phone size={16} className="text-emerald-400" />
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className="font-medium">Аудиозвонок</p>
-                            <p className="text-xs text-zinc-500">Только аудио</p>
-                          </div>
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            )}
-
-            {/* Меню */}
-            <div className="relative" ref={topMenuRef}>
-              <button
-                onClick={() => setShowTopMenu(!showTopMenu)}
-                className="p-2 rounded-lg hover:bg-surface-hover transition-colors text-zinc-400 hover:text-white"
-              >
-                <MoreVertical size={18} />
-              </button>
+            {/* Кнопки поиска и меню внутри плашки */}
+            <div className="flex items-center gap-0.5 shrink-0">
               <AnimatePresence>
-                {showTopMenu && (
+                {showSearch && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-56 rounded-2xl glass-strong shadow-2xl z-[100] py-1.5 ring-1 ring-border/50 backdrop-blur-2xl"
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: 160, opacity: 1 }}
+                    exit={{ width: 0, opacity: 0 }}
+                    className="overflow-hidden"
                   >
-                    {/* Поиск — только в меню на мобилке */}
-                    <button
-                      onClick={() => { openSearch(); setShowTopMenu(false); }}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder={t('searchMessages')}
+                      value={searchText}
+                      onChange={(e) => setSearchText(e.target.value)}
+                      className="w-full px-2.5 py-1 rounded-lg bg-white/5 text-xs text-white placeholder-zinc-500 border border-white/10 focus:border-nexo-500/50"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (showSearch) { setShowSearch(false); setSearchText(''); } else { openSearch(); }
+                }}
+                className="p-1.5 rounded-lg hover:bg-white/[0.08] transition-colors text-zinc-400 hover:text-white shrink-0"
+              >
+                {showSearch ? <X size={16} /> : <Search size={16} />}
+              </button>
+
+              <div className="relative" ref={topMenuRef}>
+                <button
+                  onClick={() => setShowTopMenu(!showTopMenu)}
+                  className="p-1.5 rounded-lg hover:bg-white/[0.08] transition-colors text-zinc-400 hover:text-white shrink-0"
+                >
+                  <MoreVertical size={16} />
+                </button>
+                <AnimatePresence>
+                  {showTopMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-56 rounded-2xl glass-strong shadow-2xl z-[100] py-1.5 ring-1 ring-border/50 backdrop-blur-2xl"
                     >
-                      <Search size={16} />
-                      {t('searchMessages')}
-                    </button>
-                    {/* Звонок — только в меню на мобилке */}
-                    {!isFavorites && chat.type !== 'channel' && (
                       <button
-                        onClick={() => { setShowCallTypeMenu(true); setShowTopMenu(false); }}
-                        className="sm:hidden flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                      >
-                        <Phone size={16} className="text-emerald-400" />
-                        Позвонить
-                      </button>
-                    )}
-                    {chat.type === 'personal' && otherMember && (
-                      <button
-                        onClick={() => {
-                          setShowTopMenu(false);
-                          setProfileUserId(otherMember.user.id);
-                        }}
+                        onClick={() => { openSearch(); setShowTopMenu(false); }}
                         className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
                       >
-                        <UserPlus size={16} />
-                        {t('userProfile')}
+                        <Search size={16} />
+                        {t('searchMessages')}
                       </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (activeChat) {
-                          const nowMuted = toggleMuteChat(activeChat);
-                          setMuted(nowMuted);
-                        }
-                      }}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                    >
-                      {muted ? <Bell size={16} /> : <BellOff size={16} />}
-                      {muted ? t('enableSound') : t('disableSound')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowTopMenu(false);
-                        setShowBackgroundPicker(true);
-                      }}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                      </svg>
-                      Фон чата
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowTopMenu(false);
-                        setShowMediaSearch(true);
-                      }}
-                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                    >
-                      <Search size={16} />
-                      Поиск по медиа
-                    </button>
-                    {chat.type === 'group' && (
-                      <button
-                        onClick={() => {
-                          setShowTopMenu(false);
-                          setShowGroupSettings(true);
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                      >
-                        <Settings size={16} />
-                        {t('groupSettings')}
-                      </button>
-                    )}
-                    {chat.type === 'channel' && chat.members.some(m => m.user.id === user?.id && m.role === 'admin') && (
-                      <button
-                        onClick={() => {
-                          setShowTopMenu(false);
-                          setShowChannelStudio(true);
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                      >
-                        <BarChart3 size={16} className="text-nexo-400" />
-                        Студия канала
-                      </button>
-                    )}
-                    {chat.type === 'channel' && (
-                      <button
-                        onClick={() => {
-                          setShowTopMenu(false);
-                          const shareUrl = `${window.location.origin}/channel/${chat.username}`;
-                          navigator.clipboard.writeText(shareUrl);
-                          alert('Ссылка скопирована в буфер обмена!');
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                          <polyline points="16 6 12 2 8 6"/>
-                          <line x1="12" y1="2" x2="12" y2="15"/>
-                        </svg>
-                        Поделиться каналом
-                      </button>
-                    )}
-                    {chat.type === 'channel' && chat.members.some(m => m.user.id === user?.id && m.role === 'admin') && (
-                      <button
-                        onClick={async () => {
-                          setShowTopMenu(false);
-                          if (!confirm('Вы уверены, что хотите удалить канал? Это действие нельзя отменить, канал будет удален у всех подписчиков.')) return;
-                          try {
-                            await api.deleteChat(activeChat);
-                            useChatStore.getState().removeChat(activeChat);
-                          } catch (e) {
-                            console.error(e);
-                          }
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                      >
-                        <Trash2 size={16} />
-                        Удалить канал
-                      </button>
-                    )}
-                    {chat.type === 'channel' && !chat.members.some(m => m.user.id === user?.id && m.role === 'admin') && (
-                      <button
-                        onClick={async () => {
-                          setShowTopMenu(false);
-                          try {
-                            await api.deleteChat(activeChat);
-                            useChatStore.getState().removeChat(activeChat);
-                          } catch (e) {
-                            console.error(e);
-                          }
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
-                      >
-                        <UserMinus size={16} />
-                        {t('leaveChannel')}
-                      </button>
-                    )}
-                    {chat.type !== 'channel' && chat.type !== 'favorites' && (
-                      <>
-                        <div className="border-t border-border my-1" />
+                      {!isFavorites && chat.type !== 'channel' && (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             setShowTopMenu(false);
-                            if (activeChat) {
-                              setConfirmAction({
-                                message: t('clearChatConfirm'),
-                                action: async () => {
-                                  try {
-                                    await api.clearChat(activeChat);
-                                    useChatStore.getState().clearMessages(activeChat);
-                                  } catch (e) {
-                                    console.error(e);
-                                  }
-                                },
-                              });
-                            }
+                            if (chat.type === 'personal' && otherMember) {
+                              try {
+                                const friendStatus = await api.getFriendshipStatus(otherMember.user.id);
+                                if (friendStatus.status !== 'accepted') { alert('Вы можете звонить только друзьям.'); return; }
+                                onStartCall?.(otherMember.user, 'voice');
+                              } catch (e) { console.error(e); alert('Не удалось проверить статус дружбы'); }
+                            } else if (chat.type === 'group') { onStartGroupCall?.(chat.id, chat.name || 'Group', 'voice'); }
                           }}
                           className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
                         >
-                          <Eraser size={16} />
-                          {t('clearChat')}
+                          <Phone size={16} className="text-emerald-400" />
+                          Позвонить
                         </button>
+                      )}
+                      {chat.type === 'personal' && otherMember && (
+                        <button
+                          onClick={() => { setShowTopMenu(false); setProfileUserId(otherMember.user.id); }}
+                          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                        >
+                          <UserPlus size={16} />
+                          {t('userProfile')}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { if (activeChat) { const nowMuted = toggleMuteChat(activeChat); setMuted(nowMuted); } }}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                      >
+                        {muted ? <Bell size={16} /> : <BellOff size={16} />}
+                        {muted ? t('enableSound') : t('disableSound')}
+                      </button>
+                      <button
+                        onClick={() => { setShowTopMenu(false); setShowBackgroundPicker(true); }}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                          <circle cx="8.5" cy="8.5" r="1.5"/>
+                          <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        Фон чата
+                      </button>
+                      <button
+                        onClick={() => { setShowTopMenu(false); setShowMediaSearch(true); }}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                      >
+                        <Search size={16} />
+                        Поиск по медиа
+                      </button>
+                      {chat.type === 'group' && (
+                        <button
+                          onClick={() => { setShowTopMenu(false); setShowGroupSettings(true); }}
+                          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                        >
+                          <Settings size={16} />
+                          {t('groupSettings')}
+                        </button>
+                      )}
+                      {chat.type === 'channel' && chat.members.some(m => m.user.id === user?.id && m.role === 'admin') && (
+                        <button
+                          onClick={() => { setShowTopMenu(false); setShowChannelStudio(true); }}
+                          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                        >
+                          <BarChart3 size={16} className="text-nexo-400" />
+                          Студия канала
+                        </button>
+                      )}
+                      {chat.type === 'channel' && (
                         <button
                           onClick={() => {
                             setShowTopMenu(false);
-                            if (activeChat) {
-                              setConfirmAction({
-                                message: t('deleteChatConfirm'),
-                                action: async () => {
-                                  try {
-                                    await api.deleteChat(activeChat);
-                                    useChatStore.getState().removeChat(activeChat);
-                                  } catch (e) {
-                                    console.error(e);
-                                  }
-                                },
-                              });
-                            }
+                            const shareUrl = `${window.location.origin}/channel/${chat.username}`;
+                            navigator.clipboard.writeText(shareUrl);
+                            alert('Ссылка скопирована в буфер обмена!');
+                          }}
+                          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                            <polyline points="16 6 12 2 8 6"/>
+                            <line x1="12" y1="2" x2="12" y2="15"/>
+                          </svg>
+                          Поделиться каналом
+                        </button>
+                      )}
+                      {chat.type === 'channel' && chat.members.some(m => m.user.id === user?.id && m.role === 'admin') && (
+                        <button
+                          onClick={async () => {
+                            setShowTopMenu(false);
+                            if (!confirm('Вы уверены?')) return;
+                            try { await api.deleteChat(activeChat); useChatStore.getState().removeChat(activeChat); } catch (e) { console.error(e); }
                           }}
                           className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                         >
                           <Trash2 size={16} />
-                          {t('deleteChat')}
+                          Удалить канал
                         </button>
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      )}
+                      {chat.type === 'channel' && !chat.members.some(m => m.user.id === user?.id && m.role === 'admin') && (
+                        <button
+                          onClick={async () => {
+                            setShowTopMenu(false);
+                            try { await api.deleteChat(activeChat); useChatStore.getState().removeChat(activeChat); } catch (e) { console.error(e); }
+                          }}
+                          className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                        >
+                          <UserMinus size={16} />
+                          {t('leaveChannel')}
+                        </button>
+                      )}
+                      {chat.type !== 'channel' && chat.type !== 'favorites' && (
+                        <>
+                          <div className="border-t border-border my-1" />
+                          <button
+                            onClick={() => {
+                              setShowTopMenu(false);
+                              if (activeChat) setConfirmAction({ message: t('clearChatConfirm'), action: async () => { try { await api.clearChat(activeChat); useChatStore.getState().clearMessages(activeChat); } catch (e) { console.error(e); } } });
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-zinc-300 hover:bg-surface-hover hover:text-white transition-colors"
+                          >
+                            <Eraser size={16} />
+                            {t('clearChat')}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowTopMenu(false);
+                              if (activeChat) setConfirmAction({ message: t('deleteChatConfirm'), action: async () => { try { await api.deleteChat(activeChat); useChatStore.getState().removeChat(activeChat); } catch (e) { console.error(e); } } });
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                            {t('deleteChat')}
+                          </button>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
+
+          {/* Аватарка */}
+          <div className="relative z-10 shrink-0">
+            <button
+              onClick={() => {
+                if (chat.type === 'channel') {
+                  setShowChannelProfile(true);
+                } else if (chat.type === 'personal' && otherMember) {
+                  setProfileUserId(otherMember.user.id);
+                } else if (chat.type === 'group') {
+                  setShowGroupSettings(true);
+                }
+              }}
+              className="w-[44px] h-[44px] rounded-[18px] overflow-hidden flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: 'rgba(30, 30, 30, 0.6)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              }}
+            >
+              {isFavorites ? (
+                <div className="w-full h-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                  <Bookmark size={18} className="text-white" />
+                </div>
+              ) : (
+                <Avatar
+                  src={chatAvatar}
+                  name={chatName}
+                  size="sm"
+                  online={isOnline ? true : undefined}
+                  className="rounded-[16px] w-full h-full"
+                  isVerified={chat.isVerified}
+                  verifiedBadgeUrl={chat.verifiedBadgeUrl}
+                  verifiedBadgeType={chat.verifiedBadgeType}
+                />
+              )}
+            </button>
+          </div>
+
+
         </div>
       )}
 
@@ -1192,6 +1052,7 @@ export default function ChatView({ onStartCall, onStartGroupCall }: { onStartCal
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
+        data-messages-container
         className="flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-2 relative z-0 min-h-0"
         style={chatBackground ? {
           backgroundImage: `url(${chatBackground})`,

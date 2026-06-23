@@ -49,6 +49,8 @@ interface ChatState {
   archiveChat: (chatId: string) => void;
   unarchiveChat: (chatId: string) => void;
   setShowArchive: (show: boolean) => void;
+  markMessageFailed: (messageId: string, chatId: string) => void;
+  replaceMessage: (tempId: string, realMessage: Message) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -257,23 +259,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
   removeMessage: (messageId, chatId) => {
     set((state) => {
       const chatMessages = state.messages[chatId] || [];
-      const updatedMessages = chatMessages.map((m) =>
-        m.id === messageId ? { ...m, isDeleted: true, content: null } : m
-      );
+      // Temp messages (optimistic) are fully removed, others are soft-deleted
+      const isTemp = messageId.startsWith('temp-');
+      const updatedMessages = isTemp
+        ? chatMessages.filter((m) => m.id !== messageId)
+        : chatMessages.map((m) =>
+            m.id === messageId ? { ...m, isDeleted: true, content: null } : m
+          );
 
-      // Find the latest non-deleted message to show in sidebar
-      const latestVisible = updatedMessages
+      const latestVisible = (isTemp ? updatedMessages : updatedMessages)
         .filter(m => !m.isDeleted)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
       const updatedChats = state.chats.map((chat) => {
         if (chat.id === chatId) {
-          // If the deleted message was the last message shown, replace with previous one
           const currentLast = chat.messages?.[0];
           if (currentLast?.id === messageId) {
             return {
               ...chat,
-              messages: latestVisible ? [latestVisible] : [{ ...currentLast, isDeleted: true, content: null }],
+              messages: latestVisible ? [latestVisible] : isTemp ? [] : [{ ...currentLast, isDeleted: true, content: null }],
             };
           }
         }
@@ -550,4 +554,56 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setShowArchive: (show) => set({ showArchive: show }),
+
+  markMessageFailed: (messageId, chatId) => {
+    set((state) => {
+      const chatMessages = state.messages[chatId] || [];
+      return {
+        messages: {
+          ...state.messages,
+          [chatId]: chatMessages.map((m) =>
+            m.id === messageId ? { ...m, _isSending: false, _isFailed: true } : m
+          ),
+        },
+      };
+    });
+  },
+
+  replaceMessage: (tempId, realMessage) => {
+    set((state) => {
+      const chatMessages = state.messages[realMessage.chatId] || [];
+      const idx = chatMessages.findIndex((m) => m.id === tempId);
+      if (idx === -1) {
+        // Temp message was already removed, just add the real one if not duplicate
+        if (chatMessages.some((m) => m.id === realMessage.id)) return state;
+        return {
+          messages: {
+            ...state.messages,
+            [realMessage.chatId]: [...chatMessages, realMessage],
+          },
+        };
+      }
+      const updated = [...chatMessages];
+      updated[idx] = realMessage;
+
+      const latestVisible = updated.filter(m => !m.isDeleted).sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+
+      const updatedChats = state.chats.map((chat) => {
+        if (chat.id === realMessage.chatId) {
+          return {
+            ...chat,
+            messages: latestVisible ? [latestVisible] : [],
+          };
+        }
+        return chat;
+      });
+
+      return {
+        messages: { ...state.messages, [realMessage.chatId]: updated },
+        chats: updatedChats,
+      };
+    });
+  },
 }));

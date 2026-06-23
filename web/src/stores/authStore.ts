@@ -49,7 +49,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     login: async (phone, password) => {
       try {
-        set({ error: null, isLoading: true });
+        set({ error: null, isLoading: true, user: null });
+        localStorage.removeItem('nexo_access_token');
         const result = await api.login(phone, password);
         if (result.csrfToken) api.setCsrfToken(result.csrfToken);
         localStorage.setItem('nexo_user', JSON.stringify(result.user));
@@ -71,7 +72,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
 
     register: async (data) => {
       try {
-        set({ error: null, isLoading: true });
+        set({ error: null, isLoading: true, user: null });
+        localStorage.removeItem('nexo_access_token');
         const result = await api.register(data);
         if (result.csrfToken) api.setCsrfToken(result.csrfToken);
         localStorage.setItem('nexo_user', JSON.stringify(result.user));
@@ -115,20 +117,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
           import('../lib/notifications').then(m => m.subscribeToNotifications().catch(() => {}));
         }, 2000);
       } catch (err) {
-        if (err instanceof Error && (
-          err.message.includes('401') || 
-          err.message.includes('Unauthorized') ||
-          err.message.includes('Требуется авторизация') ||
-          err.message.includes('токен') ||
-          err.message.includes('истекло')
-        )) {
-          localStorage.removeItem('nexo_user');
-          localStorage.removeItem('nexo_access_token');
-          set({ user: null, isLoading: false });
-          return;
-        }
-        console.error('Auth check error:', err);
-        set({ isLoading: false, error: err instanceof Error ? err.message : 'Ошибка проверки авторизации' });
+        localStorage.removeItem('nexo_user');
+        localStorage.removeItem('nexo_access_token');
+        set({ user: null, isLoading: false });
       }
     },
 
@@ -157,4 +148,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }, 2000);
     },
   };
+});
+
+api.setOnAuthFailed(() => {
+  const { logout } = useAuthStore.getState();
+  logout();
 });

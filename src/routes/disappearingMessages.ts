@@ -116,7 +116,8 @@ router.post('/cleanup', async (_req, res) => {
         where: { id: { in: messageIds } },
         data: {
           isDeleted: true,
-          content: '[Сообщение удалено]'
+          content: null,
+          encryptedContent: null
         }
       });
 

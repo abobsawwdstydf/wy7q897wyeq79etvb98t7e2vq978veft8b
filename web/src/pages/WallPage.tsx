@@ -496,27 +496,29 @@ export default function WallPage({ highlightPostId, onHighlightCleared }: WallPa
         )}
       </AnimatePresence>
 
-      {/* Nexo AI Panel - fullscreen modal */}
+      {/* Nexo AI Panel - slide-up sheet on mobile */}
       <AnimatePresence>
         {showAI && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
+            transition={{ duration: 0.1 }}
+            className="fixed inset-0 z-[200]"
             onClick={() => closeAI()}
           >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95 }}
+              animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1 }}
+              exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               className={`${
                 isMobile
-                  ? 'fixed inset-0 rounded-none'
+                  ? 'absolute inset-x-0 bottom-0 top-[52px] rounded-t-[20px]'
                   : 'fixed inset-8 rounded-2xl shadow-2xl overflow-hidden'
-              } bg-[#0a0a0f] border border-white/10`}
+              } border border-white/10 overflow-hidden`}
+              style={{ background: '#111' }}
               onClick={(e) => e.stopPropagation()}
             >
               <NexoAIPage onClose={() => closeAI()} />

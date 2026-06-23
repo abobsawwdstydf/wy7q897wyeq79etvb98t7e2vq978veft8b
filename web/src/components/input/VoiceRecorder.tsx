@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, X } from 'lucide-react';
+import { Send, X, Loader2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
 import { useChatStore } from '../../stores/chatStore';
+import { useAuthStore } from '../../stores/authStore';
 
 interface VoiceRecorderProps {
   chatId: string;
@@ -13,8 +14,10 @@ interface VoiceRecorderProps {
 
 export default function VoiceRecorder({ chatId, replyToId, onSent, onCancel }: VoiceRecorderProps) {
   const { setReplyTo } = useChatStore();
+  const { user } = useAuthStore();
   const [recordingTime, setRecordingTime] = useState(0);
   const [liveBars, setLiveBars] = useState<number[]>(() => Array(32).fill(5));
+  const [isSending, setIsSending] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -107,6 +110,33 @@ export default function VoiceRecorder({ chatId, replyToId, onSent, onCancel }: V
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const file = new File([blob], `voice.${ext}`, { type: mimeType });
 
+        setIsSending(true);
+
+        // Optimistic: create a temp voice message immediately
+        const tempId = `temp-voice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const tempMessage = {
+          id: tempId,
+          chatId,
+          senderId: user?.id || '',
+          sender: user ? { id: user.id, displayName: user.displayName, username: user.username, avatar: user.avatar } : {} as any,
+          content: null,
+          type: 'voice' as const,
+          createdAt: new Date().toISOString(),
+          readBy: [],
+          media: [{ url: '', type: 'voice', filename: file.name, size: file.size }],
+          duration: recordingTimeRef.current,
+          _isSending: true,
+        } as any;
+
+        // Add to store optimistically
+        useChatStore.getState().addMessage(tempMessage);
+
+        // Scroll to bottom
+        setTimeout(() => {
+          const container = document.querySelector('[data-messages-container]');
+          if (container) container.scrollTop = container.scrollHeight;
+        }, 10);
+
         try {
           const result = await api.uploadFile(file);
 
@@ -126,13 +156,20 @@ export default function VoiceRecorder({ chatId, replyToId, onSent, onCancel }: V
               fileSize: result.size || file.size,
               duration: recordingTimeRef.current,
               replyToId: replyToId || null,
+              _tempId: tempId,
             });
             setReplyTo(null);
           }
-          onSent();
+
+          // Server will send new_message with _tempId, which replaces the temp automatically
         } catch (e) {
           console.error('Ошибка отправки голосового:', e);
+          // Mark as failed
+          useChatStore.getState().markMessageFailed(tempId, chatId);
           alert('Не удалось отправить голосовое сообщение.');
+        } finally {
+          setIsSending(false);
+          onSent();
         }
       };
 
@@ -179,15 +216,22 @@ export default function VoiceRecorder({ chatId, replyToId, onSent, onCancel }: V
     <div className="flex items-center gap-3 max-w-3xl mx-auto px-2">
       <button
         onClick={cancelRecording}
-        className="p-3 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all flex-shrink-0"
+        disabled={isSending}
+        className="p-3 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all flex-shrink-0 disabled:opacity-50"
       >
         <X size={20} />
       </button>
 
       <div className="flex-1 flex flex-col items-center gap-2">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-sm text-white font-mono w-12 text-center">{formatTime(recordingTime)}</span>
+          {isSending ? (
+            <Loader2 size={14} className="text-nexo-400 animate-spin" />
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          )}
+          <span className="text-sm text-white font-mono w-12 text-center">
+            {isSending ? '...' : formatTime(recordingTime)}
+          </span>
         </div>
         <div className="flex items-center gap-0.5 h-12 w-full justify-center">
           {liveBars.map((height, i) => (
@@ -205,9 +249,10 @@ export default function VoiceRecorder({ chatId, replyToId, onSent, onCancel }: V
 
       <button
         onClick={stopRecording}
-        className="p-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 flex-shrink-0"
+        disabled={isSending}
+        className="p-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 flex-shrink-0 disabled:opacity-50 disabled:scale-100"
       >
-        <Send size={20} />
+        {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
       </button>
     </div>
   );

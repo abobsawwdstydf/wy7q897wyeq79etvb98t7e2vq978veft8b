@@ -67,7 +67,7 @@ export default function DeviceAuthPage() {
         if (result && result.confirmed && result.user) {
           if (pollRef.current) clearInterval(pollRef.current);
           localStorage.setItem(`nexo_device_${dt}`, JSON.stringify({ ts: Date.now() }));
-          loginWithToken(result.token, result.user);
+          loginWithToken(result.accessToken || '', result.user);
           setAction('confirmed');
           setTimeout(() => {
             window.location.href = '/';

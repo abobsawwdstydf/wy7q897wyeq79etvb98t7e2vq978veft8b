@@ -112,7 +112,7 @@ export default function StickerCropper({ onDone, onCancel }: StickerCropperProps
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/gif,image/webp,image/jpeg"
+            accept="image/*"
             onChange={handleFileSelect}
             className="hidden"
           />

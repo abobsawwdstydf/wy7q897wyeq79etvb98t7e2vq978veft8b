@@ -504,6 +504,9 @@ import { startNFTStockUpdater } from './lib/nftStockUpdater';
 startNFTStockUpdater();
 
 // Cleanup expired device tokens (every 5 minutes)
+let deviceTokenFailures = 0;
+const DEVICE_TOKEN_MAX_BACKOFF = 15 * 60 * 1000;
+
 async function cleanupExpiredDeviceTokens() {
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -513,11 +516,18 @@ async function cleanupExpiredDeviceTokens() {
         status: { in: ['pending', 'denied'] },
       },
     });
+    deviceTokenFailures = 0;
     if (deleted.count > 0) {
       console.log(`[DEVICE AUTH] Cleaned up ${deleted.count} expired device tokens`);
     }
-  } catch {
-    console.error('Failed to cleanup expired device tokens');
+  } catch (error) {
+    deviceTokenFailures++;
+    const backoff = Math.min(5 * 60 * 1000 * Math.pow(2, deviceTokenFailures), DEVICE_TOKEN_MAX_BACKOFF);
+    console.error(
+      `[DEVICE AUTH] Failed to cleanup expired device tokens (attempt ${deviceTokenFailures}, retry in ${Math.round(backoff / 1000)}s)`,
+      error instanceof Error ? error.message : ''
+    );
+    setTimeout(cleanupExpiredDeviceTokens, backoff);
   }
 }
 cleanupExpiredDeviceTokens();

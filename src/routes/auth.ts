@@ -22,6 +22,9 @@ import {
   deleteRefreshToken,
   revokeAllUserRefreshTokens,
   registerRefreshToken,
+  storeVerificationCode,
+  getVerificationCode,
+  deleteVerificationCode,
 } from '../services/auth';
 import { validatePassword } from '../lib/password';
 import { generateCsrfToken, CSRF_CONFIG } from '../lib/csrf';
@@ -40,15 +43,22 @@ const loginLimiter = rateLimit({
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const allowedMimes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'image/avif', 'image/apng', 'image/svg+xml', 'image/bmp',
+      'image/tiff', 'image/x-icon', 'image/jfif',
+    ];
+    const allowedExts = [
+      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.apng',
+      '.svg', '.bmp', '.tiff', '.tif', '.ico', '.jfif',
+    ];
     const ext = file.originalname.toLowerCase().match(/\.[^.]+$/)?.[0];
     if (allowedMimes.includes(file.mimetype) && ext && allowedExts.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Только изображения (JPEG, PNG, GIF, WebP)'));
+      cb(new Error('Только изображения (JPEG, PNG, GIF, WebP, AVIF, SVG, BMP, TIFF, ICO)'));
     }
   },
 });
@@ -307,6 +317,93 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// ВХОД ПО КОДУ
+// ═══════════════════════════════════════════════════════════════════
+
+router.post('/send-code', loginLimiter, async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone || !/^\+[1-9]\d{6,14}$/.test(phone)) {
+      res.status(400).json({ error: 'Телефон в формате +79991234567' });
+      return;
+    }
+
+    const user = await prisma.user.findFirst({ where: { phone }, select: { id: true, phone: true } });
+    if (!user) {
+      res.status(400).json({ error: 'Пользователь с таким номером не найден' });
+      return;
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await storeVerificationCode(phone, code, 5 * 60);
+
+    console.log(`[Auth] Verification code for ${phone}: ${code}`);
+
+    res.json({ success: true, message: 'Код отправлен' });
+  } catch (error) {
+    console.error('Send code error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.post('/verify-code', loginLimiter, async (req: Request, res: Response) => {
+  try {
+    const { phone, code } = req.body;
+
+    if (!phone || !code) {
+      res.status(400).json({ error: 'Телефон и код обязательны' });
+      return;
+    }
+
+    const storedCode = await getVerificationCode(phone);
+    if (!storedCode) {
+      res.status(400).json({ error: 'Код не найден или истёк. Запросите новый.' });
+      return;
+    }
+
+    if (storedCode !== code) {
+      res.status(400).json({ error: 'Неверный код' });
+      return;
+    }
+
+    await deleteVerificationCode(phone);
+
+    const user = await prisma.user.findFirst({
+      where: { phone },
+      select: { ...USER_SELECT, password: true, fakePassword: true, fakeChats: true },
+    });
+
+    if (!user) {
+      res.status(400).json({ error: 'Пользователь не найден' });
+      return;
+    }
+
+    await resetLoginAttempts(phone);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isOnline: true, lastSeen: new Date() },
+    });
+
+    const { token: accessToken } = generateAccessToken(user.id);
+    const { token: refreshToken, jti: refreshJti } = generateRefreshToken(user.id);
+
+    await storeRefreshToken(refreshJti, user.id, config.refreshTokenTtlDays * 24 * 60 * 60);
+    await registerRefreshToken(user.id, refreshJti);
+
+    setAuthCookies(res, accessToken, refreshToken);
+    const csrfToken = setCsrfCookie(res, user.id);
+
+    const { password: _, fakePassword: __, fakeChats, ...userWithoutPassword } = user;
+    res.json({ user: { ...userWithoutPassword, isOnline: true }, accessToken, csrfToken });
+  } catch (error) {
+    console.error('Verify code error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // ОБНОВЛЕНИЕ ACCESS TOKEN (refresh)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -497,12 +594,13 @@ router.get('/device/check', async (req: Request, res: Response) => {
 
       // Устанавливаем cookies для нового устройства
       setAuthCookies(res, accessToken, refreshToken);
+      const csrfToken = setCsrfCookie(res, user.id);
 
       setTimeout(() => {
         prisma.deviceToken.delete({ where: { token: device } }).catch(() => {});
       }, 30000);
 
-      res.json({ confirmed: true, user, scanned: true });
+      res.json({ confirmed: true, user, scanned: true, accessToken, csrfToken });
       return;
     }
 

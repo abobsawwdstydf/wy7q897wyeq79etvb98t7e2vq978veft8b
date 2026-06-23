@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Copy } from 'lucide-react';
+import { X, Plus, Trash2, FileText } from 'lucide-react';
 import { api } from '../lib/api';
+import BottomSheet from './BottomSheet';
 
 interface TemplatesModalProps {
   onClose: () => void;
@@ -21,9 +22,16 @@ export default function TemplatesModal({ onClose, onSelect }: TemplatesModalProp
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newContent, setNewContent] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
 
   useEffect(() => {
     loadTemplates();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadTemplates = async () => {
@@ -69,27 +77,11 @@ export default function TemplatesModal({ onClose, onSelect }: TemplatesModalProp
     onClose();
   };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 sm:inset-auto sm:right-3 sm:top-3 sm:bottom-3 sm:w-[500px] sm:h-[600px] bg-surface-secondary/95 backdrop-blur-xl rounded-2xl border border-white/10 flex flex-col z-50"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
-        <h2 className="text-lg font-semibold text-white">Шаблоны сообщений</h2>
-        <button
-          onClick={onClose}
-          className="p-2 hover:bg-white/10 rounded-lg transition"
-        >
-          <X size={20} className="text-white/60" />
-        </button>
-      </div>
-
+  const content = (
+    <>
       {/* Create form */}
       {showCreate && (
-        <div className="p-4 border-b border-white/10 space-y-3">
+        <div className="p-4 border-b border-white/5 space-y-3">
           <input
             type="text"
             value={newName}
@@ -165,7 +157,7 @@ export default function TemplatesModal({ onClose, onSelect }: TemplatesModalProp
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/5">
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-nexo-500 hover:bg-nexo-600 text-white rounded-lg transition text-sm"
@@ -173,6 +165,41 @@ export default function TemplatesModal({ onClose, onSelect }: TemplatesModalProp
           <Plus size={16} />
           Новый шаблон
         </button>
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <BottomSheet isOpen onClose={onClose} title="Шаблоны сообщений">
+        {content}
+      </BottomSheet>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="fixed inset-0 flex items-center justify-center z-50"
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-[#1a1a1a] rounded-2xl border border-white/10 flex flex-col w-[500px] h-[600px]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/5 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <FileText size={18} className="text-white/60" />
+            <h2 className="text-lg font-semibold text-white">Шаблоны сообщений</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        {content}
       </div>
     </motion.div>
   );

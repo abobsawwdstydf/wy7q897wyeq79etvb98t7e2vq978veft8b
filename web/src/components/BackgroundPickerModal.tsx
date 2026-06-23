@@ -1,8 +1,8 @@
-﻿import { useState, useEffect, useRef } from 'react';
-import type React from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Check, Image } from 'lucide-react';
 import { useSettingsStore } from '../stores/settingsStore';
+import BottomSheet from './BottomSheet';
 
 interface BackgroundPickerModalProps {
   isOpen: boolean;
@@ -24,6 +24,14 @@ const PRESET_BACKGROUNDS = [
   { id: 'cosmos', name: 'Космос', style: 'linear-gradient(135deg, #0a0015 0%, #150030 50%, #000a20 100%)' },
   { id: 'forest', name: 'Лес', style: 'linear-gradient(135deg, #0d2b0d 0%, #1a3d1a 100%)' },
   { id: 'ocean', name: 'Океан', style: 'linear-gradient(135deg, #001a33 0%, #003366 100%)' },
+  { id: 'tg-day', name: 'День', style: 'linear-gradient(180deg, #e8f0fe 0%, #d4e4fc 100%)' },
+  { id: 'tg-warm', name: 'Тепло', style: 'linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 50%, #d4c4b0 100%)' },
+  { id: 'tg-plain', name: 'Поле', style: 'linear-gradient(135deg, #e8eed6 0%, #d4deba 100%)' },
+  { id: 'tg-doodle', name: 'Дудл', style: 'linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%)' },
+  { id: 'tg-bubble', name: 'Пузыри', style: 'linear-gradient(135deg, #c9d6e8 0%, #b8c5d8 50%, #a7b4c8 100%)' },
+  { id: 'tg-navy', name: 'Морская', style: 'linear-gradient(135deg, #17212b 0%, #0e1621 100%)' },
+  { id: 'tg-night-blue', name: 'Синяя ночь', style: 'linear-gradient(180deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%)' },
+  { id: 'tg-gradient-1', name: 'Градиент 1', style: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
 ];
 
 export default function BackgroundPickerModal({
@@ -35,6 +43,14 @@ export default function BackgroundPickerModal({
   const { getChatBackground, setChatBackground, removeChatBackground } = useSettingsStore();
   const [selected, setSelected] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -69,6 +85,61 @@ export default function BackgroundPickerModal({
     }
   };
 
+  const content = (
+    <div className="p-5 space-y-5">
+      {/* Preset grid */}
+      <div>
+        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Готовые фоны</p>
+        <div className="grid grid-cols-5 gap-2">
+          {PRESET_BACKGROUNDS.map((preset) => {
+            const presetUrl = `preset-${preset.id}`;
+            const isActive = selected === presetUrl;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => applyBackground(presetUrl)}
+                disabled={isLoading}
+                className="relative aspect-square rounded-xl overflow-hidden transition-all hover:scale-105 active:scale-95"
+                style={{ background: preset.style }}
+              >
+                {isActive && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 ring-2 ring-nexo-500 rounded-xl">
+                    <Check size={18} className="text-white" />
+                  </div>
+                )}
+                <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] text-white/70 font-medium">
+                  {preset.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Remove */}
+      {selected && (
+        <button
+          onClick={removeBackground}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium disabled:opacity-50"
+        >
+          <Trash2 size={15} />
+          Убрать фон
+        </button>
+      )}
+    </div>
+  );
+
+  // Мобильная версия — шторка
+  if (isMobile) {
+    return (
+      <BottomSheet isOpen={isOpen} onClose={onClose} title="Фон чата">
+        {content}
+      </BottomSheet>
+    );
+  }
+
+  // Десктоп — центрированное модальное окно
   return (
     <AnimatePresence>
       {isOpen && (
@@ -85,7 +156,7 @@ export default function BackgroundPickerModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-x-4 bottom-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-md z-[9991]"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-[9991]"
             onClick={e => e.stopPropagation()}
           >
             <div className="bg-[#0f0f14] rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
@@ -104,49 +175,7 @@ export default function BackgroundPickerModal({
                   <X size={16} />
                 </button>
               </div>
-
-              <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
-                {/* Preset grid */}
-                <div>
-                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Готовые фоны</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {PRESET_BACKGROUNDS.map((preset) => {
-                      const presetUrl = `preset-${preset.id}`;
-                      const isActive = selected === presetUrl;
-                      return (
-                        <button
-                          key={preset.id}
-                          onClick={() => applyBackground(presetUrl)}
-                          disabled={isLoading}
-                          className="relative aspect-square rounded-xl overflow-hidden transition-all hover:scale-105 active:scale-95"
-                          style={{ background: preset.style }}
-                        >
-                          {isActive && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 ring-2 ring-nexo-500 rounded-xl">
-                              <Check size={18} className="text-white" />
-                            </div>
-                          )}
-                          <span className="absolute bottom-1 left-0 right-0 text-center text-[9px] text-white/70 font-medium">
-                            {preset.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Remove */}
-                {selected && (
-                  <button
-                    onClick={removeBackground}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-medium disabled:opacity-50"
-                  >
-                    <Trash2 size={15} />
-                    Убрать фон
-                  </button>
-                )}
-              </div>
+              {content}
             </div>
           </motion.div>
         </>

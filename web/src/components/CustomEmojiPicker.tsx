@@ -220,7 +220,7 @@ export default function CustomEmojiPicker({ onSelect, onClose }: CustomEmojiPick
                     ) : (
                       <Plus size={18} className="text-zinc-500" />
                     )}
-                    <input ref={fileInputRef} type="file" accept="image/*,.gif,.svg,.webp" className="hidden" onChange={handleFileChange} />
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                   </label>
                   <div className="flex-1 space-y-1.5">
                     <input

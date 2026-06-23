@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db';
 import { getSocket } from '../socket';
-
-const prisma = new PrismaClient();
 
 /**
  * Обновляет цены NFT карточек с включенными акциями

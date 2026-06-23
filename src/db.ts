@@ -11,7 +11,15 @@ interface QueryArgs {
 const databaseUrl = process.env.DATABASE_URL;
 
 export const prisma = new PrismaClient({
-  datasources: databaseUrl ? { db: { url: databaseUrl } } : undefined,
+  datasources: databaseUrl
+    ? {
+        db: {
+          url: databaseUrl.includes('?')
+            ? databaseUrl + '&connection_limit=15&pool_timeout=30'
+            : databaseUrl + '?connection_limit=15&pool_timeout=30',
+        },
+      }
+    : undefined,
   log: [],
 }).$extends({
   query: {

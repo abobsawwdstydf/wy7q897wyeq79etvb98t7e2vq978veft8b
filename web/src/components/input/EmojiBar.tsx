@@ -15,12 +15,12 @@ const EmojiBar = forwardRef<HTMLButtonElement, EmojiBarProps>(
         data-mediapicker-anchor
         className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-150 flex-shrink-0 ${
           showMediaPicker
-            ? 'text-yellow-400 bg-yellow-400/10'
-            : 'text-white/35 hover:text-white/70 hover:bg-white/[0.06]'
+            ? 'text-[#6ab2f2] bg-[#6ab2f2]/10'
+            : 'text-[#6d7f8e] hover:text-[#6ab2f2] hover:bg-white/[0.04]'
         }`}
         title="Эмодзи, стикеры и GIF"
       >
-        <Smile size={19} />
+        <Smile size={20} />
       </button>
     );
   }

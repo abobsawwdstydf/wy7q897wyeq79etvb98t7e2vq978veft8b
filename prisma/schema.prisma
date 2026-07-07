@@ -1,0 +1,2613 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String            @id @default(uuid())
+  username              String            @unique
+  displayName           String            @default("")
+  email                 String?           @unique
+  phone                 String?
+  phoneVerified         Boolean           @default(false)
+  emailVerified         Boolean           @default(false)
+  password              String
+  avatar                String?
+  bio                   String?
+  birthday              String?
+  createdAt             DateTime          @default(now())
+  lastSeen              DateTime          @default(now())
+  isOnline              Boolean           @default(false)
+  hideStoryViews        Boolean           @default(false)
+
+  @@index([isOnline])
+  @@index([isPremium])
+  @@index([subscribersCount])
+  @@index([createdAt])
+  registrationIp        String?
+  pushSubscription      String?
+  pinnedChannelId       String?
+  notifyAll             Boolean           @default(true)
+  notifyMessages        Boolean           @default(true)
+  notifyCalls           Boolean           @default(true)
+  notifyFriends         Boolean           @default(true)
+  isVerified            Boolean           @default(false)
+  verifiedBadgeUrl      String?
+  verifiedBadgeType     String?
+  verifiedAt            DateTime?
+  tagText               String?
+  tagColor              String?
+  tagStyle              String?
+  isPremium             Boolean           @default(false)
+  premiumUntil          DateTime?
+  premiumType           String?
+  beavers               Int               @default(0)
+  totalSpent            Int               @default(0)
+  totalEarned           Int               @default(0)
+  subscribersCount      Int               @default(0)
+  isBanned              Boolean           @default(false)
+  banReason             String?
+  banExpiresAt          DateTime?
+  bannedAt              DateTime?
+  bannedBy              String?
+  identityKey           String?
+  signedPreKey          String?
+  signedPreKeyId        Int?
+  signedPreKeySig       String?
+  oneTimePreKeys        String?
+  syncKey               String?
+  profileMusic          String?           @default("[]")
+  musicPlaylists        String?           @default("[]")
+  musicTracks           String?           @default("[]")
+  nameAnimation         String?
+  nameColor             String?
+  nameGradient          String?
+  pinnedChats           String?
+  defaultChatBackground String?
+  settingsSyncEnabled   Boolean           @default(true)
+  fakePassword          String?
+  fakeChats             String?           @default("[]")
+
+  calleeCalls           CallLog[]         @relation("CalleeCalls")
+  callerCalls           CallLog[]         @relation("CallerCalls")
+  chatBackgrounds       ChatBackground[]
+  chatMembers           ChatMember[]
+  friendshipsReceived   Friendship[]      @relation("FriendshipsReceived")
+  friendshipsSent       Friendship[]      @relation("FriendshipsSent")
+  uploadedLocalFiles    LocalFile[]
+  mentions              Mention[]
+  forwardedMessages     Message[]         @relation("ForwardedFrom")
+  messages              Message[]
+  reactions             Reaction[]
+  readReceipts          ReadReceipt[]
+  stories               Story[]
+  storyViews            StoryView[]
+  typingIndicators      TypingIndicator[]
+  pinnedChannel         Chat?             @relation("PinnedChannels", fields: [pinnedChannelId], references: [id])
+  bansIssued            UserBan[]         @relation("BansIssued")
+  devices               UserDevice[]
+  verifiedEntities      VerifiedEntity[]  @relation("VerifiedBy")
+  bookmarks             Bookmark[]
+  messageTemplates      MessageTemplate[]
+  tasksCreated          Task[]            @relation("TaskCreator")
+  eventsCreated         CalendarEvent[]   @relation("EventCreator")
+  calendarInvites       CalendarInvite[]
+  blockedUsers          BlockedUser[]     @relation("BlockedBy")
+  blockedByUsers        BlockedUser[]     @relation("BlockedUser")
+  bots                  Bot[]
+  contentReports        ContentReport[]
+  callRecordings        CallRecording[]
+  chatNotificationSettings ChatNotificationSetting[]
+}
+
+model Chat {
+  id                String            @id @default(uuid())
+  type              String            @default("personal")
+  name              String?
+  username          String?           @unique
+  avatar            String?
+  description       String?
+  createdAt         DateTime          @default(now())
+  isVerified        Boolean           @default(false)
+  verifiedBadgeUrl  String?
+  verifiedBadgeType String?
+  verifiedAt        DateTime?
+  isSecret          Boolean           @default(false)
+  secretPassword    String?
+  isE2E             Boolean           @default(false)
+  e2eSessionKey     String?
+  slowModeInterval  Int?              @default(0)
+  welcomeMessage    String?
+  rules             String?
+  subscribersCount  Int               @default(0)
+  canMembersPost    Boolean           @default(true)
+  canMembersInvite  Boolean           @default(true)
+  webhookUrl        String?
+  webhookSecret     String?
+  webhookEvents     String?
+  customIcon        String?
+  customColor       String?
+  customBackground  String?
+  autoResponders    AutoResponder[]
+  backgrounds       ChatBackground[]
+  members           ChatMember[]
+  chatTags          ChatTag[]
+  messages          Message[]
+  pinnedMessages    PinnedMessage[]
+  threads           Thread[]
+  typingIndicators  TypingIndicator[]
+  pinnedByUsers     User[]            @relation("PinnedChannels")
+  webhooks          Webhook[]
+  chatFolders       ChatFolder[]      @relation("FolderChats")
+  tasks             Task[]
+  notificationSettings ChatNotificationSetting[]
+
+  @@index([type])
+  @@index([username])
+  @@index([subscribersCount])
+}
+
+model ChatMember {
+  id            String    @id @default(uuid())
+  chatId        String
+  userId        String
+  role          String    @default("member")
+  joinedAt      DateTime  @default(now())
+  isMuted       Boolean   @default(false)
+  isArchived    Boolean   @default(false)
+  isPinned      Boolean   @default(false)
+  clearedAt     DateTime?
+  canPost       Boolean   @default(true)
+  canInvite     Boolean   @default(true)
+  canPin        Boolean   @default(false)
+  canDelete     Boolean   @default(false)
+  lastMessageAt DateTime?
+  chat          Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([userId, isPinned])
+  @@index([userId, isArchived])
+  @@index([chatId, role])
+}
+
+model Message {
+  id                String          @id @default(uuid())
+  chatId            String
+  senderId          String
+  content           String?
+  type              String          @default("text")
+  replyToId         String?
+  quote             String?
+  quoteSelection    String?
+  forwardedFromId   String?
+  isEdited          Boolean         @default(false)
+  isDeleted         Boolean         @default(false)
+  scheduledAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  editedAt          DateTime?
+  videoUrl          String?
+  duration          Int?
+  thumbnail         String?
+  isEncrypted       Boolean         @default(false)
+  encryptedContent  String?
+  senderKeyId       String?
+  threadId          String?
+  selfDestructTimer Int?
+  selfDestructAt    DateTime?
+  canForward        Boolean         @default(true)
+  canScreenshot     Boolean         @default(true)
+  hiddenBy          HiddenMessage[]
+  media             Media[]
+  mentions          Mention[]
+  chat              Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  forwardedFrom     User?           @relation("ForwardedFrom", fields: [forwardedFromId], references: [id])
+  replyTo           Message?        @relation("Reply", fields: [replyToId], references: [id])
+  replies           Message[]       @relation("Reply")
+  sender            User            @relation(fields: [senderId], references: [id])
+  thread            Thread?         @relation("ThreadMessages", fields: [threadId], references: [id])
+  views             MessageView[]
+  pinnedIn          PinnedMessage[]
+  reactions         Reaction[]
+  readBy            ReadReceipt[]
+  threadOrigins     Thread?         @relation("ThreadOrigin")
+  bookmarks         Bookmark[]
+  voiceTranscript   VoiceTranscript?
+
+  @@index([chatId, createdAt])
+  @@index([senderId, chatId])
+  @@index([scheduledAt])
+}
+
+model MessageView {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  deviceId  String?
+  viewedAt  DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, deviceId])
+}
+
+model Media {
+  id             String        @id @default(uuid())
+  messageId      String
+  type           String
+  url            String
+  filename       String?
+  thumbnail      String?
+  size           Int?
+  duration       Float?
+  width          Int?
+  height         Int?
+  localFileId    String?
+  localFile      LocalFile?    @relation(fields: [localFileId], references: [id])
+  message        Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([messageId, type])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId, emoji])
+}
+
+model ReadReceipt {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+  @@index([readAt])
+}
+
+model PinnedMessage {
+  id        String   @id @default(uuid())
+  chatId    String
+  messageId String
+  pinnedAt  DateTime @default(now())
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, messageId])
+}
+
+model Story {
+  id             String          @id @default(uuid())
+  userId         String
+  type           String          @default("text")
+  mediaUrl       String?
+  content        String?
+  bgColor        String?
+  createdAt      DateTime        @default(now())
+  expiresAt      DateTime
+  isHighlight    Boolean         @default(false)
+  highlightTitle String?
+  highlightCover String?
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions      StoryReaction[]
+  replies        StoryReply[]
+  views          StoryView[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isHighlight])
+}
+
+model StoryView {
+  id       String   @id @default(uuid())
+  storyId  String
+  userId   String
+  viewedAt DateTime @default(now())
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+  @@index([viewedAt])
+}
+
+model StoryReaction {
+  id        String   @id @default(uuid())
+  storyId   String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+}
+
+model StoryReply {
+  id        String   @id @default(uuid())
+  storyId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+  @@index([userId])
+}
+
+model HiddenMessage {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  hiddenAt  DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String
+  friendId  String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  friend    User     @relation("FriendshipsReceived", fields: [friendId], references: [id], onDelete: Cascade)
+  user      User     @relation("FriendshipsSent", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([userId, status])
+  @@index([friendId, status])
+}
+
+model CallLog {
+  id        String   @id @default(uuid())
+  callerId  String
+  calleeId  String?
+  chatId    String?
+  type      String   @default("voice")
+  status    String   @default("completed")
+  duration  Float    @default(0)
+  createdAt DateTime @default(now())
+  callee    User?    @relation("CalleeCalls", fields: [calleeId], references: [id], onDelete: Cascade)
+  caller    User     @relation("CallerCalls", fields: [callerId], references: [id], onDelete: Cascade)
+
+  @@index([callerId, createdAt])
+  @@index([calleeId, createdAt])
+  @@index([type])
+  @@index([status])
+}
+
+model VerifiedEntity {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  badgeUrl   String?
+  badgeType  String   @default("default")
+  verifiedBy String
+  verifiedAt DateTime @default(now())
+  note       String?
+  user       User     @relation("VerifiedBy", fields: [verifiedBy], references: [id])
+
+  @@unique([entityType, entityId])
+  @@index([entityType])
+  @@index([verifiedBy])
+}
+
+model UserBan {
+  id        String    @id @default(uuid())
+  userId    String
+  reason    String
+  expiresAt DateTime?
+  bannedBy  String
+  createdAt DateTime  @default(now())
+  isActive  Boolean   @default(true)
+  liftedAt  DateTime?
+  liftedBy  String?
+  user      User      @relation("BansIssued", fields: [bannedBy], references: [id])
+
+  @@index([userId])
+  @@index([bannedBy])
+  @@index([isActive])
+}
+
+model Thread {
+  id        String    @id @default(uuid())
+  chatId    String
+  messageId String    @unique
+  title     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[] @relation("ThreadMessages")
+  chat      Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message   Message   @relation("ThreadOrigin", fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([messageId])
+}
+
+
+model LocalFile {
+  id              String           @id @default(uuid())
+  fileId          String           @unique
+  userId          String
+  originalName    String
+  mimeType        String
+  totalSize       Int
+  storagePath     String
+  encryptionLevel Int              @default(0)
+  createdAt       DateTime         @default(now())
+  lastAccessed    DateTime         @default(now())
+  accessCount     Int              @default(0)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks          LocalFileChunk[]
+  media           Media[]
+
+  @@index([userId])
+  @@index([fileId])
+}
+
+model LocalFileChunk {
+  id          String    @id @default(uuid())
+  fileId      String
+  localFileId String
+  chunkIndex  Int
+  path        String
+  size        Int
+  createdAt   DateTime  @default(now())
+  localFile   LocalFile @relation(fields: [localFileId], references: [id], onDelete: Cascade)
+
+  @@unique([localFileId, chunkIndex])
+  @@index([fileId])
+  @@index([localFileId])
+}
+
+model UserDevice {
+  id           String   @id @default(uuid())
+  userId       String
+  deviceId     String   @unique
+  deviceName   String
+  deviceType   String
+  platform     String?  // Windows, macOS, Linux, Android, iOS
+  ipAddress    String?  // IP адрес устройства
+  userAgent    String?  // User agent для определения браузера
+  lastActive   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  identityKey  String
+  signedPreKey String
+  preKeyId     Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deviceId])
+}
+
+model Mention {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+model TypingIndicator {
+  id        String   @id @default(uuid())
+  chatId    String
+  userId    String
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([expiresAt])
+}
+
+model StickerPack {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  creatorId   String
+  thumbnail   String?
+  isPublic    Boolean   @default(true)
+  isAnimated  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  stickers    Sticker[]
+
+  @@index([creatorId])
+  @@index([isPublic])
+}
+
+model Sticker {
+  id         String      @id @default(uuid())
+  packId     String
+  emoji      String?
+  fileUrl    String
+  fileSize   Int
+  width      Int?
+  height     Int?
+  isAnimated Boolean     @default(false)
+  order      Int         @default(0)
+  createdAt  DateTime    @default(now())
+  pack       StickerPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@index([packId])
+}
+
+model Gif {
+  id          String   @id @default(uuid())
+  title       String?
+  url         String
+  thumbnail   String?
+  width       Int?
+  height      Int?
+  size        Int?
+  tags        String?
+  searchCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([tags])
+  @@index([searchCount])
+}
+
+model Hashtag {
+  id         String           @id @default(uuid())
+  tag        String           @unique
+  useCount   Int              @default(0)
+  lastUsedAt DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+  messages   MessageHashtag[]
+
+  @@index([tag])
+  @@index([useCount])
+}
+
+model MessageHashtag {
+  id        String   @id @default(uuid())
+  messageId String
+  hashtagId String
+  createdAt DateTime @default(now())
+  hashtag   Hashtag  @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, hashtagId])
+  @@index([hashtagId])
+  @@index([messageId])
+}
+
+model Bot {
+  id          String   @id @default(uuid())
+  username    String   @unique
+  displayName String
+  description String?
+  token       String   @unique
+  userId      String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model Webhook {
+  id              String    @id @default(uuid())
+  chatId          String
+  url             String
+  secret          String?
+  events          String    @default("[]")
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  lastTriggeredAt DateTime?
+  chat            Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+}
+
+model AutoResponder {
+  id          String   @id @default(uuid())
+  chatId      String
+  userId      String
+  trigger     String
+  response    String
+  isActive    Boolean  @default(true)
+  onlyOffline Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  chat        Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([userId])
+}
+
+model ChatFolder {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  icon      String?
+  color     String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  chats     Chat[]   @relation("FolderChats")
+  sharedLinks SharedFolderLink[]
+  folderRules FolderRule[]
+
+  @@index([userId])
+}
+
+model SharedFolderLink {
+  id        String   @id @default(uuid())
+  folderId  String
+  userId    String
+  token     String   @unique
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  usedCount Int      @default(0)
+  maxUses   Int?
+  
+  folder    ChatFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  
+  @@index([token])
+  @@index([folderId])
+  @@index([userId])
+}
+
+model ChatTag {
+  id        String   @id @default(uuid())
+  chatId    String
+  userId    String
+  tag       String
+  color     String?
+  createdAt DateTime @default(now())
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId, tag])
+  @@index([userId])
+}
+
+model UserPrivacySettings {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  hideOnline       Boolean  @default(false)
+  hideTyping       Boolean  @default(false)
+  hideReadReceipts Boolean  @default(false)
+  allowForwarding  Boolean  @default(true)
+  allowScreenshots Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model ChatCustomization {
+  id               String   @id @default(uuid())
+  chatId           String   @unique
+  userId           String
+  customColor      String?
+  customBackground String?
+  customSound      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model PriorityContact {
+  id        String   @id @default(uuid())
+  userId    String
+  contactId String
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, contactId])
+  @@index([userId])
+}
+
+model QuickReply {
+  id        String   @id @default(uuid())
+  userId    String
+  shortcut  String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, shortcut])
+  @@index([userId])
+}
+
+model ChatStatistics {
+  id           String   @id @default(uuid())
+  chatId       String
+  userId       String
+  messageCount Int      @default(0)
+  mediaCount   Int      @default(0)
+  lastActive   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@unique([chatId, userId])
+  @@index([userId])
+}
+
+model PremiumPurchase {
+  id          String   @id @default(uuid())
+  userId      String
+  months      Int
+  beavers     Int
+  purchasedAt DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([userId])
+  @@index([purchasedAt])
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Int
+  type        String
+  description String?
+  relatedId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Status merged into UserStatus (model removed to avoid duplication)
+
+model ChatBackground {
+  id            String   @id @default(uuid())
+  chatId        String
+  userId        String
+  backgroundUrl String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  chat          Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
+}
+
+
+// Cloud Storage
+model CloudFile {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  url       String
+  mimeType  String
+  size      Int      @default(0)
+  folder    String   @default("/")
+  isStarred Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, folder])
+}
+
+// Custom Emojis
+model CustomEmoji {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  shortcode String
+  url       String
+  fileId    String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, shortcode])
+  @@index([userId])
+}
+
+// New models for 9 features implementation
+
+// 1. Watch Party - совместный просмотр видео
+model WatchParty {
+  id          String   @id @default(uuid())
+  callId      String   @unique
+  hostId      String
+  videoUrl    String
+  videoTitle  String?
+  isPlaying   Boolean  @default(false)
+  currentTime Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  participants WatchPartyParticipant[]
+  
+  @@index([callId])
+  @@index([hostId])
+}
+
+model WatchPartyParticipant {
+  id        String   @id @default(uuid())
+  partyId   String
+  userId    String
+  isReady   Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+  
+  party WatchParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  
+  @@unique([partyId, userId])
+  @@index([partyId])
+  @@index([userId])
+}
+
+// 2. Message Tags - теги для сообщений
+model MessageTag {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  tag       String
+  color     String?
+  createdAt DateTime @default(now())
+  
+  @@unique([messageId, userId, tag])
+  @@index([userId])
+  @@index([tag])
+}
+
+// 3. Chat Summary - резюме длинных чатов
+model ChatSummary {
+  id          String   @id @default(uuid())
+  chatId      String
+  userId      String
+  summary     String
+  messageCount Int
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  
+  @@index([chatId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// 4. Media Index - поиск по медиа
+model MediaIndex {
+  id          String   @id @default(uuid())
+  chatId      String
+  messageId   String
+  userId      String
+  mediaType   String   // "photo", "video", "audio", "file", "document"
+  mediaUrl    String
+  filename    String?
+  mimeType    String?
+  size        Int?
+  thumbnail   String?
+  createdAt   DateTime @default(now())
+  
+  @@index([chatId, mediaType])
+  @@index([userId])
+  @@index([mediaType])
+  @@index([createdAt])
+}
+
+// 5. Channel Subscription - платные каналы
+model ChannelSubscription {
+  id           String   @id @default(uuid())
+  channelId    String
+  userId       String
+  priceMonthly Int      @default(0)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([channelId, userId])
+  @@index([channelId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ============================================
+// NFT GIFT SYSTEM - Полная система NFT-подарков
+// ============================================
+
+// NFT Card - основная карточка
+model NFTCard {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  rarity          String   // "Common", "Rare", "Epic", "Legendary"
+  totalSupply     Int      // Общий тираж (например, 100)
+  currentSupply   Int      @default(0) // Сколько уже выпущено
+  photoUrl        String   // Основное фото (PNG без фона)
+  effectUrls      String   @default("[]") // JSON массив эффектов
+  effectSettings  String   @default("{}") // JSON настройки эффектов
+  backgroundColor String?  // Один цвет или null
+  gradientColors  String?  // JSON массив цветов для градиента
+  borderColor     String?
+  borderWidth     Int      @default(0)
+  priceFromNexo   Int      @default(0) // Цена от админа (0-1000000 бобров)
+  isStockEnabled  Boolean  @default(false) // Включена ли акция
+  stockVolatility Float    @default(5.0) // Волатильность цены (%)
+  currentPrice    Int      @default(0) // Текущая рыночная цена
+  lastPriceUpdate DateTime @default(now())
+  collectionId    String?  // Связь с коллекцией
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  instances       NFTInstance[]
+  priceHistory    NFTPriceHistory[]
+  marketListings  NFTMarketListing[]
+  collection      NFTCollection? @relation("CollectionCards", fields: [collectionId], references: [id])
+  
+  @@index([rarity])
+  @@index([currentSupply])
+  @@index([isStockEnabled])
+  @@index([collectionId])
+  @@index([currentPrice])
+  @@index([name])
+}
+
+// NFT Instance - конкретный экземпляр карточки у пользователя
+model NFTInstance {
+  id              String   @id @default(uuid())
+  cardId          String
+  ownerId         String
+  serialNumber    Int      // Серийный номер (например, 47 из 100)
+  isEquipped      Boolean  @default(false) // Надета ли карточка
+  receivedFrom    String?  // ID пользователя, от кого получена
+  receivedMessage String?  // Сообщение при дарении
+  purchasePrice   Int      @default(0) // Цена покупки
+  receivedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  
+  // Связи
+  card            NFTCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  giftHistory     NFTGiftHistory[]
+  
+  @@index([ownerId])
+  @@index([cardId])
+  @@index([isEquipped])
+  @@index([serialNumber])
+}
+
+// ============================================
+// WALL SYSTEM - Система стены (лента постов)
+// ============================================
+
+// WallPost - пост на стене
+model WallPost {
+  id              String   @id @default(uuid())
+  authorId        String
+  content         String?  // Текст поста
+  fontStyle       String?  // Стиль шрифта (JSON)
+  viewsCount      Int      @default(0)
+  originalPostId  String?  // ID оригинального поста (для репостов)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  media           WallPostMedia[]
+  reactions       WallPostReaction[]
+  comments        WallPostComment[]
+  hashtags        WallPostHashtag[]
+  mentions        WallMention[]
+  originalPost    WallPost?  @relation("PostReposts", fields: [originalPostId], references: [id])
+  reposts         WallPost[] @relation("PostReposts")
+  
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([viewsCount])
+  @@index([originalPostId])
+}
+
+// WallPostMedia - медиа файлы поста (фото, видео, голосовые)
+model WallPostMedia {
+  id        String   @id @default(uuid())
+  postId    String
+  type      String   // "photo", "video", "voice"
+  url       String
+  thumbnail String?
+  duration  Float?   // Для видео и голосовых
+  size      Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  
+  post      WallPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@index([postId])
+  @@index([type])
+}
+
+// WallPostReaction - реакции на пост (лайки и эмодзи)
+model WallPostReaction {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  emoji     String   // Эмодзи реакции
+  createdAt DateTime @default(now())
+  
+  post      WallPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId, emoji])
+  @@index([postId])
+  @@index([userId])
+}
+
+// WallPostComment - комментарии к посту
+model WallPostComment {
+  id          String   @id @default(uuid())
+  postId      String
+  authorId    String
+  parentId    String?  // Для ответов на комментарии
+  content     String?  // Текст комментария
+  photoUrl    String?  // Одно фото
+  voiceUrl    String?  // Голосовое сообщение
+  voiceDuration Float? // Длительность голосового
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  post        WallPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent      WallPostComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     WallPostComment[] @relation("CommentReplies")
+  
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+// WallPostView - просмотры постов
+model WallPostView {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  viewedAt  DateTime @default(now())
+  
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+// WallSubscription - подписки на пользователей в стене
+model WallSubscription {
+  id           String   @id @default(uuid())
+  subscriberId String   // Кто подписался
+  targetId     String   // На кого подписались
+  createdAt    DateTime @default(now())
+  
+  @@unique([subscriberId, targetId])
+  @@index([subscriberId])
+  @@index([targetId])
+}
+
+// WallHashtag - хэштеги в постах стены
+model WallHashtag {
+  id        String   @id @default(uuid())
+  tag       String   @unique // Например "67"
+  ownerId   String   // Кто первый создал этот хэштег
+  useCount  Int      @default(1) // Сколько раз использован (владельцем и другими)
+  ownerUseCount Int  @default(1) // Сколько раз использован владельцем
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  posts     WallPostHashtag[]
+  
+  @@index([tag])
+  @@index([ownerId])
+  @@index([useCount])
+}
+
+// WallPostHashtag - связь постов и хэштегов
+model WallPostHashtag {
+  id        String      @id @default(uuid())
+  postId    String
+  hashtagId String
+  createdAt DateTime    @default(now())
+  
+  post      WallPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag   WallHashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, hashtagId])
+  @@index([postId])
+  @@index([hashtagId])
+}
+
+// WallMention - упоминания пользователей в постах
+model WallMention {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String   // Кого упомянули
+  createdAt DateTime @default(now())
+  
+  post      WallPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+
+// NFT Tag - теги/нашивки (меньше карточек, можно надеть 2 одновременно)
+model NFTTag {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  iconUrl         String
+  backgroundColor String?
+  glowColor       String?
+  rarity          String   // "Common", "Rare", "Epic", "Legendary"
+  totalSupply     Int
+  currentSupply   Int      @default(0)
+  priceFromNexo   Int      @default(0)
+  isStockEnabled  Boolean  @default(false)
+  stockVolatility Float    @default(5.0)
+  currentPrice    Int      @default(0)
+  lastPriceUpdate DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Связи
+  instances       NFTTagInstance[]
+  priceHistory    NFTTagPriceHistory[]
+  marketListings  NFTTagMarketListing[]
+  
+  @@index([rarity])
+  @@index([currentSupply])
+}
+
+// NFT Tag Instance - экземпляр тега у пользователя
+model NFTTagInstance {
+  id            String   @id @default(uuid())
+  tagId         String
+  ownerId       String
+  serialNumber  Int
+  isEquipped    Boolean  @default(false)
+  slot          Int?     // 1 или 2 (можно надеть 2 тега)
+  purchasePrice Int      @default(0)
+  receivedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  
+  // Связи
+  tag           NFTTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@index([ownerId])
+  @@index([tagId])
+  @@index([isEquipped])
+}
+
+// NFT Market Listing - объявления на маркете (карточки)
+model NFTMarketListing {
+  id          String   @id @default(uuid())
+  cardId      String
+  instanceId  String?  @unique // Конкретный экземпляр на продаже (null для листингов от Нексо)
+  sellerId    String
+  price       Int      // Цена в бобрах (до 1000 для P2P)
+  isFromNexo  Boolean  @default(false) // От админа или от пользователя
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Связи
+  card        NFTCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  
+  @@index([cardId])
+  @@index([sellerId])
+  @@index([price])
+  @@index([isFromNexo])
+  @@index([createdAt])
+}
+
+// NFT Tag Market Listing - объявления на маркете (теги)
+model NFTTagMarketListing {
+  id          String   @id @default(uuid())
+  tagId       String
+  instanceId  String?  @unique // null для листингов от Нексо
+  sellerId    String
+  price       Int
+  isFromNexo  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Связи
+  tag         NFTTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@index([tagId])
+  @@index([sellerId])
+  @@index([price])
+  @@index([isFromNexo])
+}
+
+// NFT Gift History - история дарения карточек
+model NFTGiftHistory {
+  id          String      @id @default(uuid())
+  instanceId  String
+  fromUserId  String
+  toUserId    String
+  message     String?
+  giftedAt    DateTime    @default(now())
+  
+  // Связи
+  instance    NFTInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  @@index([instanceId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([giftedAt])
+}
+
+// NFT Price History - история цен карточек (для графика)
+model NFTPriceHistory {
+  id        String   @id @default(uuid())
+  cardId    String
+  price     Int
+  change    Float    // Изменение в %
+  reason    String?  // "stock_update", "sale", "admin_change"
+  createdAt DateTime @default(now())
+  
+  // Связи
+  card      NFTCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  
+  @@index([cardId])
+  @@index([createdAt])
+}
+
+// NFT Tag Price History - история цен тегов
+model NFTTagPriceHistory {
+  id        String   @id @default(uuid())
+  tagId     String
+  price     Int
+  change    Float
+  reason    String?
+  createdAt DateTime @default(now())
+  
+  // Связи
+  tag       NFTTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@index([tagId])
+  @@index([createdAt])
+}
+
+// NFT Transaction - все транзакции с NFT
+model NFTTransaction {
+  id          String   @id @default(uuid())
+  type        String   // "purchase", "sale", "gift", "equip", "unequip"
+  itemType    String   // "card" или "tag"
+  itemId      String   // ID карточки или тега
+  userId      String
+  amount      Int      @default(0) // Сумма транзакции
+  details     String?  // JSON с доп. информацией
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([type])
+  @@index([itemType])
+  @@index([createdAt])
+}
+
+
+// ============================================
+// NEW FEATURES: Bookmarks, Templates, Tasks, Calendar
+// ============================================
+
+// Bookmarks - закладки сообщений
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  messageId String
+  note      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@index([userId])
+}
+
+// Message Templates - шаблоны сообщений
+model MessageTemplate {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Tasks - задачи и TODO
+model Task {
+  id             String    @id @default(uuid())
+  chatId         String
+  creatorId      String
+  assigneeId     String?
+  title          String
+  description    String?
+  priority       String    @default("medium")
+  status         String    @default("open")
+  deadline       DateTime?
+  completedAt    DateTime?
+  completionNote String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  chat           Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  creator        User      @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([creatorId])
+  @@index([assigneeId])
+  @@index([deadline])
+  @@index([status])
+}
+
+// Calendar Events - события календаря
+model CalendarEvent {
+  id          String          @id @default(uuid())
+  chatId      String?
+  creatorId   String
+  title       String
+  description String?
+  location    String?
+  startAt     DateTime
+  endAt       DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  creator     User            @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  invites     CalendarInvite[]
+
+  @@index([creatorId])
+  @@index([startAt])
+  @@index([chatId])
+}
+
+// Calendar Invites - приглашения на события
+model CalendarInvite {
+  id        String        @id @default(uuid())
+  eventId   String
+  userId    String
+  status    String        @default("pending")
+  createdAt DateTime      @default(now())
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+// ============================================
+// NEW FEATURES: Fake Password, Badges, Playlists, Drawing, Maps
+// ============================================
+
+// Badge Definition - определения значков
+model BadgeDefinition {
+  id             String      @id @default(uuid())
+  name           String
+  description    String
+  icon           String
+  color          String      @default("#6366f1")
+  condition      String      // "messages_sent", "account_age_days", "friends_count", etc.
+  conditionValue Int         @default(0)
+  isAutomatic    Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  userBadges     UserBadge[]
+
+  @@index([condition])
+}
+
+// User Badge - значки пользователей
+model UserBadge {
+  id        String          @id @default(uuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime        @default(now())
+  isVisible Boolean         @default(true)
+  badge     BadgeDefinition @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+}
+
+// Collaborative Playlist - совместные плейлисты
+model CollabPlaylist {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  chatId      String?
+  isPublic    Boolean         @default(false)
+  coverUrl    String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  members     PlaylistMember[]
+  tracks      PlaylistTrack[] @relation("CollabPlaylistTracks")
+
+  @@index([ownerId])
+  @@index([chatId])
+}
+
+model PlaylistTrack {
+  id         String    @id @default(uuid())
+  playlistId String
+  title      String
+  artist     String?
+  url        String
+  duration   Int?
+  addedById  String
+  coverUrl   String?
+  order      Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  collabPlaylist       CollabPlaylist?       @relation("CollabPlaylistTracks", fields: [playlistId], references: [id], onDelete: Cascade, map: "fk_playlisttrack_collab")
+  collaborativePlaylist CollaborativePlaylist? @relation("CollaborativePlaylistTracks", fields: [playlistId], references: [id], onDelete: Cascade, map: "fk_playlisttrack_collabpl")
+  votes    PlaylistVote[]
+
+  @@index([playlistId])
+  @@index([addedById])
+}
+
+// Playlist Member - участники плейлиста
+model PlaylistMember {
+  id         String         @id @default(uuid())
+  playlistId String
+  userId     String
+  canEdit    Boolean        @default(true)
+  joinedAt   DateTime       @default(now())
+  playlist   CollabPlaylist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, userId])
+  @@index([userId])
+}
+
+// Drawing Session - сессии рисования в чате
+model DrawingSession {
+  id         String   @id @default(uuid())
+  chatId     String
+  createdBy  String
+  title      String?
+  canvasData String?  
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([chatId])
+  @@index([createdBy])
+}
+
+// Map Route - интерактивные карты в чате
+model MapRoute {
+  id        String   @id @default(uuid())
+  messageId String?
+  chatId    String
+  senderId  String
+  fromLat   Float
+  fromLng   Float
+  fromName  String?
+  toLat     Float
+  toLng     Float
+  toName    String?
+  transport String   @default("walking")
+  routeData String?  
+  createdAt DateTime @default(now())
+
+  @@index([chatId])
+  @@index([senderId])
+}
+
+// ============================================
+// INVOICES - Система счетов для оплаты
+// ============================================
+
+// Invoice - счета для оплаты в чатах
+model Invoice {
+  id          String    @id @default(uuid())
+  chatId      String
+  creatorId   String    // Кто создал счёт
+  amount      Int       // Сумма в бобрах
+  description String    // Описание счёта
+  status      String    @default("pending") // "pending", "paid", "cancelled"
+  paidBy      String?   // ID пользователя, который оплатил
+  paidAt      DateTime? // Когда оплачен
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([chatId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([paidBy])
+  @@index([createdAt])
+}
+
+// ============================================
+// BLOCKED USERS - Система блокировки пользователей
+// ============================================
+
+// BlockedUser - заблокированные пользователи
+model BlockedUser {
+  id            String   @id @default(uuid())
+  userId        String   // Кто заблокировал
+  blockedUserId String   // Кого заблокировали
+  createdAt     DateTime @default(now())
+  
+  user          User     @relation("BlockedBy", fields: [userId], references: [id], onDelete: Cascade)
+  blockedUser   User     @relation("BlockedUser", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, blockedUserId])
+  @@index([userId])
+  @@index([blockedUserId])
+}
+
+// ============================================
+// STAGE 2 NEW FEATURES
+// ============================================
+
+// MessageReaction merged into Reaction (model removed to avoid duplication)
+
+model ReactionAnimation {
+  id           String   @id @default(uuid())
+  emoji        String   @unique
+  animationUrl String   // Lottie JSON или GIF
+  isPremium    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  
+  @@index([emoji])
+}
+
+// 2. USER STATUS - Статусы пользователей
+model UserStatus {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  text      String
+  emoji     String?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// 3. POLLS - Опросы и голосования
+model Poll {
+  id            String       @id @default(uuid())
+  messageId     String       @unique
+  question      String
+  allowMultiple Boolean      @default(false)
+  isAnonymous   Boolean      @default(false)
+  endsAt        DateTime?
+  createdAt     DateTime     @default(now())
+  options       PollOption[]
+  
+  @@index([messageId])
+  @@index([endsAt])
+}
+
+model PollOption {
+  id        String     @id @default(uuid())
+  pollId    String
+  text      String
+  votes     PollVote[]
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  
+  @@index([pollId])
+}
+
+model PollVote {
+  id        String     @id @default(uuid())
+  optionId  String
+  userId    String
+  createdAt DateTime   @default(now())
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  
+  @@unique([optionId, userId])
+  @@index([optionId])
+  @@index([userId])
+}
+
+// 4. NFT IMPROVEMENTS - Улучшения NFT системы
+
+// NFT Collections - Коллекции карточек
+model NFTCollection {
+  id          String                @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  reward      Int                   @default(0) // Бобры за сбор
+  createdAt   DateTime              @default(now())
+  cards       NFTCard[]             @relation("CollectionCards")
+  progress    CollectionProgress[]
+  
+  @@index([name])
+}
+
+model CollectionProgress {
+  id           String        @id @default(uuid())
+  userId       String
+  collectionId String
+  completed    Boolean       @default(false)
+  completedAt  DateTime?
+  collection   NFTCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, collectionId])
+  @@index([userId])
+  @@index([collectionId])
+}
+
+// NFT Auctions - Аукционы для редких карточек
+model NFTAuction {
+  id           String        @id @default(uuid())
+  instanceId   String        @unique
+  sellerId     String
+  startPrice   Int
+  currentPrice Int
+  buyoutPrice  Int?
+  endsAt       DateTime
+  status       AuctionStatus @default(ACTIVE)
+  winnerId     String?
+  createdAt    DateTime      @default(now())
+  bids         NFTBid[]
+  
+  @@index([sellerId])
+  @@index([status])
+  @@index([endsAt])
+}
+
+enum AuctionStatus {
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+model NFTBid {
+  id        String     @id @default(uuid())
+  auctionId String
+  bidderId  String
+  amount    Int
+  createdAt DateTime   @default(now())
+  auction   NFTAuction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  
+  @@index([auctionId])
+  @@index([bidderId])
+  @@index([createdAt])
+}
+
+// NFT Trades - Обмен карточками
+model NFTTrade {
+  id               String      @id @default(uuid())
+  initiatorId      String
+  recipientId      String
+  initiatorItems   String      @default("[]") // JSON array of instance IDs
+  recipientItems   String      @default("[]") // JSON array of instance IDs
+  initiatorBeavers Int         @default(0)
+  recipientBeavers Int         @default(0)
+  status           TradeStatus @default(PENDING)
+  createdAt        DateTime    @default(now())
+  completedAt      DateTime?
+  
+  @@index([initiatorId])
+  @@index([recipientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum TradeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+// Achievements - Достижения
+model Achievement {
+  id          String            @id @default(uuid())
+  name        String
+  description String
+  icon        String
+  reward      Int               @default(0)
+  type        AchievementType
+  requirement Int               // Количество для выполнения
+  createdAt   DateTime          @default(now())
+  users       UserAchievement[]
+  
+  @@index([type])
+}
+
+enum AchievementType {
+  COLLECT_CARDS
+  COMPLETE_COLLECTION
+  TRADE_COUNT
+  AUCTION_WIN
+  RARE_CARD
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  achievementId String
+  progress      Int         @default(0)
+  completed     Boolean     @default(false)
+  completedAt   DateTime?
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@index([completed])
+}
+
+// 5. VOICE ROOMS - Голосовые комнаты
+model VoiceRoom {
+  id           String                   @id @default(uuid())
+  name         String
+  description  String?
+  ownerId      String
+  chatId       String?
+  maxUsers     Int                      @default(50)
+  isPublic     Boolean                  @default(true)
+  password     String?
+  createdAt    DateTime                 @default(now())
+  participants VoiceRoomParticipant[]
+  
+  @@index([ownerId])
+  @@index([chatId])
+  @@index([isPublic])
+}
+
+model VoiceRoomParticipant {
+  id        String    @id @default(uuid())
+  roomId    String
+  userId    String
+  isMuted   Boolean   @default(false)
+  isSpeaker Boolean   @default(false) // Может говорить (для модерации)
+  joinedAt  DateTime  @default(now())
+  room      VoiceRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+}
+
+
+// ============================================
+// NEW ADVANCED FEATURES
+// ============================================
+
+// Collaborative Docs - совместная работа над документами
+model CollaborativeDoc {
+  id             String       @id @default(uuid())
+  chatId         String
+  creatorId      String
+  title          String
+  content        String       @default("")
+  currentVersion Int          @default(1)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  versions DocVersion[]
+  comments DocComment[]
+  
+  @@index([chatId])
+  @@index([creatorId])
+}
+
+model DocVersion {
+  id        String   @id @default(uuid())
+  docId     String
+  version   Int
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+  
+  doc    CollaborativeDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  
+  @@unique([docId, version])
+  @@index([docId])
+}
+
+model DocComment {
+  id        String   @id @default(uuid())
+  docId     String
+  authorId  String
+  content   String
+  blockId   String?
+  selection String?
+  createdAt DateTime @default(now())
+  
+  doc    CollaborativeDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  
+  @@index([docId])
+  @@index([authorId])
+}
+
+// Chat Notes - личные заметки к чатам
+model ChatNote {
+  id        String   @id @default(uuid())
+  userId    String
+  chatId    String
+  title     String
+  content   String
+  tags      String   @default("[]") // JSON array
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([chatId])
+  @@index([userId, chatId])
+}
+
+// Disappearing Messages - исчезающие сообщения
+model DisappearingMessageSettings {
+  id        String   @id @default(uuid())
+  chatId    String   @unique
+  timer     Int      // в секундах
+  enabledBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([chatId])
+}
+
+model DisappearingMessage {
+  id        String   @id @default(uuid())
+  messageId String   @unique
+  deleteAt  DateTime
+  readBy    String
+  createdAt DateTime @default(now())
+  
+  @@index([deleteAt])
+  @@index([messageId])
+}
+
+// Donations - донаты и чаевые
+model Donation {
+  id          String   @id @default(uuid())
+  senderId    String
+  recipientId String
+  amount      Int
+  message     String?
+  isAnonymous Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
+}
+
+model DonationGoal {
+  id           String    @id @default(uuid())
+  userId       String
+  title        String
+  description  String?
+  targetAmount Int
+  isActive     Boolean   @default(true)
+  endsAt       DateTime?
+  createdAt    DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([isActive])
+}
+
+// Marketplace - маркетплейс услуг
+model MarketplaceService {
+  id           String   @id @default(uuid())
+  sellerId     String
+  title        String
+  description  String
+  category     String
+  price        Int
+  deliveryTime Int      @default(1) // в днях
+  images       String   @default("[]") // JSON array
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  orders  ServiceOrder[]
+  reviews ServiceReview[]
+  
+  @@index([sellerId])
+  @@index([category])
+  @@index([isActive])
+}
+
+model ServiceOrder {
+  id           String    @id @default(uuid())
+  serviceId    String
+  buyerId      String
+  sellerId     String
+  price        Int
+  requirements String?
+  status       String    @default("pending") // pending, in_progress, completed, cancelled
+  createdAt    DateTime  @default(now())
+  completedAt  DateTime?
+  
+  service MarketplaceService @relation(fields: [serviceId], references: [id])
+  review  ServiceReview?
+  
+  @@index([serviceId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model ServiceReview {
+  id        String   @id @default(uuid())
+  serviceId String
+  orderId   String   @unique
+  buyerId   String
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  
+  service MarketplaceService @relation(fields: [serviceId], references: [id])
+  order   ServiceOrder       @relation(fields: [orderId], references: [id])
+  
+  @@index([serviceId])
+  @@index([buyerId])
+}
+
+// Collaborative Playlists - совместные плейлисты
+model CollaborativePlaylist {
+  id          String   @id @default(uuid())
+  chatId      String
+  creatorId   String
+  title       String
+  description String?
+  coverUrl    String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  tracks  PlaylistTrack[] @relation("CollaborativePlaylistTracks")
+  votes   PlaylistVote[]
+  
+  @@index([chatId])
+  @@index([creatorId])
+}
+
+model PlaylistVote {
+  id         String   @id @default(uuid())
+  playlistId String
+  trackId    String
+  userId     String
+  vote       Int      // 1 или -1
+  createdAt  DateTime @default(now())
+  
+  playlist CollaborativePlaylist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track    PlaylistTrack         @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  
+  @@unique([trackId, userId])
+  @@index([playlistId])
+  @@index([trackId])
+}
+
+// Live Streams - стримы и прямые эфиры
+model LiveStream {
+  id          String    @id @default(uuid())
+  channelId   String
+  streamerId  String
+  title       String
+  description String?
+  thumbnailUrl String?
+  streamUrl   String
+  isLive      Boolean   @default(true)
+  viewerCount Int       @default(0)
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  recordingUrl String?
+  
+  messages StreamMessage[]
+  donations StreamDonation[]
+  
+  @@index([channelId])
+  @@index([streamerId])
+  @@index([isLive])
+}
+
+model StreamMessage {
+  id        String   @id @default(uuid())
+  streamId  String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  
+  stream LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  
+  @@index([streamId])
+  @@index([createdAt])
+}
+
+model StreamDonation {
+  id        String   @id @default(uuid())
+  streamId  String
+  userId    String
+  amount    Int
+  message   String?
+  createdAt DateTime @default(now())
+  
+  stream LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  
+  @@index([streamId])
+  @@index([createdAt])
+}
+
+// Communities - сообщества по интересам
+model Community {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  category    String
+  avatarUrl   String?
+  coverUrl    String?
+  creatorId   String
+  isPublic    Boolean  @default(true)
+  memberCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  members   CommunityMember[]
+  posts     CommunityPost[]
+  moderators CommunityModerator[]
+  
+  @@index([creatorId])
+  @@index([category])
+  @@index([isPublic])
+}
+
+model CommunityMember {
+  id          String   @id @default(uuid())
+  communityId String
+  userId      String
+  reputation  Int      @default(0)
+  joinedAt    DateTime @default(now())
+  
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+}
+
+model CommunityModerator {
+  id          String   @id @default(uuid())
+  communityId String
+  userId      String
+  permissions String   @default("[]") // JSON array
+  assignedAt  DateTime @default(now())
+  
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  
+  @@unique([communityId, userId])
+  @@index([communityId])
+}
+
+model CommunityPost {
+  id          String   @id @default(uuid())
+  communityId String
+  authorId    String
+  title       String
+  content     String
+  mediaUrls   String   @default("[]") // JSON array
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  community Community         @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  comments  CommunityComment[]
+  votes     CommunityVote[]
+  
+  @@index([communityId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model CommunityComment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String
+  parentId  String?
+  createdAt DateTime @default(now())
+  
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent CommunityComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies CommunityComment[] @relation("CommentReplies")
+  
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model CommunityVote {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  vote      Int      // 1 или -1
+  createdAt DateTime @default(now())
+  
+  post CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+// ============================================
+// CONTENT REPORTS - Система жалоб и модерации
+// ============================================
+
+model ContentReport {
+  id          String    @id @default(uuid())
+  reporterId  String
+  targetType  String    // "message", "user", "chat", "wall_post", "wall_comment", "story"
+  targetId    String
+  reason      String    // "spam", "harassment", "violence", "nudity", "hate_speech", "other"
+  description String?
+  status      String    @default("pending") // "pending", "resolved", "dismissed"
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String?
+  createdAt   DateTime  @default(now())
+
+  reporter    User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([targetType, targetId])
+  @@index([reporterId])
+  @@index([createdAt])
+}
+
+// ============================================
+// CHAT NOTIFICATIONS - Per-chat настройки уведомлений
+// ============================================
+
+model ChatNotificationSetting {
+  id         String   @id @default(uuid())
+  chatId     String
+  userId     String
+  enabled    Boolean  @default(true)
+  sound      Boolean  @default(true)
+  vibration  Boolean  @default(true)
+  preview    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chat       Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
+}
+
+// ============================================
+// CALL RECORDINGS - Запись звонков
+// ============================================
+
+model CallRecording {
+  id          String   @id @default(uuid())
+  callId      String
+  chatId      String
+  recorderId  String
+  type        String   @default("audio") // "audio", "video"
+  fileUrl     String
+  fileSize    Int      @default(0)
+  duration    Float    @default(0)
+  status      String   @default("recording") // "recording", "processing", "completed", "failed"
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+
+  recorder    User     @relation(fields: [recorderId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([chatId])
+  @@index([recorderId])
+  @@index([status])
+}
+
+// ============================================
+// VOICE TRANSCRIPTS - Транскрипция голосовых
+// ============================================
+
+model VoiceTranscript {
+  id          String   @id @default(uuid())
+  messageId   String   @unique
+  text        String
+  language    String   @default("ru")
+  confidence  Float    @default(0)
+  segments    String?  // JSON array of {start, end, text}
+  createdAt   DateTime @default(now())
+
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([language])
+}
+
+// ============================================
+// DEVICE AUTH - QR-код вход с других устройств
+// ============================================
+
+model DeviceToken {
+  id           String   @id @default(uuid())
+  token        String   @unique
+  userId       String?  // Заполняется после подтверждения
+  status       String   @default("pending") // "pending", "scanned", "confirmed", "denied", "expired"
+  createdAt    DateTime @default(now())
+  scannedAt    DateTime?
+  confirmedAt  DateTime?
+  confirmedBy  String?  // ID пользователя, который подтвердил
+
+  @@index([token])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================
+// FEATURE 1: PREMIUM EFFECTS
+// ============================================
+
+model PremiumEffect {
+  id             String   @id @default(uuid())
+  name           String
+  type           String   // "avatar_frame", "notification_sound", "name_effect", "message_effect"
+  url            String
+  previewUrl     String?
+  price          Int      @default(0)
+  isPremiumOnly  Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  userEffects    UserPremiumEffect[]
+
+  @@index([type])
+  @@index([isPremiumOnly])
+}
+
+model UserPremiumEffect {
+  id          String   @id @default(uuid())
+  userId      String
+  effectId    String
+  equippedAt  DateTime @default(now())
+  expiresAt   DateTime?
+  effect      PremiumEffect @relation(fields: [effectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, effectId])
+  @@index([userId])
+  @@index([effectId])
+}
+
+model UserAvatarFrame {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  frameUrl  String
+  frameType String   @default("default")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// FEATURE 2: LIVE LOCATION
+// ============================================
+
+model LiveLocation {
+  id          String   @id @default(uuid())
+  chatId      String
+  userId      String
+  latitude    Float
+  longitude   Float
+  accuracy    Float?
+  address     String?
+  expiresAt   DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([chatId])
+  @@index([userId])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+// ============================================
+// FEATURE 4: PRIVATE MEDIA (one-time view)
+// ============================================
+
+model PrivateMedia {
+  id            String   @id @default(uuid())
+  messageId     String   @unique
+  chatId        String
+  senderId      String
+  mediaUrl      String
+  mediaType     String   // "photo", "video", "voice", "file"
+  viewLimit     Int      @default(1)
+  viewCount     Int      @default(0)
+  isScreenshotBlocked Boolean @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  viewers       PrivateMediaView[]
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([expiresAt])
+}
+
+model PrivateMediaView {
+  id            String   @id @default(uuid())
+  privateMediaId String
+  userId        String
+  viewedAt      DateTime @default(now())
+  privateMedia  PrivateMedia @relation(fields: [privateMediaId], references: [id], onDelete: Cascade)
+
+  @@unique([privateMediaId, userId])
+  @@index([privateMediaId])
+  @@index([userId])
+}
+
+// ============================================
+// FEATURE 5: SCREEN SHARE in Voice Rooms
+// ============================================
+
+model ScreenShare {
+  id            String   @id @default(uuid())
+  roomId        String
+  userId        String
+  streamUrl     String?
+  isScreenShare Boolean  @default(true)
+  isPaused      Boolean  @default(false)
+  startedAt     DateTime @default(now())
+  endedAt       DateTime?
+
+  @@index([roomId])
+  @@index([userId])
+  @@index([isScreenShare])
+}
+
+// ============================================
+// FEATURE 7: WIDGETS / PLUGINS
+// ============================================
+
+model Widget {
+  id          String   @id @default(uuid())
+  creatorId   String
+  name        String
+  description String?
+  type        String   // "weather", "crypto", "calculator", "news", "games", "custom"
+  config      String   @default("{}") // JSON config
+  dataUrl     String?
+  iconUrl     String?
+  isPublic    Boolean  @default(true)
+  isPremium   Boolean  @default(false)
+  installCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  installations WidgetInstallation[]
+
+  @@index([creatorId])
+  @@index([type])
+  @@index([isPublic])
+  @@index([installCount])
+}
+
+model WidgetInstallation {
+  id        String   @id @default(uuid())
+  widgetId  String
+  userId    String
+  chatId    String?
+  position  Int      @default(0)
+  config    String   @default("{}")
+  isActive  Boolean  @default(true)
+  installedAt DateTime @default(now())
+
+  widget    Widget   @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+
+  @@unique([widgetId, userId])
+  @@index([userId])
+  @@index([widgetId])
+}
+
+model Plugin {
+  id          String   @id @default(uuid())
+  creatorId   String
+  name        String
+  description String?
+  version     String   @default("1.0.0")
+  type        String   @default("bot") // "bot", "extension", "integration"
+  webhookUrl  String?
+  config      String   @default("{}")
+  iconUrl     String?
+  isPublic    Boolean  @default(true)
+  isVerified  Boolean  @default(false)
+  installCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  installations PluginInstallation[]
+  botCommands    PluginBotCommand[]
+
+  @@index([creatorId])
+  @@index([type])
+  @@index([isPublic])
+}
+
+model PluginInstallation {
+  id        String   @id @default(uuid())
+  pluginId  String
+  userId    String
+  chatId    String?
+  isActive  Boolean  @default(true)
+  installedAt DateTime @default(now())
+
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, userId])
+  @@index([userId])
+  @@index([pluginId])
+}
+
+model PluginBotCommand {
+  id        String   @id @default(uuid())
+  pluginId  String
+  command   String
+  response  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, command])
+  @@index([pluginId])
+  @@index([command])
+}
+
+// ============================================
+// FEATURE 8: STORY POLLS (reactions as polls)
+// ============================================
+
+model StoryPoll {
+  id          String   @id @default(uuid())
+  storyId     String   @unique
+  question    String
+  isAnonymous Boolean  @default(false)
+  endsAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  options     StoryPollOption[]
+
+  @@index([storyId])
+}
+
+model StoryPollOption {
+  id        String   @id @default(uuid())
+  pollId    String
+  text      String
+  color     String?
+  order     Int      @default(0)
+  votes     StoryPollVote[]
+  poll      StoryPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@index([pollId])
+}
+
+model StoryPollVote {
+  id        String   @id @default(uuid())
+  optionId  String
+  userId    String
+  createdAt DateTime @default(now())
+  option    StoryPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([optionId])
+  @@index([userId])
+}
+
+// ============================================
+// FEATURE 9: CHANNEL THREADS
+// ============================================
+
+model ChannelThread {
+  id          String   @id @default(uuid())
+  channelId   String
+  creatorId   String
+  title       String
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  messageCount Int     @default(0)
+  lastMessageAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    ChannelThreadMessage[]
+
+  @@index([channelId])
+  @@index([creatorId])
+  @@index([isPinned])
+  @@index([lastMessageAt])
+}
+
+model ChannelThreadMessage {
+  id        String   @id @default(uuid())
+  threadId  String
+  senderId  String
+  content   String?
+  createdAt DateTime @default(now())
+
+  thread    ChannelThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ============================================
+// FEATURE 10: DO NOT DISTURB
+// ============================================
+
+model DoNotDisturb {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  isEnabled     Boolean  @default(false)
+  startHour     Int      @default(22) // 0-23
+  startMinute   Int      @default(0)  // 0-59
+  endHour       Int      @default(8)  // 0-23
+  endMinute     Int      @default(0)  // 0-59
+  weekdays      String   @default("1,2,3,4,5,6,7") // comma-separated: 1=Mon..7=Sun
+  allowCalls    Boolean  @default(false)
+  allowFriends  Boolean  @default(false)
+  customMessage String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// FEATURE 11: ENHANCED FOLDERS (auto-folders, drag-n-drop)
+// ============================================
+
+model FolderRule {
+  id          String   @id @default(uuid())
+  folderId    String
+  userId      String
+  type        String   // "chat_type", "keyword", "sender", "media_type", "unread"
+  value       String   // e.g., "group", "keyword:work", "sender:userId"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  folder      ChatFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@index([folderId])
+  @@index([userId])
+  @@index([type])
+}
+
+model FolderSortOrder {
+  id        String   @id @default(uuid())
+  userId    String
+  folderId  String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, folderId])
+  @@index([userId])
+}

@@ -1,0 +1,16 @@
+node_modules/
+web/node_modules/
+storage/
+uploads/
+*.log
+.env
+.DS_Store
+*.db
+*.db-journal
+dist/
+.vite/
+server.log
+wy7q897wyeq79etvb98t7e2vq978veft8b/
+nexo-*-firebase-adminsdk-*.json
+*.db-shm
+*.db-wal

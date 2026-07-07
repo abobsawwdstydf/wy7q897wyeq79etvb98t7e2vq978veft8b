@@ -1,0 +1,1617 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Нексо Admin</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--bg2:#0f0f14;--bg3:#1a1a24;--border:rgba(255,255,255,0.08);--text:#e4e4f0;--muted:#6b6b80;--accent:#6366f1;--accent2:#8b5cf6;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--blue:#3b82f6}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(99,102,241,0.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(139,92,246,0.06) 0%,transparent 50%);pointer-events:none;z-index:0}
+.wrap{max-width:1400px;margin:0 auto;padding:20px;position:relative;z-index:1}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:24px;padding:48px;width:100%;max-width:400px;text-align:center}
+.login-logo{font-size:48px;margin-bottom:16px}
+.login-box h1{font-size:24px;font-weight:700;margin-bottom:8px}
+.login-box p{color:var(--muted);font-size:14px;margin-bottom:32px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.header-logo{display:flex;align-items:center;gap:12px;font-size:18px;font-weight:700}
+.header-logo span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav{display:flex;gap:4px;padding:12px 24px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-btn{padding:8px 16px;border-radius:10px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap;transition:all 0.2s;display:flex;align-items:center;gap:6px}
+.nav-btn:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.nav-btn.active{background:rgba(99,102,241,0.15);color:var(--accent)}
+.content{padding:24px}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px}
+.stat-val{font-size:28px;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-lbl{font-size:12px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px}
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px}
+.section-title{font-size:16px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+input,textarea,select{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:14px;width:100%;transition:border-color 0.2s;font-family:inherit}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+input[type=color]{padding:4px;height:40px;cursor:pointer}
+input[type=checkbox]{width:auto;cursor:pointer}
+.btn{padding:10px 20px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.btn-primary:hover:not(:disabled){opacity:0.9;transform:translateY(-1px)}
+.btn-success{background:rgba(16,185,129,0.15);color:var(--green);border:1px solid rgba(16,185,129,0.3)}
+.btn-success:hover:not(:disabled){background:rgba(16,185,129,0.25)}
+.btn-danger{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3)}
+.btn-danger:hover:not(:disabled){background:rgba(239,68,68,0.25)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:rgba(255,255,255,0.05);color:var(--text)}
+.btn-full{width:100%;justify-content:center}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+th{padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);background:var(--bg3)}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
+.badge-green{background:rgba(16,185,129,0.15);color:var(--green)}
+.badge-red{background:rgba(239,68,68,0.15);color:var(--red)}
+.badge-blue{background:rgba(59,130,246,0.15);color:var(--blue)}
+.badge-yellow{background:rgba(245,158,11,0.15);color:var(--yellow)}
+.badge-purple{background:rgba(139,92,246,0.15);color:var(--accent2)}
+.badge-gray{background:rgba(107,107,128,0.15);color:var(--muted)}
+.nft-preview-wrap{display:flex;justify-content:center;padding:24px 0}
+.nft-card{width:220px;height:300px;border-radius:16px;position:relative;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+.nft-card-bg{position:absolute;inset:0;background:linear-gradient(135deg,#667eea,#764ba2)}
+.nft-card-photo{position:absolute;inset:16px;background-size:contain;background-position:center;background-repeat:no-repeat;z-index:2}
+.nft-card-info{position:absolute;bottom:0;left:0;right:0;padding:16px;background:linear-gradient(to top,rgba(0,0,0,0.9),transparent);z-index:3}
+.nft-card-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.nft-card-rarity{font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:0.7}
+.r-common{color:#9ca3af}.r-rare{color:#60a5fa}.r-epic{color:#a78bfa}.r-legendary{color:#fb923c}
+.file-drop{border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s}
+.file-drop:hover{border-color:var(--accent);background:rgba(99,102,241,0.05)}
+.file-drop input{display:none}
+.file-drop-icon{font-size:28px;margin-bottom:6px;opacity:0.5}
+.file-drop-text{font-size:12px;color:var(--muted)}
+.color-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.color-chip{width:32px;height:32px;border-radius:8px;border:2px solid rgba(255,255,255,0.2);cursor:pointer;transition:transform 0.15s}
+.color-chip:hover{transform:scale(1.1)}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+.service-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px}
+.service-card.online{border-color:rgba(16,185,129,0.4)}
+.service-card.offline{border-color:rgba(239,68,68,0.4)}
+.service-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.service-name{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.service-detail{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.service-detail:last-child{border-bottom:none}
+.service-detail-label{color:var(--muted)}
+.toast{position:fixed;top:20px;right:20px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;z-index:9999;animation:slideIn 0.3s ease;max-width:360px;display:flex;align-items:center;gap:10px}
+.toast-success{background:var(--bg2);border:1px solid rgba(16,185,129,0.4);color:var(--green)}
+.toast-error{background:var(--bg2);border:1px solid rgba(239,68,68,0.4);color:var(--red)}
+@keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+.search-wrap{position:relative;margin-bottom:16px}
+.search-input{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:10px 14px 10px 38px;border-radius:10px;font-size:14px;width:100%}
+.search-input:focus{outline:none;border-color:var(--accent)}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none}
+.user-cell{display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:18px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:0;width:auto;line-height:1}
+.modal-close:hover{color:var(--text)}
+.flex{display:flex}.gap-2{gap:8px}.gap-3{gap:12px}.items-center{align-items:center}.justify-between{justify-content:space-between}.flex-1{flex:1}.flex-wrap{flex-wrap:wrap}.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
+@media(max-width:640px){.form-grid{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}.btn-row{flex-direction:column}}
+</style>
+</head>
+<body>
+<!-- LOGIN -->
+<div id="loginWrap" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">⚡</div>
+    <h1>Нексо Admin</h1>
+    <p>Панель управления сервером</p>
+    <div class="form-group" style="text-align:left;margin-bottom:16px">
+      <label>Пароль администратора</label>
+      <input type="password" id="adminPassword" placeholder="Введите пароль" data-action="login-password">
+    </div>
+    <button class="btn btn-primary btn-full" data-action="login-button">Войти</button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminWrap" style="display:none">
+  <div class="header">
+    <div class="header-logo">
+      <span>⚡ Нексо Admin</span>
+    </div>
+    <div class="flex gap-2 items-center">
+      <a href="/admin/nft" target="_blank" class="btn btn-ghost" style="font-size:12px">NFT Studio ↗</a>
+      <button class="btn btn-danger" data-action="logout" style="font-size:12px">Выйти</button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" data-tab="dashboard">📊 Дашборд</button>
+    <button class="nav-btn" data-tab="users">👥 Пользователи</button>
+    <button class="nav-btn" data-tab="verification">✅ Верификация</button>
+    <button class="nav-btn" data-tab="tags">🏷️ Теги</button>
+    <button class="nav-btn" data-tab="beavers"><img src="/beaver-coin.svg" alt="<img src="/beaver-coin.png" alt="бобр" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;" />" style="width:16px;height:16px;display:inline;margin-right:4px"> Бобры</button>
+    <button class="nav-btn" data-tab="nft">✨ NFT</button>
+    <button class="nav-btn" data-tab="sessions">🔑 Сессии</button>
+    <button class="nav-btn" data-tab="storage">💾 Хранилище</button>
+    <button class="nav-btn" data-tab="system">⚙️ Система</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-pane active">
+      <div class="stats-row">
+        <div class="stat-card"><div id="userCount" class="stat-val">—</div><div class="stat-lbl">Пользователей</div></div>
+        <div class="stat-card"><div id="chatCount" class="stat-val">—</div><div class="stat-lbl">Чатов</div></div>
+        <div class="stat-card"><div id="messageCount" class="stat-val">—</div><div class="stat-lbl">Сообщений</div></div>
+        <div class="stat-card"><div id="onlineCount" class="stat-val">—</div><div class="stat-lbl">Онлайн</div></div>
+        <div class="stat-card"><div id="verifiedCount" class="stat-val">—</div><div class="stat-lbl">Верифицировано</div></div>
+        <div class="stat-card"><div id="bannedCount" class="stat-val">—</div><div class="stat-lbl">Заблокировано</div></div>
+      </div>
+      <div class="services-grid">
+        <div class="service-card" id="postgresCard">
+          <div class="service-header">
+            <div class="service-name">🐘 PostgreSQL</div>
+            <span class="badge badge-yellow" id="postgresStatus">Проверка...</span>
+          </div>
+          <div class="service-detail"><span class="service-detail-label">Статус</span><span id="postgresDetail">—</span></div>
+          <div class="service-detail"><span class="service-detail-label">База данных</span><span id="postgresDb">—</span></div>
+          <div class="service-detail"><span class="service-detail-label">Размер</span><span id="postgresSize">—</span></div>
+        </div>
+        <div class="service-card" id="redisCard">
+          <div class="service-header">
+            <div class="service-name">🔴 Redis</div>
+            <span class="badge badge-yellow" id="redisStatus">Проверка...</span>
+          </div>
+          <div class="service-detail"><span class="service-detail-label">Статус</span><span id="redisDetail">—</span></div>
+          <div class="service-detail"><span class="service-detail-label">Версия</span><span id="redisVersion">—</span></div>
+          <div class="service-detail"><span class="service-detail-label">Ключей</span><span id="redisKeys">—</span></div>
+        </div>
+        <div class="service-card online">
+          <div class="service-header">
+            <div class="service-name">💾 Локальное хранилище</div>
+            <span class="badge badge-green">Online</span>
+          </div>
+          <div class="service-detail"><span class="service-detail-label">Режим</span><span>Локальный</span></div>
+          <div class="service-detail"><span class="service-detail-label">Статус</span><span>Активно</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" class="tab-pane">
+      <div class="section">
+        <div class="section-title">👥 Пользователи</div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="userSearch" placeholder="Поиск по имени, username..." data-action="filter-users">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Пользователь</th><th>Username</th><th>Статус</th><th>Верификация</th><th>Регистрация</th><th>Действия</th></tr></thead>
+            <tbody id="usersTable"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Загрузка...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VERIFICATION -->
+    <div id="tab-verification" class="tab-pane">
+      <div class="section">
+        <div class="section-title">✅ Верификация</div>
+        <div class="flex gap-2 flex-wrap mt-2" style="margin-bottom:16px">
+          <select id="verifyType" style="width:180px">
+            <option value="all">Все типы</option>
+            <option value="user">Пользователи</option>
+            <option value="channel">Каналы</option>
+            <option value="group">Группы</option>
+          </select>
+          <div class="search-wrap flex-1" style="margin-bottom:0">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" id="verifySearch" placeholder="Поиск..." data-action="filter-verified">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Тип</th><th>Имя</th><th>Подписчики</th><th>Бейдж</th><th>Действия</th></tr></thead>
+            <tbody id="verifiedTable"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:32px">Загрузка...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAGS -->
+    <div id="tab-tags" class="tab-pane">
+      <div class="section">
+        <div class="section-title">🏷️ Выдать тег пользователю</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Пользователь</label>
+            <input type="text" id="tagSearchUser" placeholder="Поиск по username..." data-action="search-tag-user">
+            <div id="tagUserResults" style="max-height:160px;overflow-y:auto;margin-top:4px"></div>
+            <div id="tagSelectedUser" style="display:none;padding:10px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:10px;margin-top:4px;font-size:13px">
+              <span id="tagSelectedUserName"></span>
+              <button data-action="clear-tag-user" style="background:none;border:none;color:var(--red);cursor:pointer;width:auto;padding:0;margin-left:8px;font-size:16px">×</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Текст тега</label>
+            <input type="text" id="tagText" placeholder="VIP, Staff, Dev..." maxlength="20" data-action="update-tag-preview">
+          </div>
+          <div class="form-group">
+            <label>Стиль</label>
+            <select id="tagStyle" data-action="update-tag-preview">
+              <option value="solid">Solid (заливка)</option>
+              <option value="outline">Outline (контур)</option>
+              <option value="gradient">Gradient</option>
+              <option value="glow">Glow (свечение)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Цвет</label>
+            <div class="flex gap-2 items-center">
+              <input type="color" id="tagColor" value="#6366f1" data-action="update-tag-preview" style="width:50px">
+              <div class="flex gap-2 flex-wrap">
+                <button data-tag-color="#6366f1" style="width:24px;height:24px;border-radius:6px;background:#6366f1;border:none;cursor:pointer"></button>
+                <button data-tag-color="#3b82f6" style="width:24px;height:24px;border-radius:6px;background:#3b82f6;border:none;cursor:pointer"></button>
+                <button data-tag-color="#10b981" style="width:24px;height:24px;border-radius:6px;background:#10b981;border:none;cursor:pointer"></button>
+                <button data-tag-color="#f59e0b" style="width:24px;height:24px;border-radius:6px;background:#f59e0b;border:none;cursor:pointer"></button>
+                <button data-tag-color="#ef4444" style="width:24px;height:24px;border-radius:6px;background:#ef4444;border:none;cursor:pointer"></button>
+                <button data-tag-color="#ec4899" style="width:24px;height:24px;border-radius:6px;background:#ec4899;border:none;cursor:pointer"></button>
+                <button data-tag-color="#f97316" style="width:24px;height:24px;border-radius:6px;background:#f97316;border:none;cursor:pointer"></button>
+                <button data-tag-color="#8b5cf6" style="width:24px;height:24px;border-radius:6px;background:#8b5cf6;border:none;cursor:pointer"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:12px;background:var(--bg3);border-radius:12px;margin-bottom:16px">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Предпросмотр</div>
+          <div class="flex items-center gap-2">
+            <div class="avatar">U</div>
+            <span style="font-weight:600">Имя пользователя</span>
+            <span id="tagPreviewBadge" style="font-size:10px;padding:3px 8px;border-radius:8px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;background:#6366f1;color:white">TAG</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="assignTag()">🏷️ Выдать тег</button>
+      </div>
+      <div class="section">
+        <div class="section-title">📋 Пользователи с тегами</div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="taggedSearch" placeholder="Поиск..." oninput="filterTagged()">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Пользователь</th><th>Username</th><th>Тег</th><th>Действия</th></tr></thead>
+            <tbody id="taggedTable"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:32px">Загрузка...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- BEAVERS -->
+    <div id="tab-beavers" class="tab-pane">
+      <div class="section">
+        <div class="section-title"><img src="/beaver-coin.svg" alt="<img src="/beaver-coin.png" alt="бобр" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;" />" style="width:16px;height:16px;display:inline;margin-right:4px"> Управление бобрами</div>
+        <div class="form-grid">
+          <div class="section" style="margin-bottom:0">
+            <div style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:12px">➕ Добавить бобров</div>
+            <div class="form-group"><label>Username</label><input type="text" id="beaversUsername" placeholder="username"></div>
+            <div class="form-group mt-2"><label>Количество</label><input type="number" id="beaversAmount" placeholder="100" min="1"></div>
+            <div class="form-group mt-2"><label>Описание</label><input type="text" id="beaversDescription" placeholder="Необязательно"></div>
+            <button class="btn btn-success btn-full mt-3" onclick="addBeavers()">➕ Добавить</button>
+          </div>
+          <div class="section" style="margin-bottom:0">
+            <div style="font-size:14px;font-weight:600;color:var(--red);margin-bottom:12px">➖ Списать бобров</div>
+            <div class="form-group"><label>Username</label><input type="text" id="removeBeaversUsername" placeholder="username"></div>
+            <div class="form-group mt-2"><label>Количество</label><input type="number" id="removeBeaversAmount" placeholder="100" min="1"></div>
+            <div class="form-group mt-2"><label>Описание</label><input type="text" id="removeBeaversDescription" placeholder="Необязательно"></div>
+            <button class="btn btn-danger btn-full mt-3" onclick="removeBeavers()">➖ Списать</button>
+          </div>
+        </div>
+        <div class="section" style="margin-bottom:0">
+          <div style="font-size:14px;font-weight:600;margin-bottom:12px">💰 Проверить баланс</div>
+          <div class="flex gap-2">
+            <input type="text" id="checkBalanceUsername" placeholder="Username пользователя" style="flex:1">
+            <button class="btn btn-ghost" onclick="checkBalance()">Проверить</button>
+          </div>
+          <div id="balanceResult" style="display:none;margin-top:12px;padding:16px;background:var(--bg3);border-radius:12px">
+            <div id="balanceAmount" style="font-size:20px;font-weight:700;color:var(--green)"></div>
+            <div id="balanceStats" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NFT TAB -->
+    <div id="tab-nft" class="tab-pane">
+      <!-- Create Card -->
+      <div class="section">
+        <div class="section-title">✨ Создать NFT карточку</div>
+        <form id="createCardForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Название</label>
+              <input type="text" name="name" required placeholder="Космический Лис" oninput="updateNFTPreview()">
+            </div>
+            <div class="form-group">
+              <label>Редкость</label>
+              <select name="rarity" required onchange="updateNFTPreview()">
+                <option value="Common">Common</option>
+                <option value="Rare">Rare</option>
+                <option value="Epic">Epic</option>
+                <option value="Legendary">Legendary</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Тираж (шт.)</label>
+              <input type="number" name="totalSupply" required min="1" value="100">
+            </div>
+            <div class="form-group">
+              <label>Цена (бобры)</label>
+              <input type="number" name="priceFromНексо" required min="0" max="1000000" value="500">
+            </div>
+            <div class="form-group">
+              <label>Толщина обводки (px)</label>
+              <input type="number" name="borderWidth" min="0" max="20" value="0">
+            </div>
+            <div class="form-group">
+              <label>Цвет обводки</label>
+              <input type="color" name="borderColor" value="#ffffff">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Описание</label>
+            <textarea name="description" placeholder="Легендарная карточка..."></textarea>
+          </div>
+
+          <!-- Photo upload -->
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Фото (PNG без фона)</label>
+            <div class="file-drop" onclick="document.getElementById('photoUpload').click()">
+              <div class="file-drop-icon">📷</div>
+              <div class="file-drop-text" id="photoDropText">Нажмите для загрузки фото</div>
+              <input type="file" id="photoUpload" accept="image/png,image/*" required>
+            </div>
+          </div>
+
+          <!-- Effects upload -->
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Эффекты (PNG, можно несколько)</label>
+            <div class="file-drop" onclick="document.getElementById('effectsUpload').click()">
+              <div class="file-drop-icon">✨</div>
+              <div class="file-drop-text" id="effectsDropText">Нажмите для загрузки эффектов</div>
+              <input type="file" id="effectsUpload" accept="image/png,image/*" multiple>
+            </div>
+          </div>
+
+          <!-- Background -->
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Тип фона</label>
+            <div class="flex gap-3 items-center" style="margin-top:4px">
+              <label class="flex items-center gap-2" style="cursor:pointer;font-size:14px;text-transform:none;letter-spacing:0;color:var(--text)">
+                <input type="radio" name="bgType" value="single" checked onchange="toggleBgType()"> Один цвет
+              </label>
+              <label class="flex items-center gap-2" style="cursor:pointer;font-size:14px;text-transform:none;letter-spacing:0;color:var(--text)">
+                <input type="radio" name="bgType" value="gradient" onchange="toggleBgType()"> Градиент
+              </label>
+            </div>
+          </div>
+
+          <div id="singleColorGroup" class="form-group" style="margin-bottom:16px">
+            <label>Цвет фона</label>
+            <input type="color" name="backgroundColor" value="#667eea" oninput="updateNFTPreview()">
+          </div>
+
+          <div id="gradientGroup" style="display:none;margin-bottom:16px">
+            <div class="form-group">
+              <label>Цвета градиента</label>
+              <div class="flex gap-2 items-center">
+                <input type="color" id="gradientColorPicker" value="#667eea" style="width:50px">
+                <button type="button" class="btn btn-ghost" onclick="addGradientColor()">+ Добавить цвет</button>
+              </div>
+              <div class="color-chips" id="gradientColorList"></div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="flex items-center gap-2" style="text-transform:none;letter-spacing:0;cursor:pointer;font-size:14px;color:var(--text)">
+              <input type="checkbox" name="isStockEnabled" onchange="toggleStock()"> Включить акции (динамическая цена)
+            </label>
+          </div>
+
+          <div id="volatilityGroup" style="display:none;margin-bottom:16px">
+            <div class="form-group">
+              <label>Волатильность (%)</label>
+              <input type="number" name="stockVolatility" min="1" max="50" value="5" step="0.5">
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div style="background:var(--bg3);border-radius:16px;padding:24px;margin-bottom:20px">
+            <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px">Превью карточки</div>
+            <div class="nft-preview-wrap">
+              <div class="nft-card" id="nftCardPreview">
+                <div class="nft-card-bg" id="previewBg"></div>
+                <div class="nft-card-photo" id="previewPhoto"></div>
+                <div class="nft-card-info">
+                  <div class="nft-card-name" id="previewName">Название карточки</div>
+                  <div class="nft-card-rarity r-common" id="previewRarity">Common</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">✨ Создать NFT карточку</button>
+        </form>
+      </div>
+
+      <!-- Create Tag -->
+      <div class="section">
+        <div class="section-title">🏷️ Создать NFT тег</div>
+        <form id="createTagNFTForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Название тега</label>
+              <input type="text" name="name" required placeholder="Легенда чата" oninput="updateTagNFTPreview()">
+            </div>
+            <div class="form-group">
+              <label>Редкость</label>
+              <select name="rarity" required>
+                <option value="Common">Common</option>
+                <option value="Rare">Rare</option>
+                <option value="Epic">Epic</option>
+                <option value="Legendary">Legendary</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Тираж (шт.)</label>
+              <input type="number" name="totalSupply" required min="1" value="50">
+            </div>
+            <div class="form-group">
+              <label>Цена (бобры)</label>
+              <input type="number" name="priceFromНексо" required min="0" max="1000000" value="200">
+            </div>
+            <div class="form-group">
+              <label>Иконка (эмодзи)</label>
+              <input type="text" name="iconUrl" required placeholder="🦁" maxlength="4" oninput="updateTagNFTPreview()">
+            </div>
+            <div class="form-group">
+              <label>Цвет фона</label>
+              <input type="color" name="backgroundColor" value="#8b5cf6" oninput="updateTagNFTPreview()">
+            </div>
+            <div class="form-group">
+              <label>Цвет свечения</label>
+              <input type="color" name="glowColor" value="#8b5cf6" oninput="updateTagNFTPreview()">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Описание</label>
+            <textarea name="description" placeholder="Описание тега..."></textarea>
+          </div>
+          <!-- Tag preview -->
+          <div style="background:var(--bg3);border-radius:16px;padding:24px;margin-bottom:20px;text-align:center">
+            <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px">Превью тега</div>
+            <div id="tagNFTPreview" style="width:80px;height:80px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:32px;background:#8b5cf6;box-shadow:0 0 20px #8b5cf6;margin-bottom:12px">🦁</div>
+            <div id="tagNFTPreviewName" style="font-weight:600;font-size:15px">Легенда чата</div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">🏷️ Создать тег</button>
+        </form>
+      </div>
+
+      <!-- Existing cards -->
+      <div class="section">
+        <div class="section-title">📦 Существующие карточки</div>
+        <div id="nftCardsList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+          <div style="color:var(--muted);font-size:14px">Загрузка...</div>
+        </div>
+      </div>
+
+      <!-- Existing tags -->
+      <div class="section">
+        <div class="section-title">🏷️ Существующие теги</div>
+        <div id="nftTagsList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
+          <div style="color:var(--muted);font-size:14px">Загрузка...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SESSIONS -->
+    <div id="tab-sessions" class="tab-pane">
+      <div class="section">
+        <div class="section-title">🔑 Активные сессии</div>
+        <div class="btn-row" style="margin-bottom:16px">
+          <button class="btn btn-danger" onclick="logoutAllSessions()">🚪 Выйти со всех устройств</button>
+          <button class="btn btn-ghost" onclick="logoutCurrentSession()">🚪 Выйти с этого устройства</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Устройство</th><th>Браузер</th><th>IP</th><th>Вход</th><th>Активность</th><th>Статус</th><th>Действия</th></tr></thead>
+            <tbody id="sessionsTable"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">Загрузка...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORAGE -->
+    <div id="tab-storage" class="tab-pane">
+      <div class="section">
+        <div class="section-title">💾 Режим хранилища</div>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:16px">Файлы хранятся локально на сервере:</p>
+        <div class="btn-row" style="margin-bottom:12px">
+          <button class="btn btn-success" id="btnLocal" disabled>📁 Локально (активно)</button>
+        </div>
+        <p style="color:var(--muted);font-size:13px" id="storageModeText">Текущий режим: Локальный</p>
+      </div>
+      <div class="section">
+        <div class="section-title">🗄️ База данных</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>PostgreSQL URL</label>
+          <input type="text" id="dbUrlInput" placeholder="postgresql://user:pass@host:5432/db">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="updateDatabase()">💾 Применить</button>
+          <button class="btn btn-ghost" onclick="checkPostgres()">🔄 Проверить</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">�� Redis</div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Redis URL</label>
+          <input type="text" id="redisUrlInput" placeholder="redis://localhost:6379">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="updateRedis()">💾 Применить</button>
+          <button class="btn btn-ghost" onclick="checkRedis()">🔄 Проверить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SYSTEM -->
+    <div id="tab-system" class="tab-pane">
+      <div class="section">
+        <div class="section-title">⚙️ Система</div>
+        <div class="form-grid">
+          <div class="section" style="margin-bottom:0">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px">🗑️ Кэш</div>
+            <button class="btn btn-ghost btn-full" onclick="clearCache()">Очистить кэш</button>
+          </div>
+          <div class="section" style="margin-bottom:0">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px">🔄 Сервер</div>
+            <button class="btn btn-danger btn-full" onclick="restartServer()">Перезагрузить сервер</button>
+          </div>
+        </div>
+        <div class="section" style="margin-top:20px">
+          <div style="font-size:14px;font-weight:600;margin-bottom:12px">📊 Информация</div>
+          <div class="service-detail"><span class="service-detail-label">Node.js</span><span id="nodeVersion">—</span></div>
+          <div class="service-detail"><span class="service-detail-label">Uptime</span><span id="serverUptime">—</span></div>
+          <div class="service-detail"><span class="service-detail-label">Memory</span><span id="serverMemory">—</span></div>
+          <div class="service-detail"><span class="service-detail-label">Platform</span><span id="serverPlatform">—</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /adminWrap -->
+
+<!-- Verify Modal -->
+<div class="modal-overlay" id="verifyModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✅ Верификация</div>
+      <button class="modal-close" onclick="closeModal('verifyModal')">×</button>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Тип бейджа</label>
+      <select id="verifyBadgeType">
+        <option value="default">По умолчанию (синяя галочка)</option>
+        <option value="custom">Кастомный (загрузить изображение)</option>
+      </select>
+    </div>
+    <div id="customBadgeGroup" style="display:none;margin-bottom:12px">
+      <div class="form-group">
+        <label>URL изображения бейджа</label>
+        <input type="text" id="verifyBadgeUrl" placeholder="https://...">
+      </div>
+    </div>
+    <input type="hidden" id="verifyTargetId">
+    <input type="hidden" id="verifyTargetType">
+    <div class="btn-row">
+      <button class="btn btn-primary flex-1" onclick="applyVerification()">✅ Верифицировать</button>
+      <button class="btn btn-danger flex-1" onclick="removeVerification()">❌ Снять верификацию</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ban Modal -->
+<div class="modal-overlay" id="banModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🚫 Блокировка пользователя</div>
+      <button class="modal-close" onclick="closeModal('banModal')">×</button>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Причина блокировки</label>
+      <input type="text" id="banReason" placeholder="Нарушение правил...">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Срок блокировки</label>
+      <select id="banDuration">
+        <option value="0">Навсегда</option>
+        <option value="1">1 день</option>
+        <option value="7">7 дней</option>
+        <option value="30">30 дней</option>
+      </select>
+    </div>
+    <input type="hidden" id="banTargetId">
+    <div class="btn-row">
+      <button class="btn btn-danger flex-1" onclick="applyBan()">🚫 Заблокировать</button>
+      <button class="btn btn-success flex-1" onclick="applyUnban()">✅ Разблокировать</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ GLOBALS ═══
+let adminToken = localStorage.getItem('нексо_admin_token') || '';
+let allUsers = [];
+let allVerified = [];
+let allTagged = [];
+let selectedTagUserId = null;
+let gradientColors = ['#667eea','#764ba2'];
+
+// ═══ AUTH ═══
+function login() {
+  const pwd = document.getElementById('adminPassword').value;
+  if (!pwd) return showToast('Введите пароль', 'error');
+  fetch('/api/admin/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: pwd})
+  }).then(r => r.json()).then(d => {
+    if (d.token) {
+      adminToken = d.token;
+      localStorage.setItem('нексо_admin_token', d.token);
+      document.getElementById('loginWrap').style.display = 'none';
+      document.getElementById('adminWrap').style.display = 'block';
+      loadDashboard();
+    } else {
+      showToast('Неверный пароль', 'error');
+    }
+  }).catch(() => showToast('Ошибка входа', 'error'));
+}
+
+function logout() {
+  adminToken = '';
+  localStorage.removeItem('нексо_admin_token');
+  location.reload();
+}
+
+// ═══ TABS ═══
+function switchTab(tab) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  
+  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'users') loadUsers();
+  if (tab === 'verification') loadVerified();
+  if (tab === 'tags') loadTagged();
+  if (tab === 'nft') loadNFTData();
+  if (tab === 'sessions') loadSessions();
+}
+
+// ═══ TOAST ═══
+function showToast(msg, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ═══ MODAL ═══
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ═══ API HELPER ═══
+async function apiCall(endpoint, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + adminToken
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch('/api/admin' + endpoint, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({error: 'Ошибка сервера'}));
+    throw new Error(err.error || 'Ошибка запроса');
+  }
+  return res.json();
+}
+
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/nft/upload', {
+    method: 'POST',
+    headers: {'Authorization': 'Bearer ' + adminToken},
+    body: fd
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  const data = await res.json();
+  return data.url;
+}
+
+// ═══ DASHBOARD ═══
+async function loadDashboard() {
+  try {
+    const stats = await apiCall('/stats');
+    document.getElementById('userCount').textContent = stats.users || 0;
+    document.getElementById('chatCount').textContent = stats.chats || 0;
+    document.getElementById('messageCount').textContent = stats.messages || 0;
+    document.getElementById('onlineCount').textContent = stats.online || 0;
+    document.getElementById('verifiedCount').textContent = stats.verified || 0;
+    document.getElementById('bannedCount').textContent = stats.banned || 0;
+    
+    // Check services
+    checkPostgres();
+    checkRedis();
+  } catch (e) {
+    showToast('Ошибка загрузки дашборда: ' + e.message, 'error');
+  }
+}
+
+async function checkPostgres() {
+  try {
+    const data = await apiCall('/health/postgres');
+    const card = document.getElementById('postgresCard');
+    const status = document.getElementById('postgresStatus');
+    if (data.connected) {
+      card.classList.add('online');
+      card.classList.remove('offline');
+      status.className = 'badge badge-green';
+      status.textContent = 'Online';
+      document.getElementById('postgresDetail').textContent = 'Подключено';
+      document.getElementById('postgresDb').textContent = data.database || '—';
+      document.getElementById('postgresSize').textContent = data.size || '—';
+    } else {
+      card.classList.add('offline');
+      card.classList.remove('online');
+      status.className = 'badge badge-red';
+      status.textContent = 'Offline';
+      document.getElementById('postgresDetail').textContent = 'Не подключено';
+    }
+  } catch (e) {
+    const card = document.getElementById('postgresCard');
+    card.classList.add('offline');
+    status.className = 'badge badge-red';
+    status.textContent = 'Error';
+  }
+}
+
+async function checkRedis() {
+  try {
+    const data = await apiCall('/health/redis');
+    const card = document.getElementById('redisCard');
+    const status = document.getElementById('redisStatus');
+    if (data.connected) {
+      card.classList.add('online');
+      card.classList.remove('offline');
+      status.className = 'badge badge-green';
+      status.textContent = 'Online';
+      document.getElementById('redisDetail').textContent = 'Подключено';
+      document.getElementById('redisVersion').textContent = data.version || '—';
+      document.getElementById('redisKeys').textContent = data.keys || '—';
+    } else {
+      card.classList.add('offline');
+      card.classList.remove('online');
+      status.className = 'badge badge-red';
+      status.textContent = 'Offline';
+      document.getElementById('redisDetail').textContent = 'Не подключено';
+    }
+  } catch (e) {
+    const card = document.getElementById('redisCard');
+    card.classList.add('offline');
+    status.className = 'badge badge-red';
+    status.textContent = 'Error';
+  }
+}
+
+// ═══ USERS ═══
+async function loadUsers() {
+  try {
+    allUsers = await apiCall('/users');
+    renderUsers(allUsers);
+  } catch (e) {
+    showToast('Ошибка загрузки пользователей: ' + e.message, 'error');
+  }
+}
+
+function renderUsers(users) {
+  const tbody = document.getElementById('usersTable');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Нет пользователей</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td>
+        <div class="user-cell">
+          <div class="avatar">${(u.displayName || u.username || '?')[0].toUpperCase()}</div>
+          <div>
+            <div style="font-weight:600">${u.displayName || u.username}</div>
+            <div style="font-size:11px;color:var(--muted)">ID: ${u.id.slice(0,8)}</div>
+          </div>
+        </div>
+      </td>
+      <td>@${u.username}</td>
+      <td><span class="badge ${u.isBanned ? 'badge-red' : u.isOnline ? 'badge-green' : 'badge-gray'}">${u.isBanned ? 'Banned' : u.isOnline ? 'Online' : 'Offline'}</span></td>
+      <td>${u.isVerified ? '<span class="badge badge-blue">✓ Verified</span>' : '—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
+      <td>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="openVerifyModal('${u.id}', 'user')">✅</button>
+          <button class="btn btn-${u.isBanned ? 'success' : 'danger'}" style="font-size:11px;padding:6px 12px" onclick="openBanModal('${u.id}')">${u.isBanned ? '✓' : '🚫'}</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterUsers() {
+  const q = document.getElementById('userSearch').value.toLowerCase();
+  const filtered = allUsers.filter(u => 
+    (u.displayName || '').toLowerCase().includes(q) ||
+    (u.username || '').toLowerCase().includes(q) ||
+    u.id.includes(q)
+  );
+  renderUsers(filtered);
+}
+
+// ═══ VERIFICATION ═══
+async function loadVerified() {
+  try {
+    allVerified = await apiCall('/verified');
+    renderVerified(allVerified);
+  } catch (e) {
+    showToast('Ошибка загрузки: ' + e.message, 'error');
+  }
+}
+
+function renderVerified(items) {
+  const tbody = document.getElementById('verifiedTable');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:32px">Нет верифицированных</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(i => `
+    <tr>
+      <td><span class="badge badge-blue">${i.type === 'user' ? 'User' : i.type === 'channel' ? 'Channel' : 'Group'}</span></td>
+      <td>
+        <div style="font-weight:600">${i.name || i.username || '—'}</div>
+        ${i.username ? '<div style="font-size:11px;color:var(--muted)">@' + i.username + '</div>' : ''}
+      </td>
+      <td>${i.subscriberCount || '—'}</td>
+      <td>${i.verifiedBadgeType === 'custom' && i.verifiedBadgeUrl ? '<img src="' + i.verifiedBadgeUrl + '" style="width:20px;height:20px;border-radius:50%">' : '<span style="color:var(--blue)">✓</span>'}</td>
+      <td>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" style="font-size:11px;padding:6px 12px" onclick="openVerifyModal('${i.id}', '${i.type}')">✏️</button>
+          <button class="btn btn-danger" style="font-size:11px;padding:6px 12px" onclick="removeVerificationDirect('${i.id}', '${i.type}')">❌</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterVerified() {
+  const q = document.getElementById('verifySearch').value.toLowerCase();
+  const type = document.getElementById('verifyType').value;
+  const filtered = allVerified.filter(i => {
+    if (type !== 'all' && i.type !== type) return false;
+    return (i.name || '').toLowerCase().includes(q) || (i.username || '').toLowerCase().includes(q);
+  });
+  renderVerified(filtered);
+}
+
+function openVerifyModal(id, type) {
+  document.getElementById('verifyTargetId').value = id;
+  document.getElementById('verifyTargetType').value = type;
+  document.getElementById('verifyBadgeType').value = 'default';
+  document.getElementById('customBadgeGroup').style.display = 'none';
+  openModal('verifyModal');
+}
+
+document.getElementById('verifyBadgeType').addEventListener('change', (e) => {
+  document.getElementById('customBadgeGroup').style.display = e.target.value === 'custom' ? 'block' : 'none';
+});
+
+async function applyVerification() {
+  const id = document.getElementById('verifyTargetId').value;
+  const type = document.getElementById('verifyTargetType').value;
+  const badgeType = document.getElementById('verifyBadgeType').value;
+  const badgeUrl = badgeType === 'custom' ? document.getElementById('verifyBadgeUrl').value : null;
+  
+  try {
+    await apiCall('/verify', 'POST', {targetId: id, targetType: type, badgeType, badgeUrl});
+    showToast('✅ Верификация применена');
+    closeModal('verifyModal');
+    if (type === 'user') loadUsers();
+    loadVerified();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function removeVerification() {
+  const id = document.getElementById('verifyTargetId').value;
+  const type = document.getElementById('verifyTargetType').value;
+  try {
+    await apiCall('/verify', 'DELETE', {targetId: id, targetType: type});
+    showToast('❌ Верификация снята');
+    closeModal('verifyModal');
+    if (type === 'user') loadUsers();
+    loadVerified();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function removeVerificationDirect(id, type) {
+  if (!confirm('Снять верификацию?')) return;
+  try {
+    await apiCall('/verify', 'DELETE', {targetId: id, targetType: type});
+    showToast('❌ Верификация снята');
+    loadVerified();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ═══ BAN ═══
+function openBanModal(userId) {
+  document.getElementById('banTargetId').value = userId;
+  openModal('banModal');
+}
+
+async function applyBan() {
+  const userId = document.getElementById('banTargetId').value;
+  const reason = document.getElementById('banReason').value;
+  const duration = parseInt(document.getElementById('banDuration').value);
+  try {
+    await apiCall('/ban', 'POST', {userId, reason, duration});
+    showToast('🚫 Пользователь заблокирован');
+    closeModal('banModal');
+    loadUsers();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function applyUnban() {
+  const userId = document.getElementById('banTargetId').value;
+  try {
+    await apiCall('/unban', 'POST', {userId});
+    showToast('✅ Пользователь разблокирован');
+    closeModal('banModal');
+    loadUsers();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ═══ TAGS ═══
+async function searchTagUser() {
+  const q = document.getElementById('tagSearchUser').value.trim();
+  if (q.length < 2) {
+    document.getElementById('tagUserResults').innerHTML = '';
+    return;
+  }
+  try {
+    const users = await apiCall('/users/search?q=' + encodeURIComponent(q));
+    const results = document.getElementById('tagUserResults');
+    if (!users.length) {
+      results.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">Не найдено</div>';
+      return;
+    }
+    results.innerHTML = users.slice(0, 5).map(u => `
+      <div onclick="selectTagUser('${u.id}', '${u.username}')" style="padding:8px;cursor:pointer;border-radius:8px;background:var(--bg3);margin-bottom:4px;font-size:13px;display:flex;align-items:center;gap:8px">
+        <div class="avatar">${(u.displayName || u.username)[0].toUpperCase()}</div>
+        <div>
+          <div style="font-weight:600">${u.displayName || u.username}</div>
+          <div style="font-size:11px;color:var(--muted)">@${u.username}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    showToast('Ошибка поиска: ' + e.message, 'error');
+  }
+}
+
+function selectTagUser(id, username) {
+  selectedTagUserId = id;
+  document.getElementById('tagSelectedUser').style.display = 'block';
+  document.getElementById('tagSelectedUserName').textContent = '@' + username;
+  document.getElementById('tagUserResults').innerHTML = '';
+  document.getElementById('tagSearchUser').value = '';
+}
+
+function clearTagUser() {
+  selectedTagUserId = null;
+  document.getElementById('tagSelectedUser').style.display = 'none';
+}
+
+function setTagColor(color) {
+  document.getElementById('tagColor').value = color;
+  updateTagPreview();
+}
+
+function updateTagPreview() {
+  const text = document.getElementById('tagText').value || 'TAG';
+  const color = document.getElementById('tagColor').value;
+  const style = document.getElementById('tagStyle').value;
+  const badge = document.getElementById('tagPreviewBadge');
+  badge.textContent = text;
+  
+  const hexToRgb = (hex) => {
+    const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return r ? `${parseInt(r[1],16)}, ${parseInt(r[2],16)}, ${parseInt(r[3],16)}` : '99,102,241';
+  };
+  const rgb = hexToRgb(color);
+  
+  if (style === 'outline') {
+    badge.style.background = 'transparent';
+    badge.style.border = '1px solid ' + color;
+    badge.style.color = color;
+    badge.style.boxShadow = 'none';
+  } else if (style === 'gradient') {
+    badge.style.background = 'linear-gradient(135deg, ' + color + ', ' + color + 'aa)';
+    badge.style.border = 'none';
+    badge.style.color = '#fff';
+    badge.style.boxShadow = 'none';
+  } else if (style === 'glow') {
+    badge.style.background = 'rgba(' + rgb + ', 0.2)';
+    badge.style.border = '1px solid rgba(' + rgb + ', 0.5)';
+    badge.style.color = color;
+    badge.style.boxShadow = '0 0 6px rgba(' + rgb + ', 0.4)';
+  } else {
+    badge.style.background = color;
+    badge.style.border = 'none';
+    badge.style.color = '#fff';
+    badge.style.boxShadow = 'none';
+  }
+}
+
+async function assignTag() {
+  if (!selectedTagUserId) return showToast('Выберите пользователя', 'error');
+  const text = document.getElementById('tagText').value.trim();
+  if (!text) return showToast('Введите текст тега', 'error');
+  const color = document.getElementById('tagColor').value;
+  const style = document.getElementById('tagStyle').value;
+  
+  try {
+    await apiCall('/tags/assign', 'POST', {userId: selectedTagUserId, tagText: text, tagColor: color, tagStyle: style});
+    showToast('🏷️ Тег выдан');
+    clearTagUser();
+    document.getElementById('tagText').value = '';
+    loadTagged();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function loadTagged() {
+  try {
+    allTagged = await apiCall('/tags/list');
+    renderTagged(allTagged);
+  } catch (e) {
+    showToast('Ошибка загрузки: ' + e.message, 'error');
+  }
+}
+
+function renderTagged(users) {
+  const tbody = document.getElementById('taggedTable');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:32px">Нет пользователей с тегами</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td>
+        <div class="user-cell">
+          <div class="avatar">${(u.displayName || u.username)[0].toUpperCase()}</div>
+          <span style="font-weight:600">${u.displayName || u.username}</span>
+        </div>
+      </td>
+      <td>@${u.username}</td>
+      <td><span style="font-size:10px;padding:3px 8px;border-radius:8px;font-weight:700;text-transform:uppercase;background:${u.tagColor};color:#fff">${u.tagText}</span></td>
+      <td><button class="btn btn-danger" style="font-size:11px;padding:6px 12px" onclick="removeTag('${u.id}')">❌ Убрать</button></td>
+    </tr>
+  `).join('');
+}
+
+function filterTagged() {
+  const q = document.getElementById('taggedSearch').value.toLowerCase();
+  const filtered = allTagged.filter(u => 
+    (u.displayName || '').toLowerCase().includes(q) ||
+    (u.username || '').toLowerCase().includes(q) ||
+    (u.tagText || '').toLowerCase().includes(q)
+  );
+  renderTagged(filtered);
+}
+
+async function removeTag(userId) {
+  if (!confirm('Убрать тег?')) return;
+  try {
+    await apiCall('/tags/remove', 'POST', {userId});
+    showToast('Тег убран');
+    loadTagged();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ═══ BEAVERS ═══
+async function addBeavers() {
+  const username = document.getElementById('beaversUsername').value.trim();
+  const amount = parseInt(document.getElementById('beaversAmount').value);
+  const desc = document.getElementById('beaversDescription').value.trim();
+  if (!username || !amount) return showToast('Заполните поля', 'error');
+  try {
+    await apiCall('/beavers/add', 'POST', {username, amount, description: desc || 'Начисление от админа'});
+    showToast('<img src="/beaver-coin.svg" alt="<img src="/beaver-coin.png" alt="бобр" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;" />" style="width:14px;height:14px;display:inline;margin-right:4px"> Бобры добавлены');
+    document.getElementById('beaversUsername').value = '';
+    document.getElementById('beaversAmount').value = '';
+    document.getElementById('beaversDescription').value = '';
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function removeBeavers() {
+  const username = document.getElementById('removeBeaversUsername').value.trim();
+  const amount = parseInt(document.getElementById('removeBeaversAmount').value);
+  const desc = document.getElementById('removeBeaversDescription').value.trim();
+  if (!username || !amount) return showToast('Заполните поля', 'error');
+  try {
+    await apiCall('/beavers/remove', 'POST', {username, amount, description: desc || 'Списание админом'});
+    showToast('<img src="/beaver-coin.svg" alt="<img src="/beaver-coin.png" alt="бобр" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;" />" style="width:14px;height:14px;display:inline;margin-right:4px"> Бобры списаны');
+    document.getElementById('removeBeaversUsername').value = '';
+    document.getElementById('removeBeaversAmount').value = '';
+    document.getElementById('removeBeaversDescription').value = '';
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function checkBalance() {
+  const username = document.getElementById('checkBalanceUsername').value.trim();
+  if (!username) return showToast('Введите username', 'error');
+  try {
+    const data = await apiCall('/beavers/balance?username=' + encodeURIComponent(username));
+    document.getElementById('balanceAmount').innerHTML = data.beavers + ' <img src="/beaver-coin.svg" alt="<img src="/beaver-coin.png" alt="бобр" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;" />" style="width:16px;height:16px;display:inline;margin-left:4px">';
+    document.getElementById('balanceStats').textContent = `Потрачено: ${data.totalSpent} | Получено: ${data.totalEarned}`;
+    document.getElementById('balanceResult').style.display = 'block';
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ═══ NFT ═══
+function toggleBgType() {
+  const type = document.querySelector('input[name="bgType"]:checked').value;
+  document.getElementById('singleColorGroup').style.display = type === 'single' ? 'block' : 'none';
+  document.getElementById('gradientGroup').style.display = type === 'gradient' ? 'block' : 'none';
+  updateNFTPreview();
+}
+
+function toggleStock() {
+  const checked = document.querySelector('input[name="isStockEnabled"]').checked;
+  document.getElementById('volatilityGroup').style.display = checked ? 'block' : 'none';
+}
+
+function addGradientColor() {
+  const color = document.getElementById('gradientColorPicker').value;
+  gradientColors.push(color);
+  renderGradientColors();
+  updateNFTPreview();
+}
+
+function renderGradientColors() {
+  const list = document.getElementById('gradientColorList');
+  list.innerHTML = gradientColors.map((c, i) => 
+    `<div class="color-chip" style="background:${c}" onclick="removeGradientColor(${i})" title="Нажмите чтобы удалить"></div>`
+  ).join('');
+}
+
+function removeGradientColor(i) {
+  if (gradientColors.length > 1) {
+    gradientColors.splice(i, 1);
+    renderGradientColors();
+    updateNFTPreview();
+  }
+}
+
+function updateNFTPreview() {
+  const form = document.getElementById('createCardForm');
+  if (!form) return;
+  const name = form.name.value || 'Название карточки';
+  const rarity = form.rarity.value;
+  const bgType = form.querySelector('input[name="bgType"]:checked').value;
+  
+  document.getElementById('previewName').textContent = name;
+  const rarityEl = document.getElementById('previewRarity');
+  rarityEl.textContent = rarity;
+  rarityEl.className = 'nft-card-rarity r-' + rarity.toLowerCase();
+  
+  const bg = document.getElementById('previewBg');
+  if (bgType === 'single') {
+    bg.style.background = form.backgroundColor.value;
+  } else {
+    bg.style.background = 'linear-gradient(135deg, ' + gradientColors.join(', ') + ')';
+  }
+  
+  const borderWidth = parseInt(form.borderWidth.value) || 0;
+  const borderColor = form.borderColor.value;
+  const card = document.getElementById('nftCardPreview');
+  card.style.border = borderWidth > 0 ? `${borderWidth}px solid ${borderColor}` : 'none';
+}
+
+document.getElementById('photoUpload').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      document.getElementById('previewPhoto').style.backgroundImage = 'url(' + ev.target.result + ')';
+    };
+    reader.readAsDataURL(file);
+    document.getElementById('photoDropText').textContent = '✅ ' + file.name;
+  }
+});
+
+document.getElementById('effectsUpload').addEventListener('change', (e) => {
+  const count = e.target.files.length;
+  document.getElementById('effectsDropText').textContent = count > 0 ? '✅ ' + count + ' файл(ов)' : 'Нажмите для загрузки эффектов';
+});
+
+document.getElementById('createCardForm').addEventListener('input', updateNFTPreview);
+
+document.getElementById('createCardForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type=submit]');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Загрузка...';
+  btn.disabled = true;
+
+  try {
+    const form = e.target;
+    const photoFile = document.getElementById('photoUpload').files[0];
+    if (!photoFile) { showToast('Выберите фото', 'error'); return; }
+    
+    showToast('📤 Загружаю фото...');
+    const photoUrl = await uploadFile(photoFile);
+    
+    const effectFiles = document.getElementById('effectsUpload').files;
+    const effectUrls = [];
+    for (const f of effectFiles) {
+      effectUrls.push(await uploadFile(f));
+    }
+    
+    const bgType = form.querySelector('input[name="bgType"]:checked').value;
+    const body = {
+      name: form.name.value,
+      description: form.description.value,
+      rarity: form.rarity.value,
+      totalSupply: parseInt(form.totalSupply.value),
+      priceFromНексо: parseInt(form.priceFromНексо.value),
+      borderWidth: parseInt(form.borderWidth.value) || 0,
+      borderColor: form.borderColor.value,
+      isStockEnabled: form.isStockEnabled.checked,
+      stockVolatility: parseFloat(form.stockVolatility?.value || '5'),
+      photoUrl,
+      effectUrls,
+      effectSettings: {width: 100, height: 100}
+    };
+    
+    if (bgType === 'single') {
+      body.backgroundColor = form.backgroundColor.value;
+    } else {
+      body.gradientColors = gradientColors;
+    }
+    
+    const res = await fetch('/api/nft/cards', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken},
+      body: JSON.stringify(body)
+    });
+    
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Ошибка создания');
+    }
+    
+    const card = await res.json();
+    showToast('✅ Карточка "' + card.name + '" создана! Тираж: ' + card.totalSupply);
+    e.target.reset();
+    gradientColors = ['#667eea', '#764ba2'];
+    renderGradientColors();
+    updateNFTPreview();
+    document.getElementById('previewPhoto').style.backgroundImage = '';
+    document.getElementById('photoDropText').textContent = 'Нажмите для загрузки фото';
+    document.getElementById('effectsDropText').textContent = 'Нажмите для загрузки эффектов';
+    loadNFTData();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+});
+
+// Tag NFT preview
+function updateTagNFTPreview() {
+  const form = document.getElementById('createTagNFTForm');
+  if (!form) return;
+  const icon = form.iconUrl?.value || '🦁';
+  const name = form.name?.value || 'Тег';
+  const bg = form.backgroundColor?.value || '#8b5cf6';
+  const glow = form.glowColor?.value || '#8b5cf6';
+  const preview = document.getElementById('tagNFTPreview');
+  preview.textContent = icon;
+  preview.style.background = bg;
+  preview.style.boxShadow = '0 0 20px ' + glow;
+  document.getElementById('tagNFTPreviewName').textContent = name;
+}
+
+document.getElementById('createTagNFTForm').addEventListener('input', updateTagNFTPreview);
+
+document.getElementById('createTagNFTForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type=submit]');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Создание...';
+  btn.disabled = true;
+  
+  try {
+    const form = e.target;
+    const body = {
+      name: form.name.value,
+      description: form.description.value,
+      rarity: form.rarity.value,
+      totalSupply: parseInt(form.totalSupply.value),
+      priceFromНексо: parseInt(form.priceFromНексо.value),
+      iconUrl: form.iconUrl.value,
+      backgroundColor: form.backgroundColor.value,
+      glowColor: form.glowColor.value
+    };
+    
+    const res = await fetch('/api/nft/tags', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminToken},
+      body: JSON.stringify(body)
+    });
+    
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Ошибка создания');
+    }
+    
+    const tag = await res.json();
+    showToast('✅ Тег "' + tag.name + '" создан!');
+    e.target.reset();
+    updateTagNFTPreview();
+    loadNFTData();
+  } catch (err) {
+    showToast('Ошибка: ' + err.message, 'error');
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+});
+
+async function loadNFTData() {
+  try {
+    const [cards, tags] = await Promise.all([
+      fetch('/api/nft/cards', {headers: {'Authorization': 'Bearer ' + adminToken}}).then(r => r.json()),
+      fetch('/api/nft/tags', {headers: {'Authorization': 'Bearer ' + adminToken}}).then(r => r.json())
+    ]);
+    
+    const rarityColors = {Common: '#9ca3af', Rare: '#60a5fa', Epic: '#a78bfa', Legendary: '#fb923c'};
+    
+    const cardsList = document.getElementById('nftCardsList');
+    if (!cards.length) {
+      cardsList.innerHTML = '<div style="color:var(--muted);font-size:14px">Нет карточек</div>';
+    } else {
+      cardsList.innerHTML = cards.map(c => {
+        const bg = c.gradientColors 
+          ? 'linear-gradient(135deg,' + JSON.parse(c.gradientColors).join(',') + ')'
+          : (c.backgroundColor || '#333');
+        return `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+            <div style="height:140px;background:${bg};position:relative">
+              ${c.photoUrl ? '<div style="position:absolute;inset:8px;background-image:url(' + c.photoUrl + ');background-size:contain;background-position:center;background-repeat:no-repeat"></div>' : ''}
+              <div style="position:absolute;bottom:0;left:0;right:0;padding:8px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent)">
+                <div style="font-size:13px;font-weight:700">${c.name}</div>
+                <div style="font-size:10px;color:${rarityColors[c.rarity] || '#fff'}">${c.rarity}</div>
+              </div>
+            </div>
+            <div style="padding:12px">
+              <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${c.currentSupply}/${c.totalSupply} выпущено</div>
+              <div style="font-size:14px;font-weight:700;color:var(--accent2)">${c.currentPrice} <img src="/beaver-coin.svg" alt="<img src="/beaver-coin.png" alt="бобр" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;" />" style="width:14px;height:14px;display:inline;margin-left:4px"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    const tagsList = document.getElementById('nftTagsList');
+    if (!tags.length) {
+      tagsList.innerHTML = '<div style="color:var(--muted);font-size:14px">Нет тегов</div>';
+    } else {
+      tagsList.innerHTML = tags.map(t => `
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;background:${t.backgroundColor || '#8b5cf6'};box-shadow:0 0 16px ${t.glowColor || '#8b5cf6'};display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:8px">${t.iconUrl}</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">${t.name}</div>
+          <div style="font-size:11px;color:${rarityColors[t.rarity] || '#9ca3af'};margin-bottom:4px">${t.rarity}</div>
+          <div style="font-size:12px;color:var(--muted)">${t.currentSupply}/${t.totalSupply}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent2);margin-top:4px">${t.currentPrice} <img src="/beaver-coin.svg" alt="<img src="/beaver-coin.png" alt="бобр" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;" />" style="width:14px;height:14px;display:inline;margin-left:4px"></div>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    showToast('Ошибка загрузки NFT: ' + e.message, 'error');
+  }
+}
+
+// ═══ SESSIONS ═══
+async function loadSessions() {
+  try {
+    const sessions = await apiCall('/sessions');
+    const tbody = document.getElementById('sessionsTable');
+    if (!sessions.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">Нет сессий</td></tr>';
+      return;
+    }
+    tbody.innerHTML = sessions.map(s => `
+      <tr>
+        <td>${s.deviceName || '—'}</td>
+        <td>${s.browser || '—'}</td>
+        <td style="font-family:monospace;font-size:12px">${s.ip || '—'}</td>
+        <td style="font-size:12px;color:var(--muted)">${new Date(s.createdAt).toLocaleString('ru-RU')}</td>
+        <td style="font-size:12px;color:var(--muted)">${new Date(s.lastActive).toLocaleString('ru-RU')}</td>
+        <td><span class="badge ${s.isCurrent ? 'badge-green' : 'badge-gray'}">${s.isCurrent ? 'Текущая' : 'Активна'}</span></td>
+        <td>${!s.isCurrent ? '<button class="btn btn-danger" style="font-size:11px;padding:6px 12px" onclick="terminateSession(\'' + s.id + '\')">Завершить</button>' : '—'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    showToast('Ошибка загрузки сессий: ' + e.message, 'error');
+  }
+}
+
+async function terminateSession(id) {
+  try {
+    await apiCall('/sessions/' + id, 'DELETE');
+    showToast('Сессия завершена');
+    loadSessions();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function logoutAllSessions() {
+  if (!confirm('Завершить все сессии кроме текущей?')) return;
+  try {
+    await apiCall('/sessions/all', 'DELETE');
+    showToast('Все сессии завершены');
+    loadSessions();
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function logoutCurrentSession() {
+  if (!confirm('Выйти с этого устройства?')) return;
+  logout();
+}
+
+// ═══ STORAGE ═══
+async function setStorage(mode) {
+  try {
+    await apiCall('/storage/mode', 'POST', {mode});
+    document.getElementById('storageModeText').textContent = 'Текущий режим: Локальный';
+    showToast('Режим хранилища: Локальный');
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function updateDatabase() {
+  const url = document.getElementById('dbUrlInput').value.trim();
+  if (!url) return showToast('Введите URL', 'error');
+  try {
+    await apiCall('/config/database', 'POST', {url});
+    showToast('✅ База данных обновлена');
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function updateRedis() {
+  const url = document.getElementById('redisUrlInput').value.trim();
+  if (!url) return showToast('Введите URL', 'error');
+  try {
+    await apiCall('/config/redis', 'POST', {url});
+    showToast('✅ Redis обновлён');
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ═══ SYSTEM ═══
+async function clearCache() {
+  try {
+    await apiCall('/cache/clear', 'POST');
+    showToast('🗑️ Кэш очищен');
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+async function restartServer() {
+  if (!confirm('Перезагрузить сервер?')) return;
+  try {
+    await apiCall('/restart', 'POST');
+    showToast('🔄 Сервер перезагружается...');
+  } catch (e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  }
+}
+
+// ═══ INIT ═══
+renderGradientColors();
+updateNFTPreview();
+updateTagNFTPreview();
+updateTagPreview();
+
+// Auto-login if token exists
+if (adminToken) {
+  fetch('/api/admin/stats', {headers: {'Authorization': 'Bearer ' + adminToken}})
+    .then(r => {
+      if (r.ok) {
+        document.getElementById('loginWrap').style.display = 'none';
+        document.getElementById('adminWrap').style.display = 'block';
+        loadDashboard();
+      } else {
+        adminToken = '';
+        localStorage.removeItem('нексо_admin_token');
+      }
+    }).catch(() => {
+      adminToken = '';
+      localStorage.removeItem('нексо_admin_token');
+    });
+}
+</script>
+</body>
+</html>
